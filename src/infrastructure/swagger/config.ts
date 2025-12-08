@@ -145,6 +145,101 @@ const swaggerDefinition: SwaggerDefinition = {
           },
         },
       },
+      Department: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'Department ID',
+            example: 'cmiwwr43m0000x9bfu1krff2o',
+          },
+          code: {
+            type: 'string',
+            description: 'Department code',
+            example: 'IT-DEPT',
+          },
+          name: {
+            type: 'string',
+            description: 'Department name',
+            example: 'Information Technology',
+          },
+          description: {
+            type: 'string',
+            nullable: true,
+            description: 'Department description',
+          },
+          headOfDepartmentId: {
+            type: 'string',
+            nullable: true,
+            description: 'ID of the department head',
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Whether the department is active',
+            example: true,
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Creation date',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Last update date',
+          },
+        },
+      },
+      Position: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'Position ID',
+            example: 'cmiwwr43m0000x9bfu1krff2o',
+          },
+          code: {
+            type: 'string',
+            description: 'Position code',
+            example: 'MGR-IT',
+          },
+          name: {
+            type: 'string',
+            description: 'Position name',
+            example: 'IT Manager',
+          },
+          departmentId: {
+            type: 'string',
+            nullable: true,
+            description: 'Associated department ID',
+          },
+          level: {
+            type: 'integer',
+            description: 'Hierarchy level',
+            example: 1,
+          },
+          description: {
+            type: 'string',
+            nullable: true,
+            description: 'Position description',
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Whether the position is active',
+            example: true,
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Creation date',
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            description: 'Last update date',
+          },
+        },
+      },
     },
   },
   security: [
@@ -160,6 +255,14 @@ const swaggerDefinition: SwaggerDefinition = {
     {
       name: 'Users',
       description: 'User management endpoints',
+    },
+    {
+      name: 'Departments',
+      description: 'Department management endpoints',
+    },
+    {
+      name: 'Positions',
+      description: 'Position management endpoints',
     },
   ],
 };

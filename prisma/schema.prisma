@@ -10,198 +10,1374 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
+// AUTHENTICATION & USER MANAGEMENT
+// ============================================================================
+
+// Departments master data (normalized)
+model Department {
+  id                   String                 @id @default(cuid())
+  code                 String                 @unique
+  name                 String                 @unique
+  description          String?
+  headOfDepartmentId   String?
+  isActive             Boolean                @default(true)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  users                User[]
+  positions            Position[]
+  workflowSteps        ApprovalWorkflowStep[] @relation("DepartmentApprover")
+
+  @@index([headOfDepartmentId])
+  @@map("departments")
+}
+
+// Positions master data (normalized)
+model Position {
+  id            String                 @id @default(cuid())
+  code          String                 @unique
+  name          String
+  department    Department?            @relation(fields: [departmentId], references: [id])
+  departmentId  String?
+  level         Int                    @default(1) // Hierarchy level
+  description   String?
+  isActive      Boolean                @default(true)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  users         User[]
+  workflowSteps ApprovalWorkflowStep[] @relation("PositionApprover")
+
+  @@map("positions")
+}
+
 // Users table for authentication and authorization
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String?
-  role      UserRole @default(STAFF)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  sessions  Session[]
-  orders    Order[]
+  id                    String                 @id @default(cuid())
+  employeeId            String?                @unique // User ID / Employee ID for display
+  email                 String                 @unique
+  name                  String
+  password              String?
+  role                  Role?                  @relation("UserRole", fields: [roleId], references: [id])
+  roleId                String?
+  department            Department?            @relation(fields: [departmentId], references: [id])
+  departmentId          String?
+  position              Position?              @relation(fields: [positionId], references: [id])
+  positionId            String?
+  phone                 String?
+  avatar                String?
+  isActive              Boolean                @default(true)
+  lastLogin             DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  sessions              Session[]
+  passwordResetTokens   PasswordResetToken[]
+  preferences           UserPreference?
+  documentsCreated      Document[]             @relation("DocumentCreator")
+  documentsOwned        Document[]             @relation("DocumentOwner")
+  documentApprovals     DocumentApproval[]
+  documentDistributions DocumentDistribution[]
+  documentRequests      DocumentRequest[]
+  activityLogs          ActivityLog[]
+  notifications         Notification[]
+  comments              DocumentComment[]
+  documentRevisions     DocumentRevision[]     @relation("DocumentRevisor")
+  documentAttachments   DocumentAttachment[]   @relation("AttachmentUploader")
+  documentTemplates     DocumentTemplate[]     @relation("TemplateCreator")
+  workflowSteps         ApprovalWorkflowStep[] @relation("SpecificApprover")
+  documentVersions      DocumentVersion[]      @relation("DocumentVersions")
 
+  @@index([departmentId])
+  @@index([positionId])
+  @@index([roleId])
+  @@index([isActive])
   @@map("users")
 }
 
-// User roles enum
-enum UserRole {
-  ADMIN
-  MANAGER
-  STAFF
+// User preferences and settings
+model UserPreference {
+  id                 String   @id @default(cuid())
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String   @unique
+  language           String   @default("id") // id, en
+  timezone           String   @default("Asia/Jakarta")
+  dateFormat         String   @default("DD/MM/YYYY")
+  notifyEmail        Boolean  @default(true)
+  notifyInApp        Boolean  @default(true)
+  notifyApproval     Boolean  @default(true)
+  notifyDistribution Boolean  @default(true)
+  notifyExpiring     Boolean  @default(true)
+  notifyObsolete     Boolean  @default(true)
+  theme              String   @default("light") // light, dark, auto
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("user_preferences")
 }
 
+// Roles master data (for CRUD management)
+model Role {
+  id                    String                 @id @default(cuid())
+  code                  String                 @unique
+  name                  String                 @unique
+  description           String?
+  level                 Int                    @default(1) // Role hierarchy level (higher = more permissions)
+  permissions           Json?                  // JSON array of permission strings
+  isActive              Boolean                @default(true)
+  isSystem              Boolean                @default(false) // System roles cannot be deleted
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  users                 User[]                 @relation("UserRole")
+  approvalWorkflowSteps ApprovalWorkflowStep[] @relation("RoleApprover")
+  rolePermissions       RolePermission[]
+
+  @@index([isActive])
+  @@map("roles")
+}
+
+// Session management
 model Session {
   id        String   @id @default(cuid())
   userId    String
   token     String   @unique
   expiresAt DateTime
+  deviceId  String?
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceId], name: "unique_session_per_device")
+  @@index([userId])
+  @@map("sessions")
 }
 
-// Categories for organizing menu items
-model Category {
-  id          String       @id @default(cuid())
-  name        String       @unique
+// Password reset tokens
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// ============================================================================
+// DOCUMENT MANAGEMENT
+// ============================================================================
+
+// NEW: Tag master data (normalized)
+model Tag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique // URL-friendly version
+  color       String?  @default("#3B82F6") // Hex color for UI
   description String?
-  displayOrder Int         @default(0)
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  menuItems   MenuItem[]
+  isActive    Boolean  @default(true)
+  usageCount  Int      @default(0) // Track popularity
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  @@map("categories")
+  // Relations
+  documents DocumentTag[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@map("tags")
 }
 
-// Menu items (foods and drinks)
-model MenuItem {
-  id           String      @id @default(cuid())
-  name         String
-  description  String?
-  price        Decimal     @db.Decimal(10, 2)
-  category     Category    @relation(fields: [categoryId], references: [id])
-  categoryId   String
-  imageUrl     String?
-  isAvailable  Boolean     @default(true)
-  preparationTime Int?     // in minutes
-  nutritionalInfo Json?    // Store nutritional information as JSON
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  orderItems   OrderItem[]
+// NEW: Junction table for document tags
+model DocumentTag {
+  id         String   @id @default(cuid())
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  tagId      String
+  addedBy    String // User ID who added this tag
+  createdAt  DateTime @default(now())
 
-  @@map("menu_items")
+  @@unique([documentId, tagId])
+  @@index([documentId])
+  @@index([tagId])
+  @@map("document_tags")
 }
 
-// Orders table
-model Order {
-  id             String      @id @default(cuid())
-  orderNumber    String      @unique
-  customerName   String?
-  customerEmail  String?
-  customerPhone  String?
-  tableNumber    String?
-  orderType      OrderType   @default(DINE_IN)
-  status         OrderStatus @default(PENDING)
-  subtotal       Decimal     @db.Decimal(10, 2)
-  taxAmount      Decimal     @db.Decimal(10, 2) @default(0)
-  discountAmount Decimal     @db.Decimal(10, 2) @default(0)
-  totalAmount    Decimal     @db.Decimal(10, 2)
-  paymentStatus  PaymentStatus @default(PENDING)
-  paymentMethod  String?
-  notes          String?
-  staff          User        @relation(fields: [staffId], references: [id])
-  staffId        String
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  orderItems     OrderItem[]
-  payments       Payment[]
+// Document categories/types
+model DocumentCategory {
+  id          String                     @id @default(cuid())
+  name        String                     @unique
+  code        String                     @unique // e.g., "WI-DT", "SPEC-DT-RM", "STANDART-DT"
+  description String?
+  prefix      String? // Document number prefix
+  isActive    Boolean                    @default(true)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  documents   Document[]
+  templates   DocumentTemplate[]
+  workflows   ApprovalWorkflowTemplate[]
 
-  @@map("orders")
+  @@map("document_categories")
 }
 
-// Order types enum
-enum OrderType {
-  DINE_IN
-  TAKEAWAY
-  DELIVERY
+// Document templates for standardized document creation
+model DocumentTemplate {
+  id              String           @id @default(cuid())
+  name            String
+  category        DocumentCategory @relation(fields: [categoryId], references: [id])
+  categoryId      String
+  description     String?
+  templateFileUrl String? // Optional template file
+  fields          Json // JSON schema for required fields
+  validationRules Json? // Validation rules for fields
+  isActive        Boolean          @default(true)
+  usageCount      Int              @default(0)
+  createdBy       String // User ID
+  creator         User             @relation("TemplateCreator", fields: [createdBy], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([createdBy])
+  @@index([categoryId])
+  @@map("document_templates")
 }
 
-// Order status enum
-enum OrderStatus {
+// Approval workflow templates (define approval flow per category/dept)
+model ApprovalWorkflowTemplate {
+  id          String                 @id @default(cuid())
+  name        String
+  category    DocumentCategory       @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  description String?
+  isActive    Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  steps       ApprovalWorkflowStep[]
+
+  @@map("approval_workflow_templates")
+}
+
+// Approval workflow steps (define who approves at each level)
+model ApprovalWorkflowStep {
+  id           String                   @id @default(cuid())
+  workflow     ApprovalWorkflowTemplate @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  workflowId   String
+  level        Int // Step sequence
+  name         String // e.g., "Manager Approval", "Director Approval"
+
+  // Role-based approver assignment
+  approverRole   Role?   @relation("RoleApprover", fields: [approverRoleId], references: [id])
+  approverRoleId String? // Role ID - auto-assign by role
+
+  // Fixed: Add proper FK relations
+  approverDept   Department? @relation("DepartmentApprover", fields: [approverDeptId], references: [id])
+  approverDeptId String? // Department ID - auto-assign by department
+
+  approverPosition   Position? @relation("PositionApprover", fields: [approverPositionId], references: [id])
+  approverPositionId String? // Position ID - auto-assign by position
+
+  specificUser   User?   @relation("SpecificApprover", fields: [specificUserId], references: [id])
+  specificUserId String? // Or assign to specific user
+
+  isRequired Boolean @default(true)
+  allowSkip  Boolean @default(false)
+  dueDays    Int? // Days to complete this step
+
+  // PHASE 2: Advanced workflow features
+  stepType          WorkflowStepType @default(SEQUENTIAL)
+  parallelGroup     Int? // Steps with same group run in parallel
+  conditionField    String? // Field to evaluate (e.g., "document.fileSize")
+  conditionOperator String? // e.g., ">=", "<=", "==", "!="
+  conditionValue    String? // Value to compare against
+  autoApproveIf     Json? // Conditions for auto-approval
+  escalationRules   Json? // Escalation configuration if overdue
+
+  createdAt DateTime @default(now())
+
+  @@index([workflowId])
+  @@index([approverRoleId])
+  @@index([approverDeptId])
+  @@index([approverPositionId])
+  @@index([specificUserId])
+  @@index([stepType])
+  @@index([parallelGroup])
+  @@map("approval_workflow_steps")
+}
+
+// PHASE 2: Workflow step types
+enum WorkflowStepType {
+  SEQUENTIAL // Default: one by one
+  PARALLEL // Can approve simultaneously
+  CONDITIONAL // Based on document properties
+}
+
+// Main documents table
+model Document {
+  id                 String                 @id @default(cuid())
+  documentNumber     String                 @unique // e.g., "WI-DT-001-003.pdf"
+  title              String
+  description        String?
+  category           DocumentCategory       @relation(fields: [categoryId], references: [id])
+  categoryId         String
+  version            String                 @default("1.0")
+  revisionNumber     Int                    @default(0)
+  status             DocumentStatus         @default(DRAFT)
+  approvalStatus     ApprovalStatus         @default(PENDING)
+  fileUrl            String // Main document file path
+  fileName           String
+  fileSize           Int // in bytes
+  mimeType           String
+  tags               String[] // DEPRECATED: Will migrate to DocumentTag table
+  expiryDate         DateTime?
+  effectiveDate      DateTime?
+  isObsolete         Boolean                @default(false)
+  obsoleteReason     String?
+  obsoleteDate       DateTime?
+  // Ownership & tracking
+  createdBy          User                   @relation("DocumentCreator", fields: [createdById], references: [id])
+  createdById        String
+  owner              User                   @relation("DocumentOwner", fields: [ownerId], references: [id])
+  ownerId            String
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  // Relations
+  approvals          DocumentApproval[]
+  distributions      DocumentDistribution[]
+  revisions          DocumentRevision[]
+  requests           DocumentRequest[]
+  comments           DocumentComment[]
+  attachments        DocumentAttachment[]
+  relatedDocuments   DocumentRelation[]     @relation("DocumentSource")
+  relatedToDocuments DocumentRelation[]     @relation("DocumentTarget")
+  qrCodes            DocumentQRCode[]
+  fileMetadata       DocumentFileMetadata?
+  documentTags       DocumentTag[] // NEW: Normalized tags
+  versions           DocumentVersion[] // PHASE 2: Version management
+
+  @@index([status])
+  @@index([approvalStatus])
+  @@index([expiryDate])
+  @@index([createdAt])
+  @@index([categoryId])
+  @@index([ownerId])
+  @@index([createdById])
+  @@index([documentNumber])
+  @@map("documents")
+}
+
+// Document status enum
+enum DocumentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  ACTIVE
+  REVISION_REQUIRED
+  OBSOLETE
+  ARCHIVED
+}
+
+// Approval status enum
+enum ApprovalStatus {
   PENDING
-  CONFIRMED
-  PREPARING
-  READY
+  IN_PROGRESS
+  APPROVED
+  REJECTED
+  NEEDS_REVISION
+}
+
+// Document approval workflow
+model DocumentApproval {
+  id           String         @id @default(cuid())
+  document     Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId   String
+  approver     User           @relation(fields: [approverId], references: [id])
+  approverId   String
+  level        Int            @default(1) // Approval level/sequence
+  status       ApprovalStatus @default(PENDING)
+  comments     String?
+  approvedAt   DateTime?
+  rejectedAt   DateTime?
+  requestedAt  DateTime       @default(now())
+  dueDate      DateTime?
+  reminderSent Boolean        @default(false)
+  lastReminder DateTime?
+  // NEW: Soft delete support
+  isDeleted    Boolean        @default(false)
+  deletedAt    DateTime?
+  deletedBy    String? // User ID
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([documentId, approverId, level], name: "unique_approval_per_level")
+  @@index([status])
+  @@index([dueDate])
+  @@index([approverId])
+  @@index([documentId])
+  @@index([level])
+  @@index([isDeleted])
+  @@map("document_approvals")
+}
+
+// Document distribution tracking
+model DocumentDistribution {
+  id              String             @id @default(cuid())
+  document        Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId      String
+  distributedTo   User               @relation(fields: [distributedToId], references: [id])
+  distributedToId String
+  distributedBy   String // User ID who distributed
+  method          DistributionMethod @default(EMAIL)
+  status          DistributionStatus @default(SENT)
+  isAcknowledged  Boolean            @default(false)
+  acknowledgedAt  DateTime?
+  notes           String?
+  distributedAt   DateTime           @default(now())
+  expiresAt       DateTime?
+  // NEW: Soft delete support
+  isDeleted       Boolean            @default(false)
+  deletedAt       DateTime?
+  deletedBy       String? // User ID
+
+  @@unique([documentId, distributedToId, distributedAt], name: "unique_distribution")
+  @@index([status])
+  @@index([isAcknowledged])
+  @@index([distributedToId])
+  @@index([documentId])
+  @@index([isDeleted])
+  @@map("document_distributions")
+}
+
+// Distribution method enum
+enum DistributionMethod {
+  EMAIL
+  PORTAL
+  PHYSICAL
+  SYSTEM
+}
+
+// Distribution status enum
+enum DistributionStatus {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+// Document revision history
+model DocumentRevision {
+  id             String   @id @default(cuid())
+  document       Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId     String
+  revisionNumber Int
+  version        String
+  changeLog      String // What changed in this revision
+  revisedBy      String // User ID
+  revisor        User     @relation("DocumentRevisor", fields: [revisedBy], references: [id])
+  fileUrl        String // Previous version file
+  createdAt      DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([revisedBy])
+  @@index([documentId])
+  @@map("document_revisions")
+}
+
+// Document requests
+model DocumentRequest {
+  id            String        @id @default(cuid())
+  document      Document?     @relation(fields: [documentId], references: [id])
+  documentId    String?
+  requestedBy   User          @relation(fields: [requestedById], references: [id])
+  requestedById String
+  requestType   RequestType
+  title         String
+  description   String
+  priority      Priority      @default(MEDIUM)
+  status        RequestStatus @default(PENDING)
+  dueDate       DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@map("document_requests")
+}
+
+// Request type enum
+enum RequestType {
+  NEW_DOCUMENT
+  REVISION
+  ACCESS
+  INFORMATION
+  DISTRIBUTION
+}
+
+// Request status enum
+enum RequestStatus {
+  PENDING
+  IN_PROGRESS
   COMPLETED
   CANCELLED
+  ON_HOLD
 }
 
-// Payment status enum
-enum PaymentStatus {
-  PENDING
-  PAID
-  REFUNDED
-  PARTIALLY_REFUNDED
+// Priority enum
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
 }
 
-// Order items (line items in an order)
-model OrderItem {
-  id          String    @id @default(cuid())
-  order       Order     @relation(fields: [orderId], references: [id])
-  orderId     String
-  menuItem    MenuItem  @relation(fields: [menuItemId], references: [id])
-  menuItemId  String
-  quantity    Int
-  unitPrice   Decimal   @db.Decimal(10, 2)
-  totalPrice  Decimal   @db.Decimal(10, 2)
-  specialRequest String?
-  createdAt   DateTime  @default(now())
+// Document relations (references between documents)
+model DocumentRelation {
+  id               String   @id @default(cuid())
+  sourceDocument   Document @relation("DocumentSource", fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  sourceDocumentId String
+  targetDocument   Document @relation("DocumentTarget", fields: [targetDocumentId], references: [id], onDelete: Cascade)
+  targetDocumentId String
+  relationType     String // e.g., "REFERENCES", "SUPERSEDES", "RELATED_TO"
+  createdAt        DateTime @default(now())
 
-  @@map("order_items")
+  @@unique([sourceDocumentId, targetDocumentId, relationType])
+  @@map("document_relations")
 }
 
-// Payment records
-model Payment {
-  id            String        @id @default(cuid())
-  order         Order         @relation(fields: [orderId], references: [id])
-  orderId       String
-  amount        Decimal       @db.Decimal(10, 2)
-  paymentMethod PaymentMethod
-  paymentDetails Json?        // Store payment gateway response
-  status        PaymentStatus
-  paidAt        DateTime?
-  createdAt     DateTime      @default(now())
+// Document comments/notes
+model DocumentComment {
+  id         String    @id @default(cuid())
+  document   Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId String
+  author     User      @relation(fields: [authorId], references: [id])
+  authorId   String
+  comment    String
+  isInternal Boolean   @default(false) // Internal notes vs public comments
+  // NEW: Soft delete support
+  isDeleted  Boolean   @default(false)
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  @@map("payments")
+  @@index([createdAt])
+  @@index([documentId])
+  @@index([authorId])
+  @@index([isDeleted])
+  @@map("document_comments")
 }
 
-// Payment methods enum
-enum PaymentMethod {
-  CASH
-  CREDIT_CARD
-  DEBIT_CARD
-  EWALLET
-  BANK_TRANSFER
-  QR_CODE
-}
-
-// Tables for dine-in service
-model Table {
-  id          String     @id @default(cuid())
-  number      String     @unique
-  capacity    Int
-  isAvailable Boolean    @default(true)
-  location    String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  @@map("tables")
-}
-
-// Inventory for tracking stock
-model Inventory {
+// Document attachments (supporting files)
+model DocumentAttachment {
   id          String   @id @default(cuid())
-  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
-  menuItemId  String   @unique
-  stock       Int      @default(0)
-  minStock    Int      @default(10) // Alert when stock is below this
-  unit        String   @default("pcs")
-  lastUpdated DateTime @default(now())
-
-  @@map("inventory")
-}
-
-// Transaction logs for audit trail
-model TransactionLog {
-  id          String   @id @default(cuid())
-  orderId     String?
-  type        String   // e.g., "ORDER_CREATED", "PAYMENT_RECEIVED", "ORDER_CANCELLED"
-  description String
-  metadata    Json?    // Store additional data
-  userId      String?
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId  String
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  mimeType    String
+  description String?
+  uploadedBy  String // User ID
+  uploader    User     @relation("AttachmentUploader", fields: [uploadedBy], references: [id])
   createdAt   DateTime @default(now())
 
-  @@map("transaction_logs")
+  @@index([documentId])
+  @@index([uploadedBy])
+  @@map("document_attachments")
+}
+
+// Document QR Code tracking
+model DocumentQRCode {
+  id          String           @id @default(cuid())
+  document    Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId  String
+  qrCodeUrl   String // URL to QR code image
+  qrCodeData  String // Data encoded in QR (usually document URL)
+  generatedBy String // User ID
+  scans       DocumentQRScan[]
+  createdAt   DateTime         @default(now())
+  expiresAt   DateTime?
+
+  @@index([documentId])
+  @@map("document_qr_codes")
+}
+
+// Track QR code scans
+model DocumentQRScan {
+  id        String         @id @default(cuid())
+  qrCode    DocumentQRCode @relation(fields: [qrCodeId], references: [id], onDelete: Cascade)
+  qrCodeId  String
+  scannedBy String? // User ID if logged in
+  ipAddress String?
+  userAgent String?
+  location  String? // GPS coordinates or location name
+  scannedAt DateTime       @default(now())
+
+  @@index([qrCodeId])
+  @@index([scannedAt])
+  @@map("document_qr_scans")
+}
+
+// Enhanced file metadata for better tracking
+model DocumentFileMetadata {
+  id              String   @id @default(cuid())
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId      String   @unique
+  storageProvider String   @default("local") // local, s3, gcs, azure
+  storagePath     String // Full path in storage
+  bucketName      String?
+  checksum        String // MD5 or SHA256 hash
+  encoding        String?
+  duration        Int? // For video/audio files (in seconds)
+  dimensions      Json? // For images: {width, height}
+  metadata        Json? // Additional file metadata
+  uploadedAt      DateTime @default(now())
+
+  @@map("document_file_metadata")
+}
+
+// PHASE 2: Document version management (improved)
+model DocumentVersion {
+  id            String            @id @default(cuid())
+  document      Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId    String
+  versionNumber String // e.g., "1.0", "1.1", "2.0"
+  majorVersion  Int // 1, 2, 3...
+  minorVersion  Int // 0, 1, 2...
+  patchVersion  Int               @default(0) // 0, 1, 2... for hotfixes
+  fileUrl       String
+  fileName      String
+  fileSize      Int
+  mimeType      String
+  checksum      String // File integrity check
+  changeLog     String // What changed in this version
+  changeType    VersionChangeType @default(MINOR)
+  isActive      Boolean           @default(false) // Only one active version per document
+  isCurrent     Boolean           @default(false) // Latest version
+  downloadCount Int               @default(0) // Track popularity
+  createdBy     String
+  creator       User              @relation("DocumentVersions", fields: [createdBy], references: [id])
+  createdAt     DateTime          @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, isActive])
+  @@index([documentId, isCurrent])
+  @@index([createdAt])
+  @@map("document_versions")
+}
+
+// PHASE 2: Version change types
+enum VersionChangeType {
+  MAJOR // Breaking changes (e.g., 1.0 -> 2.0)
+  MINOR // New features (e.g., 1.0 -> 1.1)
+  PATCH // Bug fixes (e.g., 1.0.0 -> 1.0.1)
+}
+
+// ============================================================================
+// REPORTING & ANALYTICS
+// ============================================================================
+
+// Activity logs for audit trail
+model ActivityLog {
+  id          String       @id @default(cuid())
+  user        User?        @relation(fields: [userId], references: [id])
+  userId      String?
+  action      ActivityType
+  entity      String // e.g., "Document", "User", "Approval"
+  entityId    String
+  description String
+  metadata    Json? // Store additional data
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime     @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+  @@index([entityId])
+  @@map("activity_logs")
+}
+
+// Activity type enum
+enum ActivityType {
+  DOCUMENT_CREATED
+  DOCUMENT_UPDATED
+  DOCUMENT_DELETED
+  DOCUMENT_APPROVED
+  DOCUMENT_REJECTED
+  DOCUMENT_DISTRIBUTED
+  DOCUMENT_ACKNOWLEDGED
+  DOCUMENT_EXPIRED
+  DOCUMENT_OBSOLETE
+  APPROVAL_REQUESTED
+  APPROVAL_COMPLETED
+  REVISION_REQUESTED
+  USER_LOGIN
+  USER_LOGOUT
+  SETTINGS_CHANGED
+}
+
+// Report templates for saved/scheduled reports
+model ReportTemplate {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  reportType  ReportType
+  filters     Json // Saved filter configuration
+  columns     Json // Column selection and order
+  groupBy     Json? // Grouping configuration
+  sortBy      Json? // Sorting configuration
+  chartConfig Json? // Chart visualization config
+  isPublic    Boolean           @default(false) // Share with other users
+  createdBy   String // User ID
+  usageCount  Int               @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  schedules   ReportSchedule[]
+  executions  ReportExecution[]
+
+  @@map("report_templates")
+}
+
+// Report types enum
+enum ReportType {
+  DOCUMENT_LIST
+  DOCUMENT_STATUS
+  APPROVAL_STATUS
+  DISTRIBUTION_STATUS
+  EXPIRING_DOCUMENTS
+  OBSOLETE_DOCUMENTS
+  USER_ACTIVITY
+  DEPARTMENT_SUMMARY
+  CATEGORY_SUMMARY
+  CUSTOM
+}
+
+// Scheduled reports
+model ReportSchedule {
+  id             String         @id @default(cuid())
+  template       ReportTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  templateId     String
+  name           String
+  frequency      String // daily, weekly, monthly, custom (cron)
+  cronExpression String?
+  recipients     String[] // Array of email addresses
+  format         String         @default("pdf") // pdf, excel, csv
+  isActive       Boolean        @default(true)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdBy      String // User ID
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@map("report_schedules")
+}
+
+// Report execution history
+model ReportExecution {
+  id          String         @id @default(cuid())
+  template    ReportTemplate @relation(fields: [templateId], references: [id])
+  templateId  String
+  executedBy  String // User ID
+  status      String // pending, running, completed, failed
+  fileUrl     String?
+  fileSize    Int?
+  recordCount Int?
+  error       String?
+  startedAt   DateTime       @default(now())
+  completedAt DateTime?
+
+  @@index([templateId])
+  @@index([executedBy])
+  @@index([startedAt])
+  @@map("report_executions")
+}
+
+// ============================================================================
+// NOTIFICATIONS & ALERTS
+// ============================================================================
+
+// Notifications system
+model Notification {
+  id        String           @id @default(cuid())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String? // Link to relevant page
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  priority  Priority         @default(MEDIUM)
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// Notification type enum
+enum NotificationType {
+  DOCUMENT_EXPIRING
+  DOCUMENT_EXPIRED
+  APPROVAL_NEEDED
+  REVISION_NEEDED
+  DOCUMENT_DISTRIBUTED
+  DOCUMENT_APPROVED
+  DOCUMENT_REJECTED
+  DOCUMENT_OBSOLETE
+  GENERAL
+  ALERT
+  REMINDER
+}
+
+// ============================================================================
+// PHASE 3: ANALYTICS & PERFORMANCE
+// ============================================================================
+
+// Document analytics - aggregated statistics
+model DocumentAnalytics {
+  id                String    @id @default(cuid())
+  documentId        String    @unique
+  viewCount         Int       @default(0)
+  downloadCount     Int       @default(0)
+  shareCount        Int       @default(0)
+  commentCount      Int       @default(0)
+  approvalTime      Int? // Average approval time in hours
+  distributionCount Int       @default(0)
+  lastViewedAt      DateTime?
+  lastDownloadedAt  DateTime?
+  popularityScore   Float     @default(0) // Calculated score
+  updatedAt         DateTime  @updatedAt
+
+  @@index([popularityScore])
+  @@index([viewCount])
+  @@index([lastViewedAt])
+  @@map("document_analytics")
+}
+
+// User activity analytics
+model UserAnalytics {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  documentsCreated    Int       @default(0)
+  documentsApproved   Int       @default(0)
+  documentsRejected   Int       @default(0)
+  averageApprovalTime Int? // In hours
+  loginCount          Int       @default(0)
+  lastLoginAt         DateTime?
+  activeSessionsCount Int       @default(0)
+  productivityScore   Float     @default(0) // Calculated score
+  updatedAt           DateTime  @updatedAt
+
+  @@index([productivityScore])
+  @@index([lastLoginAt])
+  @@map("user_analytics")
+}
+
+// Department analytics
+model DepartmentAnalytics {
+  id                  String   @id @default(cuid())
+  departmentId        String   @unique
+  totalDocuments      Int      @default(0)
+  activeDocuments     Int      @default(0)
+  pendingApprovals    Int      @default(0)
+  averageApprovalTime Int? // In hours
+  userCount           Int      @default(0)
+  activeUserCount     Int      @default(0)
+  performanceScore    Float    @default(0)
+  updatedAt           DateTime @updatedAt
+
+  @@index([performanceScore])
+  @@map("department_analytics")
+}
+
+// System-wide analytics snapshot (daily aggregates)
+model SystemAnalyticsSnapshot {
+  id                  String   @id @default(cuid())
+  date                DateTime @unique @db.Date
+  totalUsers          Int
+  activeUsers         Int
+  totalDocuments      Int
+  documentsCreated    Int
+  documentsApproved   Int
+  documentsRejected   Int
+  pendingApprovals    Int
+  averageApprovalTime Float? // In hours
+  systemLoad          Float? // 0-100%
+  storageUsed         BigInt? // In bytes
+  apiRequestCount     Int      @default(0)
+  errorCount          Int      @default(0)
+  createdAt           DateTime @default(now())
+
+  @@index([date])
+  @@index([createdAt])
+  @@map("system_analytics_snapshots")
+}
+
+// Search queries log (for analytics & optimization)
+model SearchLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  query         String
+  filters       Json? // Search filters applied
+  resultCount   Int
+  clickedId     String? // Document ID that was clicked
+  sessionId     String?
+  ipAddress     String?
+  executionTime Int? // Query time in ms
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([query])
+  @@index([createdAt])
+  @@map("search_logs")
+}
+
+// API performance metrics
+model ApiMetrics {
+  id           String   @id @default(cuid())
+  endpoint     String
+  method       String // GET, POST, PUT, DELETE
+  statusCode   Int
+  responseTime Int // In milliseconds
+  userId       String?
+  ipAddress    String?
+  userAgent    String?
+  errorMessage String?
+  timestamp    DateTime @default(now())
+
+  @@index([endpoint, method])
+  @@index([timestamp])
+  @@index([statusCode])
+  @@map("api_metrics")
+}
+
+// ============================================================================
+// PHASE 4: SECURITY & ACCESS CONTROL
+// ============================================================================
+
+// Fine-grained permissions system
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g., "documents.create", "approvals.approve"
+  resource    String // e.g., "documents", "users", "reports"
+  action      String // e.g., "create", "read", "update", "delete", "approve"
+  description String?
+  category    String   @default("general") // Group permissions
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+  @@index([resource])
+  @@index([category])
+  @@map("permissions")
+}
+
+// Role-Permission junction (many-to-many)
+model RolePermission {
+  id           String     @id @default(cuid())
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       String
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId String
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@map("role_permissions")
+}
+
+// Document-level permissions (who can access specific documents)
+model DocumentPermission {
+  id           String              @id @default(cuid())
+  documentId   String
+  userId       String?
+  departmentId String?
+  positionId   String?
+  permission   DocumentAccessLevel
+  grantedBy    String // User ID who granted permission
+  expiresAt    DateTime?
+  createdAt    DateTime            @default(now())
+
+  @@unique([documentId, userId, permission])
+  @@unique([documentId, departmentId, permission])
+  @@unique([documentId, positionId, permission])
+  @@index([documentId])
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("document_permissions")
+}
+
+enum DocumentAccessLevel {
+  VIEW // Can only view
+  DOWNLOAD // Can view and download
+  COMMENT // Can view, download, and comment
+  EDIT // Can modify document
+  MANAGE // Full control
+}
+
+// Audit trail for permission changes
+model PermissionAudit {
+  id         String   @id @default(cuid())
+  entityType String // "User", "Role", "Document"
+  entityId   String
+  action     String // "granted", "revoked", "modified"
+  permission String // Permission name
+  changedBy  String // User ID
+  oldValue   Json?
+  newValue   Json?
+  reason     String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("permission_audits")
+}
+
+// Security events log
+model SecurityEvent {
+  id          String            @id @default(cuid())
+  userId      String?
+  eventType   SecurityEventType
+  severity    SecuritySeverity
+  description String
+  ipAddress   String?
+  userAgent   String?
+  metadata    Json?
+  resolved    Boolean           @default(false)
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@index([eventType])
+  @@index([severity])
+  @@index([resolved])
+  @@index([createdAt])
+  @@map("security_events")
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  PASSWORD_CHANGE
+  UNAUTHORIZED_ACCESS
+  PERMISSION_CHANGE
+  DATA_EXPORT
+  SUSPICIOUS_ACTIVITY
+  API_KEY_USED
+  TWO_FACTOR_ENABLED
+  TWO_FACTOR_DISABLED
+}
+
+enum SecuritySeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// ============================================================================
+// PHASE 5: COLLABORATION & COMMUNICATION
+// ============================================================================
+
+// Real-time collaboration sessions
+model CollaborationSession {
+  id          String    @id @default(cuid())
+  documentId  String
+  name        String
+  description String?
+  ownerId     String
+  isActive    Boolean   @default(true)
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  participants CollaborationParticipant[]
+  activities   CollaborationActivity[]
+
+  @@index([documentId])
+  @@index([isActive])
+  @@map("collaboration_sessions")
+}
+
+model CollaborationParticipant {
+  id        String               @id @default(cuid())
+  sessionId String
+  session   CollaborationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId    String
+  role      CollaborationRole    @default(VIEWER)
+  joinedAt  DateTime             @default(now())
+  leftAt    DateTime?
+  isActive  Boolean              @default(true)
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+  @@map("collaboration_participants")
+}
+
+enum CollaborationRole {
+  OWNER
+  EDITOR
+  COMMENTER
+  VIEWER
+}
+
+model CollaborationActivity {
+  id           String                    @id @default(cuid())
+  sessionId    String
+  session      CollaborationSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  userId       String
+  activityType CollaborationActivityType
+  data         Json // Activity-specific data
+  createdAt    DateTime                  @default(now())
+
+  @@index([sessionId])
+  @@index([createdAt])
+  @@map("collaboration_activities")
+}
+
+enum CollaborationActivityType {
+  JOINED
+  LEFT
+  COMMENT_ADDED
+  EDIT_MADE
+  FILE_UPLOADED
+  ANNOTATION_ADDED
+  CURSOR_MOVED
+}
+
+// Document annotations (highlights, notes, etc.)
+model DocumentAnnotation {
+  id         String         @id @default(cuid())
+  documentId String
+  userId     String
+  type       AnnotationType
+  content    String
+  position   Json // Page number, coordinates, etc.
+  color      String?
+  isResolved Boolean        @default(false)
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  replies AnnotationReply[]
+
+  @@index([documentId])
+  @@index([userId])
+  @@index([isResolved])
+  @@map("document_annotations")
+}
+
+enum AnnotationType {
+  HIGHLIGHT
+  NOTE
+  COMMENT
+  QUESTION
+  SUGGESTION
+  ISSUE
+}
+
+model AnnotationReply {
+  id           String             @id @default(cuid())
+  annotationId String
+  annotation   DocumentAnnotation @relation(fields: [annotationId], references: [id], onDelete: Cascade)
+  userId       String
+  content      String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([annotationId])
+  @@map("annotation_replies")
+}
+
+// Mentions/notifications for collaboration
+model Mention {
+  id              String    @id @default(cuid())
+  entityType      String // "Comment", "Annotation", "Document"
+  entityId        String
+  mentionedUserId String
+  mentionedBy     String
+  isRead          Boolean   @default(false)
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([mentionedUserId, isRead])
+  @@index([entityType, entityId])
+  @@map("mentions")
+}
+
+
+// ============================================================================
+// PHASE 7: ADVANCED SEARCH & AI
+// ============================================================================
+
+// Full-text search index
+model SearchIndex {
+  id              String   @id @default(cuid())
+  documentId      String   @unique
+  title           String
+  content         String   @db.Text // Full document text
+  metadata        Json
+  vectorEmbedding Json? // For semantic search (AI)
+  language        String   @default("id")
+  updatedAt       DateTime @updatedAt
+
+  @@index([language])
+  @@map("search_index")
+}
+
+// Saved searches
+model SavedSearch {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  query      String
+  filters    Json
+  isPublic   Boolean   @default(false)
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("saved_searches")
+}
+
+// AI-powered document classification
+model DocumentClassification {
+  id          String   @id @default(cuid())
+  documentId  String   @unique
+  categories  Json // AI-suggested categories
+  tags        Json // AI-suggested tags
+  summary     String?  @db.Text
+  keyPoints   Json? // Extracted key points
+  sentiment   String? // positive, neutral, negative
+  complexity  Int? // 1-10 scale
+  confidence  Float // 0-1 confidence score
+  model       String // AI model used
+  processedAt DateTime @default(now())
+
+  @@index([confidence])
+  @@map("document_classifications")
+}
+
+// Smart recommendations
+model DocumentRecommendation {
+  id         String    @id @default(cuid())
+  userId     String
+  documentId String
+  score      Float // Relevance score 0-1
+  reason     String // Why recommended
+  viewed     Boolean   @default(false)
+  viewedAt   DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@unique([userId, documentId])
+  @@index([userId, score])
+  @@index([createdAt])
+  @@map("document_recommendations")
+}
+
+// ============================================================================
+// COMPLIANCE & RETENTION (Internal Use)
+// ============================================================================
+
+// Advanced compliance & retention
+model RetentionPolicy {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  categoryId    String?
+  departmentId  String?
+  retentionDays Int // Days to keep active
+  archiveDays   Int? // Days before archiving
+  deleteDays    Int? // Days before permanent deletion
+  isActive      Boolean  @default(true)
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("retention_policies")
+}
+
+model DataRetentionLog {
+  id         String          @id @default(cuid())
+  documentId String
+  policyId   String?
+  action     RetentionAction
+  executedBy String? // User or system
+  reason     String?
+  metadata   Json?
+  executedAt DateTime        @default(now())
+
+  @@index([documentId])
+  @@index([action])
+  @@index([executedAt])
+  @@map("data_retention_logs")
+}
+
+enum RetentionAction {
+  ARCHIVED
+  DELETED
+  RESTORED
+  EXTENDED
+}
+
+// Compliance & regulatory tracking
+model ComplianceRecord {
+  id          String           @id @default(cuid())
+  documentId  String
+  standard    String // e.g., "ISO9001", "GDPR", "SOX"
+  requirement String
+  status      ComplianceStatus
+  evidence    Json?
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  nextReview  DateTime?
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([documentId])
+  @@index([standard])
+  @@index([status])
+  @@index([nextReview])
+  @@map("compliance_records")
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  NON_COMPLIANT
+  PENDING_REVIEW
+  NOT_APPLICABLE
+}
+
+// ============================================================================
+// SYSTEM CONFIGURATION
+// ============================================================================
+
+// System settings
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  type        String // "string", "number", "boolean", "json"
+  category    String // Group settings by category
+  description String?
+  isPublic    Boolean  @default(false) // Can be accessed by non-admin users
+  updatedBy   String? // User ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
 }

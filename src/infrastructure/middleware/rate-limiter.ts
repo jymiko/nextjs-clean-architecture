@@ -4,6 +4,18 @@ import rateLimit from 'express-rate-limit';
 // In-memory store for rate limiting
 const store = new Map<string, { count: number; resetTime: number }>();
 
+interface RateLimitOptions {
+  windowMs?: number;
+  max?: number;
+  message?: string;
+}
+
+const DEFAULT_OPTIONS: RateLimitOptions = {
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests, please try again later.',
+};
+
 export const rateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
@@ -38,26 +50,27 @@ export const rateLimiter = rateLimit({
   },
 });
 
-export const createRateLimitMiddleware = () => {
+export const createRateLimitMiddleware = (options: RateLimitOptions = {}) => {
+  const { windowMs, max, message } = { ...DEFAULT_OPTIONS, ...options };
+
   return async (request: NextRequest) => {
-    const ip = request.ip ||
-               request.headers.get('x-forwarded-for') ||
+    const ip = request.headers.get('x-forwarded-for') ||
                request.headers.get('x-real-ip') ||
                'unknown';
 
-    // Simulate rate limiting check
+    // Create unique key based on IP and window
     const now = Date.now();
-    const key = `rate-limit:${ip}`;
+    const key = `rate-limit:${ip}:${windowMs}:${max}`;
     const record = store.get(key);
 
     if (!record || now > record.resetTime) {
-      store.set(key, { count: 1, resetTime: now + 15 * 60 * 1000 });
+      store.set(key, { count: 1, resetTime: now + windowMs! });
       return null;
     }
 
-    if (record.count >= 100) {
+    if (record.count >= max!) {
       return NextResponse.json(
-        { error: 'Too many requests, please try again later.' },
+        { error: message },
         { status: 429 }
       );
     }

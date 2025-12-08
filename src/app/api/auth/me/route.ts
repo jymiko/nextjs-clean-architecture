@@ -53,6 +53,13 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const authenticatedRequest = await withAuth(request);
 
+    if (!authenticatedRequest.user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     // Get user details
     const userService = container.cradle.userService;
     const user = await userService.getUserById(authenticatedRequest.user.userId);

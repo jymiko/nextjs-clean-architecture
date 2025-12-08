@@ -3,7 +3,7 @@ import { UserList } from "@/presentation/components/UserList";
 
 export default async function Home() {
   const userService = container.cradle.userService;
-  const users = await userService.getUsers();
+  const usersResponse = await userService.getUsers();
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
@@ -15,9 +15,9 @@ export default async function Home() {
 
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-              Users
+              Users ({usersResponse.total})
             </h2>
-            <UserList users={users} />
+            <UserList users={usersResponse.data} />
           </div>
 
           <div className="mt-8 p-4 bg-gray-50 dark:bg-zinc-800 rounded-lg">

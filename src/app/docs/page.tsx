@@ -7,13 +7,13 @@ export default function DocsPage() {
     <>
       <Script src="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js" strategy="afterInteractive" />
 
-      <div style={{ minHeight: '100vh' }}>
+      <div style={{ minHeight: '100vh', backgroundColor: '#ffffff' }}>
         <redoc
           spec-url="/api/docs"
           expand-responses="200,201"
           hide-download-button="false"
           show-extensions="true"
-          theme='{"colors":{"primary":{"main":"#3b82f6"}},"typography":{"fontFamily":"system-ui, -apple-system, sans-serif"},"sidebar":{"width":"300px"}}'
+          theme='{"colors":{"primary":{"main":"#3b82f6"},"background":"#ffffff"},"typography":{"fontFamily":"system-ui, -apple-system, sans-serif"},"sidebar":{"width":"300px","backgroundColor":"#fafafa"},"rightPanel":{"backgroundColor":"#263238"}}'
         />
       </div>
 

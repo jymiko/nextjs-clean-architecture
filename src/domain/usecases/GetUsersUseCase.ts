@@ -1,14 +1,14 @@
-import { User } from "../entities/User";
+import { UserListResponse, UserQueryParams } from "../entities/User";
 import { IUserRepository } from "../repositories/IUserRepository";
 
 export interface IGetUsersUseCase {
-  execute(): Promise<User[]>;
+  execute(params?: UserQueryParams): Promise<UserListResponse>;
 }
 
 export class GetUsersUseCase implements IGetUsersUseCase {
   constructor(private readonly userRepository: IUserRepository) {}
 
-  async execute(): Promise<User[]> {
-    return this.userRepository.findAll();
+  async execute(params?: UserQueryParams): Promise<UserListResponse> {
+    return this.userRepository.findAll(params);
   }
 }

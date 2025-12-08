@@ -1,18 +1,46 @@
 import { createContainer, asClass, asFunction, InjectionMode } from "awilix";
-import { InMemoryUserRepository, PrismaUserRepository } from "../repositories";
+import {
+  InMemoryUserRepository,
+  PrismaUserRepository,
+  PrismaPasswordResetRepository,
+  PrismaDepartmentRepository,
+  PrismaPositionRepository,
+  PrismaRoleRepository,
+  PrismaPermissionRepository,
+} from "../repositories";
 import {
   GetUsersUseCase,
   CreateUserUseCase,
   GetUserByIdUseCase,
+  ForgotPasswordUseCase,
+  ResetPasswordUseCase,
+  VerifyResetTokenUseCase,
 } from "@/domain/usecases";
 import { UserService } from "@/application/services/UserService";
-import { IUserRepository } from "@/domain/repositories";
+import {
+  IUserRepository,
+  IPasswordResetRepository,
+  IDepartmentRepository,
+  IPositionRepository,
+  IRoleRepository,
+  IPermissionRepository,
+} from "@/domain/repositories";
+import { EmailService, IEmailService } from "../services/EmailService";
 
 export interface Cradle {
   userRepository: IUserRepository;
+  passwordResetRepository: IPasswordResetRepository;
+  departmentRepository: IDepartmentRepository;
+  positionRepository: IPositionRepository;
+  roleRepository: IRoleRepository;
+  permissionRepository: IPermissionRepository;
+  emailService: IEmailService;
   getUsersUseCase: GetUsersUseCase;
   createUserUseCase: CreateUserUseCase;
   getUserByIdUseCase: GetUserByIdUseCase;
+  forgotPasswordUseCase: ForgotPasswordUseCase;
+  resetPasswordUseCase: ResetPasswordUseCase;
+  verifyResetTokenUseCase: VerifyResetTokenUseCase;
   userService: UserService;
 }
 
@@ -24,9 +52,21 @@ const container = createContainer<Cradle>({
 const usePrisma = process.env.NODE_ENV !== 'test';
 
 container.register({
-  userRepository: asClass(
-    usePrisma ? PrismaUserRepository : InMemoryUserRepository
-  ).singleton(),
+  userRepository: usePrisma
+    ? asClass(PrismaUserRepository).singleton()
+    : asClass(InMemoryUserRepository).singleton(),
+
+  passwordResetRepository: asClass(PrismaPasswordResetRepository).singleton(),
+
+  departmentRepository: asClass(PrismaDepartmentRepository).singleton(),
+
+  positionRepository: asClass(PrismaPositionRepository).singleton(),
+
+  roleRepository: asClass(PrismaRoleRepository).singleton(),
+
+  permissionRepository: asClass(PrismaPermissionRepository).singleton(),
+
+  emailService: asClass(EmailService).singleton(),
 
   getUsersUseCase: asFunction(
     ({ userRepository }: Cradle) => new GetUsersUseCase(userRepository)
@@ -38,6 +78,18 @@ container.register({
 
   getUserByIdUseCase: asFunction(
     ({ userRepository }: Cradle) => new GetUserByIdUseCase(userRepository)
+  ).scoped(),
+
+  forgotPasswordUseCase: asFunction(
+    ({ passwordResetRepository }: Cradle) => new ForgotPasswordUseCase(passwordResetRepository)
+  ).scoped(),
+
+  resetPasswordUseCase: asFunction(
+    ({ passwordResetRepository }: Cradle) => new ResetPasswordUseCase(passwordResetRepository)
+  ).scoped(),
+
+  verifyResetTokenUseCase: asFunction(
+    ({ passwordResetRepository }: Cradle) => new VerifyResetTokenUseCase(passwordResetRepository)
   ).scoped(),
 
   userService: asFunction(
