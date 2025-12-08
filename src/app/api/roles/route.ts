@@ -7,46 +7,6 @@ import { createRateLimitMiddleware } from '@/infrastructure/middleware';
 
 const rateLimiter = createRateLimitMiddleware();
 
-/**
- * @swagger
- * /api/roles:
- *   get:
- *     summary: Get all roles
- *     description: Retrieve a paginated list of roles with optional filtering
- *     tags: [Roles]
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *       - in: query
- *         name: isActive
- *         schema:
- *           type: boolean
- *       - in: query
- *         name: sortBy
- *         schema:
- *           type: string
- *           enum: [name, code, level, createdAt]
- *       - in: query
- *         name: sortOrder
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *     responses:
- *       200:
- *         description: List of roles
- */
 export async function GET(request: NextRequest) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -86,48 +46,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * @swagger
- * /api/roles:
- *   post:
- *     summary: Create a new role
- *     tags: [Roles]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - code
- *               - name
- *             properties:
- *               code:
- *                 type: string
- *                 example: ADMIN
- *               name:
- *                 type: string
- *                 example: Administrator
- *               description:
- *                 type: string
- *               level:
- *                 type: integer
- *                 default: 1
- *               permissions:
- *                 type: array
- *                 items:
- *                   type: string
- *               isActive:
- *                 type: boolean
- *                 default: true
- *     responses:
- *       201:
- *         description: Role created successfully
- *       400:
- *         description: Validation error
- *       409:
- *         description: Role code or name already exists
- */
 export async function POST(request: NextRequest) {
   try {
     const rateLimitResponse = await rateLimiter(request);

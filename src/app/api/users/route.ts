@@ -7,62 +7,6 @@ import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 
 const rateLimiter = createRateLimitMiddleware();
 
-/**
- * @swagger
- * /api/users:
- *   get:
- *     summary: Get all users
- *     description: Retrieve a paginated list of users with optional filtering
- *     tags: [Users]
- *     parameters:
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by name, email, or employee ID
- *       - in: query
- *         name: roleId
- *         schema:
- *           type: string
- *         description: Filter by role ID
- *       - in: query
- *         name: departmentId
- *         schema:
- *           type: string
- *         description: Filter by department ID
- *       - in: query
- *         name: positionId
- *         schema:
- *           type: string
- *         description: Filter by position ID
- *       - in: query
- *         name: isActive
- *         schema:
- *           type: boolean
- *       - in: query
- *         name: sortBy
- *         schema:
- *           type: string
- *           enum: [name, email, employeeId, createdAt]
- *       - in: query
- *         name: sortOrder
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *     responses:
- *       200:
- *         description: List of users
- */
 export async function GET(request: NextRequest) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -105,54 +49,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * @swagger
- * /api/users:
- *   post:
- *     summary: Create a new user
- *     tags: [Users]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *               - email
- *             properties:
- *               employeeId:
- *                 type: string
- *                 example: EMP-001
- *               name:
- *                 type: string
- *                 example: John Doe
- *               email:
- *                 type: string
- *                 format: email
- *                 example: john@example.com
- *               password:
- *                 type: string
- *                 format: password
- *               roleId:
- *                 type: string
- *               departmentId:
- *                 type: string
- *               positionId:
- *                 type: string
- *               phone:
- *                 type: string
- *               isActive:
- *                 type: boolean
- *                 default: true
- *     responses:
- *       201:
- *         description: User created successfully
- *       400:
- *         description: Validation error
- *       409:
- *         description: User with email or employee ID already exists
- */
 export async function POST(request: NextRequest) {
   try {
     const rateLimitResponse = await rateLimiter(request);

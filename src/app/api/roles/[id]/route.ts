@@ -11,24 +11,6 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/**
- * @swagger
- * /api/roles/{id}:
- *   get:
- *     summary: Get role by ID
- *     tags: [Roles]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Role details
- *       404:
- *         description: Role not found
- */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -52,51 +34,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-/**
- * @swagger
- * /api/roles/{id}:
- *   put:
- *     summary: Update role
- *     tags: [Roles]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               code:
- *                 type: string
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               level:
- *                 type: integer
- *               permissions:
- *                 type: array
- *                 items:
- *                   type: string
- *               isActive:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: Role updated successfully
- *       400:
- *         description: Validation error
- *       403:
- *         description: Cannot modify system roles
- *       404:
- *         description: Role not found
- *       409:
- *         description: Role code or name already exists
- */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -128,28 +65,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-/**
- * @swagger
- * /api/roles/{id}:
- *   delete:
- *     summary: Delete role
- *     tags: [Roles]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Role deleted successfully
- *       403:
- *         description: Cannot delete system roles
- *       404:
- *         description: Role not found
- *       409:
- *         description: Cannot delete role with assigned users
- */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);

@@ -11,24 +11,6 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/**
- * @swagger
- * /api/users/{id}:
- *   get:
- *     summary: Get user by ID
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: User details
- *       404:
- *         description: User not found
- */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -55,57 +37,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-/**
- * @swagger
- * /api/users/{id}:
- *   put:
- *     summary: Update user
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               employeeId:
- *                 type: string
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 format: password
- *               roleId:
- *                 type: string
- *               departmentId:
- *                 type: string
- *               positionId:
- *                 type: string
- *               phone:
- *                 type: string
- *               avatar:
- *                 type: string
- *               isActive:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: User updated successfully
- *       400:
- *         description: Validation error
- *       404:
- *         description: User not found
- *       409:
- *         description: Email or employee ID already taken
- */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -147,24 +78,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-/**
- * @swagger
- * /api/users/{id}:
- *   delete:
- *     summary: Delete user
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: User deleted successfully
- *       404:
- *         description: User not found
- */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);

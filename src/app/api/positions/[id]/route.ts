@@ -11,25 +11,6 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/**
- * @swagger
- * /api/positions/{id}:
- *   get:
- *     summary: Get position by ID
- *     tags: [Positions]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Position ID
- *     responses:
- *       200:
- *         description: Position details
- *       404:
- *         description: Position not found
- */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -53,48 +34,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-/**
- * @swagger
- * /api/positions/{id}:
- *   put:
- *     summary: Update position
- *     tags: [Positions]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Position ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               code:
- *                 type: string
- *               name:
- *                 type: string
- *               description:
- *                 type: string
- *               departmentId:
- *                 type: string
- *               level:
- *                 type: integer
- *               isActive:
- *                 type: boolean
- *     responses:
- *       200:
- *         description: Position updated successfully
- *       400:
- *         description: Validation error
- *       404:
- *         description: Position not found
- *       409:
- *         description: Position code already exists
- */
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);
@@ -126,27 +65,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-/**
- * @swagger
- * /api/positions/{id}:
- *   delete:
- *     summary: Delete position
- *     tags: [Positions]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Position ID
- *     responses:
- *       200:
- *         description: Position deleted successfully
- *       404:
- *         description: Position not found
- *       409:
- *         description: Cannot delete position with assigned employees
- */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const rateLimitResponse = await rateLimiter(request);

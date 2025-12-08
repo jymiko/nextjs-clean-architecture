@@ -33,7 +33,7 @@ export default async function Home() {
               <li>TDD with Jest & React Testing Library</li>
               <li>PostgreSQL with Prisma ORM</li>
               <li>JWT Authentication</li>
-              <li>Swagger/OpenAPI Documentation</li>
+              <li>Redoc API Documentation</li>
             </ul>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -41,28 +41,14 @@ export default async function Home() {
                 href="/docs"
                 className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
               >
-                📖 ReDoc Documentation
-              </a>
-              <a
-                href="https://editor.swagger.io/?url=http://localhost:3000/api/docs"
-                target="_blank"
-                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
-              >
-                📝 Swagger Editor
-              </a>
-              <a
-                href="https://petstore.swagger.io/?url=http://localhost:3000/api/docs"
-                target="_blank"
-                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-              >
-                📚 Swagger UI
+                API Documentation
               </a>
               <a
                 href="/api/docs"
                 target="_blank"
                 className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
               >
-                🔧 OpenAPI JSON
+                OpenAPI JSON
               </a>
             </div>
           </div>
