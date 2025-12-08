@@ -1,14 +1,15 @@
 import { createContainer, asClass, asFunction, InjectionMode } from "awilix";
-import { InMemoryUserRepository } from "../repositories/InMemoryUserRepository";
+import { InMemoryUserRepository, PrismaUserRepository } from "../repositories";
 import {
   GetUsersUseCase,
   CreateUserUseCase,
   GetUserByIdUseCase,
 } from "@/domain/usecases";
 import { UserService } from "@/application/services/UserService";
+import { IUserRepository } from "@/domain/repositories";
 
 export interface Cradle {
-  userRepository: InMemoryUserRepository;
+  userRepository: IUserRepository;
   getUsersUseCase: GetUsersUseCase;
   createUserUseCase: CreateUserUseCase;
   getUserByIdUseCase: GetUserByIdUseCase;
@@ -19,8 +20,13 @@ const container = createContainer<Cradle>({
   injectionMode: InjectionMode.PROXY,
 });
 
+// Use PrismaUserRepository in production, InMemoryUserRepository for testing
+const usePrisma = process.env.NODE_ENV !== 'test';
+
 container.register({
-  userRepository: asClass(InMemoryUserRepository).singleton(),
+  userRepository: asClass(
+    usePrisma ? PrismaUserRepository : InMemoryUserRepository
+  ).singleton(),
 
   getUsersUseCase: asFunction(
     ({ userRepository }: Cradle) => new GetUsersUseCase(userRepository)

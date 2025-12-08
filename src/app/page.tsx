@@ -25,13 +25,46 @@ export default async function Home() {
               Project Features:
             </h3>
             <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-300 space-y-1">
-              <li>Next.js 16 with App Router</li>
+              <li>Next.js 16 with App Router & Turbopack</li>
               <li>TypeScript</li>
               <li>Tailwind CSS v4</li>
               <li>Clean Architecture</li>
               <li>Dependency Injection with Awilix</li>
               <li>TDD with Jest & React Testing Library</li>
+              <li>PostgreSQL with Prisma ORM</li>
+              <li>JWT Authentication</li>
+              <li>Swagger/OpenAPI Documentation</li>
             </ul>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a
+                href="/docs"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors"
+              >
+                📖 ReDoc Documentation
+              </a>
+              <a
+                href="https://editor.swagger.io/?url=http://localhost:3000/api/docs"
+                target="_blank"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
+              >
+                📝 Swagger Editor
+              </a>
+              <a
+                href="https://petstore.swagger.io/?url=http://localhost:3000/api/docs"
+                target="_blank"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+              >
+                📚 Swagger UI
+              </a>
+              <a
+                href="/api/docs"
+                target="_blank"
+                className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+              >
+                🔧 OpenAPI JSON
+              </a>
+            </div>
           </div>
         </div>
       </main>

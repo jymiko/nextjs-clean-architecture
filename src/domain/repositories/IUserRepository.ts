@@ -1,4 +1,4 @@
-import { User, CreateUserDTO } from "../entities/User";
+import { User, CreateUserDTO, LoginDTO, AuthResponse } from "../entities/User";
 
 export interface IUserRepository {
   findAll(): Promise<User[]>;
@@ -7,4 +7,5 @@ export interface IUserRepository {
   create(data: CreateUserDTO): Promise<User>;
   update(id: string, data: Partial<CreateUserDTO>): Promise<User | null>;
   delete(id: string): Promise<boolean>;
+  authenticate(loginData: LoginDTO): Promise<AuthResponse | null>;
 }
