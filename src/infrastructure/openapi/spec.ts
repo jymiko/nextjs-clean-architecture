@@ -36,8 +36,8 @@ export const openApiSpec = {
           employeeId: { type: 'string', example: 'EMP-001' },
           name: { type: 'string', example: 'John Doe' },
           email: { type: 'string', format: 'email', example: 'john@example.com' },
-          phone: { type: 'string', example: '+62812345678' },
           avatar: { type: 'string', nullable: true },
+          signature: { type: 'string', nullable: true, description: 'Base64 encoded signature image from canvas drawing' },
           isActive: { type: 'boolean', example: true },
           roleId: { type: 'string', nullable: true },
           departmentId: { type: 'string', nullable: true },
@@ -143,12 +143,68 @@ export const openApiSpec = {
           refreshToken: { type: 'string' },
         },
       },
+      UpdateProfileRequest: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', minLength: 3, maxLength: 100, example: 'John Doe' },
+          email: { type: 'string', format: 'email', example: 'john@example.com' },
+        },
+      },
+      ChangePasswordRequest: {
+        type: 'object',
+        required: ['currentPassword', 'newPassword', 'confirmPassword'],
+        properties: {
+          currentPassword: { type: 'string', example: 'oldPassword123' },
+          newPassword: { type: 'string', minLength: 6, example: 'NewPassword123', description: 'Must contain uppercase, lowercase, and number' },
+          confirmPassword: { type: 'string', example: 'NewPassword123' },
+        },
+      },
+      UpdateSignatureRequest: {
+        type: 'object',
+        required: ['signature'],
+        properties: {
+          signature: {
+            type: 'string',
+            nullable: true,
+            example: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+            description: 'Base64 encoded image from canvas drawing. Set to null to remove signature.',
+          },
+        },
+      },
+      SignatureResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data: {
+            type: 'object',
+            properties: {
+              signature: { type: 'string', nullable: true },
+              hasSignature: { type: 'boolean', example: true },
+            },
+          },
+        },
+      },
+      SuccessResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          message: { type: 'string', example: 'Operation completed successfully' },
+        },
+      },
+      ProfileResponse: {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean', example: true },
+          data: { $ref: '#/components/schemas/User' },
+        },
+      },
     },
   },
   security: [{ bearerAuth: [] }],
   tags: [
     { name: 'Authentication', description: 'Authentication endpoints' },
-    { name: 'Users', description: 'User management endpoints' },
+    { name: 'Profile', description: 'User profile management endpoints (self-service)' },
+    { name: 'Users', description: 'User management endpoints (admin)' },
     { name: 'Departments', description: 'Department management endpoints' },
     { name: 'Positions', description: 'Position management endpoints' },
     { name: 'Roles', description: 'Role management endpoints' },
@@ -285,6 +341,195 @@ export const openApiSpec = {
         },
       },
     },
+    '/api/auth/profile': {
+      get: {
+        summary: 'Get current user profile',
+        description: 'Returns the full profile of the currently authenticated user including department, position, and role information.',
+        tags: ['Profile'],
+        responses: {
+          '200': {
+            description: 'User profile retrieved successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ProfileResponse' },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized - Invalid or missing token' },
+          '404': { description: 'User not found' },
+        },
+      },
+      put: {
+        summary: 'Update current user profile',
+        description: 'Update profile information for the currently authenticated user. Only name and email can be updated.',
+        tags: ['Profile'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UpdateProfileRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Profile updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'Profile updated successfully' },
+                    data: { $ref: '#/components/schemas/User' },
+                  },
+                },
+              },
+            },
+          },
+          '400': { description: 'Validation error' },
+          '401': { description: 'Unauthorized' },
+          '404': { description: 'User not found' },
+        },
+      },
+    },
+    '/api/auth/profile/password': {
+      put: {
+        summary: 'Change password',
+        description: 'Change the password for the currently authenticated user. Requires current password verification.',
+        tags: ['Profile'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ChangePasswordRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Password changed successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error or incorrect current password',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    error: { type: 'string', example: 'Current password is incorrect' },
+                  },
+                },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized' },
+          '404': { description: 'User not found' },
+        },
+      },
+    },
+    '/api/auth/profile/signature': {
+      get: {
+        summary: 'Get user signature',
+        description: 'Retrieve the signature of the currently authenticated user.',
+        tags: ['Profile'],
+        responses: {
+          '200': {
+            description: 'Signature retrieved successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SignatureResponse' },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized' },
+          '404': { description: 'User not found' },
+        },
+      },
+      put: {
+        summary: 'Update user signature',
+        description: 'Update or set the signature for the currently authenticated user. The signature should be a base64 encoded image from canvas drawing. Maximum size is 500KB.',
+        tags: ['Profile'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UpdateSignatureRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Signature updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean', example: true },
+                    message: { type: 'string', example: 'Signature updated successfully' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        signature: { type: 'string', nullable: true },
+                        hasSignature: { type: 'boolean', example: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error or signature too large',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    error: { type: 'string', example: 'Signature image is too large' },
+                    details: {
+                      type: 'array',
+                      items: {
+                        type: 'object',
+                        properties: {
+                          field: { type: 'string', example: 'signature' },
+                          message: { type: 'string', example: 'Signature must be less than 500KB' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized' },
+          '404': { description: 'User not found' },
+        },
+      },
+      delete: {
+        summary: 'Remove user signature',
+        description: 'Remove the signature for the currently authenticated user.',
+        tags: ['Profile'],
+        responses: {
+          '200': {
+            description: 'Signature removed successfully',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/SuccessResponse' },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized' },
+          '404': { description: 'User not found' },
+        },
+      },
+    },
     '/api/users': {
       get: {
         summary: 'Get all users',
@@ -322,7 +567,6 @@ export const openApiSpec = {
                   roleId: { type: 'string' },
                   departmentId: { type: 'string' },
                   positionId: { type: 'string' },
-                  phone: { type: 'string' },
                   isActive: { type: 'boolean', default: true },
                 },
               },
@@ -364,8 +608,8 @@ export const openApiSpec = {
                   roleId: { type: 'string' },
                   departmentId: { type: 'string' },
                   positionId: { type: 'string' },
-                  phone: { type: 'string' },
                   avatar: { type: 'string' },
+                  signature: { type: 'string', description: 'Base64 encoded signature image' },
                   isActive: { type: 'boolean' },
                 },
               },

@@ -63,8 +63,8 @@ model User {
   departmentId          String?
   position              Position?              @relation(fields: [positionId], references: [id])
   positionId            String?
-  phone                 String?
   avatar                String?
+  signature             String?                @db.Text // Base64 encoded signature image from canvas drawing
   isActive              Boolean                @default(true)
   lastLogin             DateTime?
   createdAt             DateTime               @default(now())

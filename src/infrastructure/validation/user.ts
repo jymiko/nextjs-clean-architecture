@@ -29,10 +29,6 @@ export const createUserAdminSchema = z.object({
   roleId: z.string().cuid('Invalid role ID').optional(),
   departmentId: z.string().cuid('Invalid department ID').optional(),
   positionId: z.string().cuid('Invalid position ID').optional(),
-  phone: z.string()
-    .regex(/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/, 'Invalid phone number format')
-    .optional()
-    .or(z.literal('')),
   isActive: z.boolean().default(true),
 });
 
@@ -54,11 +50,10 @@ export const updateUserAdminSchema = z.object({
   roleId: z.string().cuid('Invalid role ID').nullable().optional(),
   departmentId: z.string().cuid('Invalid department ID').nullable().optional(),
   positionId: z.string().cuid('Invalid position ID').nullable().optional(),
-  phone: z.string()
-    .regex(/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/, 'Invalid phone number format')
+  signature: z.string()
+    .regex(/^data:image\/(png|jpeg|jpg|webp);base64,/, 'Invalid signature format. Must be a base64 encoded image')
     .nullable()
-    .optional()
-    .or(z.literal('')),
+    .optional(),
   isActive: z.boolean().optional(),
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
@@ -101,9 +96,47 @@ export const verifyResetTokenSchema = z.object({
   token: z.string().min(1, 'Token is required'),
 });
 
+// Schema for user profile update (self-update) - only name and email allowed
+export const updateProfileSchema = z.object({
+  name: z.string()
+    .min(3, 'Name must be at least 3 characters')
+    .max(100, 'Name must not exceed 100 characters')
+    .optional(),
+  email: z.string().email('Invalid email format').optional(),
+}).refine(data => Object.keys(data).length > 0, {
+  message: 'At least one field must be provided for update',
+});
+
+// Schema for change password
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string()
+    .min(6, 'New password must be at least 6 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  confirmPassword: z.string().min(1, 'Confirm password is required'),
+}).refine(data => data.newPassword === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+}).refine(data => data.currentPassword !== data.newPassword, {
+  message: 'New password must be different from current password',
+  path: ['newPassword'],
+});
+
+// Schema for signature update
+export const updateSignatureSchema = z.object({
+  signature: z.string()
+    .regex(/^data:image\/(png|jpeg|jpg|webp);base64,/, 'Invalid signature format. Must be a base64 encoded image')
+    .nullable(),
+});
+
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type VerifyResetTokenInput = z.infer<typeof verifyResetTokenSchema>;
+export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type UpdateSignatureInput = z.infer<typeof updateSignatureSchema>;
