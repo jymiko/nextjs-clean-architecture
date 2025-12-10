@@ -47,7 +47,7 @@ This project follows Clean Architecture principles with clear separation of conc
 1. Clone the repository
 ```bash
 git clone <repository-url>
-cd nextjs-clean-architecture
+cd gacoan-dcms
 ```
 
 2. Install dependencies

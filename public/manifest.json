@@ -1,7 +1,7 @@
 {
-  "name": "Next.js Clean Architecture App",
-  "short_name": "CleanArch",
-  "description": "A Next.js application built with clean architecture principles",
+  "name": "Gacoan DCMS",
+  "short_name": "DCMS",
+  "description": "A Document Control Management System built with Next.js and clean architecture principles",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",

@@ -9,7 +9,7 @@ export default function DocsPage() {
 
       <div style={{ minHeight: '100vh', backgroundColor: '#ffffff' }}>
         <redoc
-          spec-url="/api/docs"
+          spec-url="/api/docs?v=1.0.4"
           expand-responses="200,201"
           hide-download-button="false"
           show-extensions="true"

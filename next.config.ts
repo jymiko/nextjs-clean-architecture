@@ -162,6 +162,8 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
+  // Turbopack configuration (empty to silence the warning)
+  turbopack: {},
 
   // Security headers
   async headers() {
@@ -211,13 +213,6 @@ const nextConfig: NextConfig = {
   // Server External Packages (moved from experimental)
   serverExternalPackages: ['@prisma/client'],
 
-  // Webpack configuration
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback.fs = false;
-    }
-    return config;
-  },
-};
+  };
 
 export default withPWA(nextConfig);

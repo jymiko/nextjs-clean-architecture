@@ -4,6 +4,7 @@ import { handleError } from '@/infrastructure/errors';
 import { updateUserAdminSchema } from '@/infrastructure/validation';
 import { ZodError, ZodIssue } from 'zod';
 import { createRateLimitMiddleware } from '@/infrastructure/middleware';
+import { withAuthHandler } from '@/infrastructure/middleware/auth';
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export const PUT = withAuthHandler(async (request: NextRequest, { params }: RouteParams) => {
   try {
     const rateLimitResponse = await rateLimiter(request);
     if (rateLimitResponse) return rateLimitResponse;
@@ -76,9 +77,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return handleError(error, request);
   }
-}
+}, { allowedRoles: ['ADMIN'] });
 
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export const DELETE = withAuthHandler(async (request: NextRequest, { params }: RouteParams) => {
   try {
     const rateLimitResponse = await rateLimiter(request);
     if (rateLimitResponse) return rateLimitResponse;
@@ -95,4 +96,4 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
   } catch (error) {
     return handleError(error, request);
   }
-}
+}, { allowedRoles: ['ADMIN'] });

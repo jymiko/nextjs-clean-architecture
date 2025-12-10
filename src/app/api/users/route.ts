@@ -4,6 +4,7 @@ import { handleError } from "@/infrastructure/errors";
 import { createUserAdminSchema, userQuerySchema } from "@/infrastructure/validation";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
+import { withAuthHandler } from "@/infrastructure/middleware/auth";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuthHandler(async (request: NextRequest) => {
   try {
     const rateLimitResponse = await rateLimiter(request);
     if (rateLimitResponse) return rateLimitResponse;
@@ -80,4 +81,4 @@ export async function POST(request: NextRequest) {
 
     return handleError(error, request);
   }
-}
+}, { allowedRoles: ['ADMIN'] });

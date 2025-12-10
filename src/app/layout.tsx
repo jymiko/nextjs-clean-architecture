@@ -13,13 +13,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Next.js Clean Architecture App",
-  description: "A Next.js application built with clean architecture principles",
+  title: "Gacoan DCMS",
+  description: "A Document Control Management System built with Next.js and clean architecture principles",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "CleanArch",
+    title: "Gacoan DCMS",
   },
   formatDetection: {
     telephone: false,
