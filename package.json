@@ -10,7 +10,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "db:seed:permissions": "tsx prisma/seed-permissions.ts"
+    "db:seed:permissions": "tsx prisma/seed-permissions.ts",
+    "docker:build": "docker build -t gacoan-dcms .",
+    "docker:run": "docker run -p 3000:3000 gacoan-dcms",
+    "docker:build-and-run": "npm run docker:build && npm run docker:run",
+    "docker:compose:up": "docker-compose up -d",
+    "docker:compose:down": "docker-compose down"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

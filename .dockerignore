@@ -1,0 +1,91 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Testing
+coverage
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.ts
+*.spec.tsx
+
+# Next.js
+.next/
+out/
+build
+
+# Misc
+.DS_Store
+*.pem
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env*.local
+.env
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Documentation
+README.md
+docs/
+
+# Tests
+__tests__/
+test/
+tests/
+
+# ESLint
+.eslintrc*
+
+# Prettier
+.prettierrc*
+
+# GitHub
+.github/
+
+# Husky
+.husky/
+
+# Lint-staged
+.lintstagedrc*
+
+# Config files
+jest.config.*
+tailwind.config.*
+tsconfig.json
