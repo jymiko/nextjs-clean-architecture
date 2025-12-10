@@ -9,16 +9,18 @@ export interface Permission {
   createdAt: Date;
 }
 
-export interface RolePermission {
+export interface UserPermission {
   id: string;
-  roleId: string;
+  userId: string;
   permissionId: string;
   permission?: Permission;
+  grantedBy?: string | null;
+  expiresAt?: Date | null;
   createdAt: Date;
 }
 
 export interface CreatePermissionDTO {
-  name: string;
+  name?: string;
   resource: string;
   action: string;
   description?: string;
@@ -58,18 +60,12 @@ export interface AssignPermissionsDTO {
   permissionIds: string[];
 }
 
-export interface RoleWithPermissions {
+export interface UserWithPermissions {
   id: string;
-  code: string;
   name: string;
-  description?: string | null;
-  level: number;
-  isActive: boolean;
-  isSystem: boolean;
+  email: string;
+  role: 'ADMIN' | 'USER';
   permissions: Permission[];
-  totalUsers?: number;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 // Default permission categories

@@ -4,7 +4,7 @@ import {
   UpdatePermissionDTO,
   PermissionListResponse,
   PermissionQueryParams,
-  RoleWithPermissions,
+  UserWithPermissions,
   generatePermissionName,
 } from '@/domain/entities/Permission';
 import { IPermissionRepository } from '@/domain/repositories/IPermissionRepository';
@@ -31,45 +31,6 @@ export class PrismaPermissionRepository implements IPermissionRepository {
       category: data.category,
       isActive: data.isActive,
       createdAt: data.createdAt,
-    };
-  }
-
-  private mapToRoleWithPermissions(role: {
-    id: string;
-    code: string;
-    name: string;
-    description: string | null;
-    level: number;
-    isActive: boolean;
-    isSystem: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-    _count?: { users: number };
-    rolePermissions: Array<{
-      permission: {
-        id: string;
-        name: string;
-        resource: string;
-        action: string;
-        description: string | null;
-        category: string;
-        isActive: boolean;
-        createdAt: Date;
-      };
-    }>;
-  }): RoleWithPermissions {
-    return {
-      id: role.id,
-      code: role.code,
-      name: role.name,
-      description: role.description,
-      level: role.level,
-      isActive: role.isActive,
-      isSystem: role.isSystem,
-      permissions: role.rolePermissions.map((rp) => this.mapToPermission(rp.permission)),
-      totalUsers: role._count?.users || 0,
-      createdAt: role.createdAt,
-      updatedAt: role.updatedAt,
     };
   }
 
@@ -247,8 +208,8 @@ export class PrismaPermissionRepository implements IPermissionRepository {
       throw new NotFoundError('Permission not found');
     }
 
-    // Delete associated role permissions first
-    await prisma.rolePermission.deleteMany({
+    // Delete associated user permissions first
+    await prisma.userPermission.deleteMany({
       where: { permissionId: id },
     });
 
@@ -259,25 +220,22 @@ export class PrismaPermissionRepository implements IPermissionRepository {
     return true;
   }
 
-  async getRolePermissions(roleId: string): Promise<Permission[]> {
-    const rolePermissions = await prisma.rolePermission.findMany({
-      where: { roleId },
+  async getUserPermissions(userId: string): Promise<Permission[]> {
+    const userPermissions = await prisma.userPermission.findMany({
+      where: { userId },
       include: {
         permission: true,
       },
     });
 
-    return rolePermissions.map((rp) => this.mapToPermission(rp.permission));
+    return userPermissions.map((up) => this.mapToPermission(up.permission));
   }
 
-  async getRoleWithPermissions(roleId: string): Promise<RoleWithPermissions | null> {
-    const role = await prisma.role.findUnique({
-      where: { id: roleId },
+  async getUserWithPermissions(userId: string): Promise<UserWithPermissions | null> {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
       include: {
-        _count: {
-          select: { users: true },
-        },
-        rolePermissions: {
+        userPermissions: {
           include: {
             permission: true,
           },
@@ -285,19 +243,25 @@ export class PrismaPermissionRepository implements IPermissionRepository {
       },
     });
 
-    if (!role) return null;
+    if (!user) return null;
 
-    return this.mapToRoleWithPermissions(role);
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      permissions: user.userPermissions.map((up) => this.mapToPermission(up.permission)),
+    };
   }
 
-  async assignPermissionsToRole(
-    roleId: string,
+  async assignPermissionsToUser(
+    userId: string,
     permissionIds: string[]
-  ): Promise<RoleWithPermissions> {
-    // Verify role exists
-    const role = await prisma.role.findUnique({ where: { id: roleId } });
-    if (!role) {
-      throw new NotFoundError('Role not found');
+  ): Promise<UserWithPermissions> {
+    // Verify user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundError('User not found');
     }
 
     // Verify all permissions exist
@@ -308,70 +272,70 @@ export class PrismaPermissionRepository implements IPermissionRepository {
       throw new NotFoundError(`Permissions not found: ${missingIds.join(', ')}`);
     }
 
-    // Get existing role permissions
-    const existingRolePermissions = await prisma.rolePermission.findMany({
-      where: { roleId },
+    // Get existing user permissions
+    const existingUserPermissions = await prisma.userPermission.findMany({
+      where: { userId },
       select: { permissionId: true },
     });
-    const existingPermissionIds = existingRolePermissions.map((rp) => rp.permissionId);
+    const existingPermissionIds = existingUserPermissions.map((up) => up.permissionId);
 
     // Filter out already assigned permissions
     const newPermissionIds = permissionIds.filter((id) => !existingPermissionIds.includes(id));
 
-    // Create new role permissions
+    // Create new user permissions
     if (newPermissionIds.length > 0) {
-      await prisma.rolePermission.createMany({
+      await prisma.userPermission.createMany({
         data: newPermissionIds.map((permissionId) => ({
-          roleId,
+          userId,
           permissionId,
         })),
       });
     }
 
-    // Return updated role with permissions
-    const result = await this.getRoleWithPermissions(roleId);
+    // Return updated user with permissions
+    const result = await this.getUserWithPermissions(userId);
     if (!result) {
-      throw new NotFoundError('Role not found');
+      throw new NotFoundError('User not found');
     }
 
     return result;
   }
 
-  async removePermissionsFromRole(
-    roleId: string,
+  async removePermissionsFromUser(
+    userId: string,
     permissionIds: string[]
-  ): Promise<RoleWithPermissions> {
-    // Verify role exists
-    const role = await prisma.role.findUnique({ where: { id: roleId } });
-    if (!role) {
-      throw new NotFoundError('Role not found');
+  ): Promise<UserWithPermissions> {
+    // Verify user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundError('User not found');
     }
 
-    // Delete role permissions
-    await prisma.rolePermission.deleteMany({
+    // Delete user permissions
+    await prisma.userPermission.deleteMany({
       where: {
-        roleId,
+        userId,
         permissionId: { in: permissionIds },
       },
     });
 
-    // Return updated role with permissions
-    const result = await this.getRoleWithPermissions(roleId);
+    // Return updated user with permissions
+    const result = await this.getUserWithPermissions(userId);
     if (!result) {
-      throw new NotFoundError('Role not found');
+      throw new NotFoundError('User not found');
     }
 
     return result;
   }
 
-  async syncRolePermissions(
-    roleId: string,
+  async syncUserPermissions(
+    userId: string,
     permissionIds: string[]
-  ): Promise<RoleWithPermissions> {
-    // Verify role exists
-    const role = await prisma.role.findUnique({ where: { id: roleId } });
-    if (!role) {
-      throw new NotFoundError('Role not found');
+  ): Promise<UserWithPermissions> {
+    // Verify user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundError('User not found');
     }
 
     // Verify all permissions exist (if any provided)
@@ -384,25 +348,25 @@ export class PrismaPermissionRepository implements IPermissionRepository {
       }
     }
 
-    // Delete all existing role permissions
-    await prisma.rolePermission.deleteMany({
-      where: { roleId },
+    // Delete all existing user permissions
+    await prisma.userPermission.deleteMany({
+      where: { userId },
     });
 
-    // Create new role permissions
+    // Create new user permissions
     if (permissionIds.length > 0) {
-      await prisma.rolePermission.createMany({
+      await prisma.userPermission.createMany({
         data: permissionIds.map((permissionId) => ({
-          roleId,
+          userId,
           permissionId,
         })),
       });
     }
 
-    // Return updated role with permissions
-    const result = await this.getRoleWithPermissions(roleId);
+    // Return updated user with permissions
+    const result = await this.getUserWithPermissions(userId);
     if (!result) {
-      throw new NotFoundError('Role not found');
+      throw new NotFoundError('User not found');
     }
 
     return result;

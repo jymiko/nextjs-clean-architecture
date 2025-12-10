@@ -4,7 +4,7 @@ import {
   UpdatePermissionDTO,
   PermissionListResponse,
   PermissionQueryParams,
-  RoleWithPermissions,
+  UserWithPermissions,
 } from '../entities/Permission';
 
 export interface IPermissionRepository {
@@ -18,12 +18,12 @@ export interface IPermissionRepository {
   update(id: string, data: UpdatePermissionDTO): Promise<Permission | null>;
   delete(id: string): Promise<boolean>;
 
-  // Role-Permission management
-  getRolePermissions(roleId: string): Promise<Permission[]>;
-  getRoleWithPermissions(roleId: string): Promise<RoleWithPermissions | null>;
-  assignPermissionsToRole(roleId: string, permissionIds: string[]): Promise<RoleWithPermissions>;
-  removePermissionsFromRole(roleId: string, permissionIds: string[]): Promise<RoleWithPermissions>;
-  syncRolePermissions(roleId: string, permissionIds: string[]): Promise<RoleWithPermissions>;
+  // User-Permission management
+  getUserPermissions(userId: string): Promise<Permission[]>;
+  getUserWithPermissions(userId: string): Promise<UserWithPermissions | null>;
+  assignPermissionsToUser(userId: string, permissionIds: string[]): Promise<UserWithPermissions>;
+  removePermissionsFromUser(userId: string, permissionIds: string[]): Promise<UserWithPermissions>;
+  syncUserPermissions(userId: string, permissionIds: string[]): Promise<UserWithPermissions>;
 
   // Utility
   getPermissionsByResource(resource: string): Promise<Permission[]>;

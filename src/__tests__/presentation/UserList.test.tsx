@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { UserList } from "@/presentation/components/UserList";
-import { User } from "@/domain/entities/User";
+import { User, UserRole } from "@/domain/entities/User";
 
 describe("UserList", () => {
   const mockUsers: User[] = [
-    { id: "1", name: "John Doe", email: "john@example.com", createdAt: new Date() },
-    { id: "2", name: "Jane Doe", email: "jane@example.com", createdAt: new Date() },
+    { id: "1", name: "John Doe", email: "john@example.com", role: UserRole.USER, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: "2", name: "Jane Doe", email: "jane@example.com", role: UserRole.ADMIN, isActive: true, createdAt: new Date(), updatedAt: new Date() },
   ];
 
   it("should render list of users", () => {

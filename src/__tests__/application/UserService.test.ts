@@ -2,7 +2,7 @@ import { UserService } from "@/application/services/UserService";
 import { IGetUsersUseCase } from "@/domain/usecases/GetUsersUseCase";
 import { IGetUserByIdUseCase } from "@/domain/usecases/GetUserByIdUseCase";
 import { ICreateUserUseCase } from "@/domain/usecases/CreateUserUseCase";
-import { User, CreateUserDTO } from "@/domain/entities/User";
+import { User, UserRole, CreateUserDTO, UserListResponse } from "@/domain/entities/User";
 
 describe("UserService", () => {
   let userService: UserService;
@@ -14,7 +14,18 @@ describe("UserService", () => {
     id: "1",
     name: "John Doe",
     email: "john@example.com",
+    role: UserRole.USER,
+    isActive: true,
     createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  const mockUserListResponse: UserListResponse = {
+    data: [mockUser],
+    total: 1,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
   };
 
   beforeEach(() => {
@@ -31,12 +42,11 @@ describe("UserService", () => {
 
   describe("getUsers", () => {
     it("should return all users from use case", async () => {
-      const users = [mockUser];
-      mockGetUsersUseCase.execute.mockResolvedValue(users);
+      mockGetUsersUseCase.execute.mockResolvedValue(mockUserListResponse);
 
       const result = await userService.getUsers();
 
-      expect(result).toEqual(users);
+      expect(result).toEqual(mockUserListResponse);
       expect(mockGetUsersUseCase.execute).toHaveBeenCalledTimes(1);
     });
   });

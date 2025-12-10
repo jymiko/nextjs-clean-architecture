@@ -57,8 +57,7 @@ model User {
   email                 String                 @unique
   name                  String
   password              String?
-  role                  Role?                  @relation("UserRole", fields: [roleId], references: [id])
-  roleId                String?
+  role                  UserRole               @default(USER)
   department            Department?            @relation(fields: [departmentId], references: [id])
   departmentId          String?
   position              Position?              @relation(fields: [positionId], references: [id])
@@ -85,10 +84,11 @@ model User {
   documentTemplates     DocumentTemplate[]     @relation("TemplateCreator")
   workflowSteps         ApprovalWorkflowStep[] @relation("SpecificApprover")
   documentVersions      DocumentVersion[]      @relation("DocumentVersions")
+  userPermissions       UserPermission[]
 
   @@index([departmentId])
   @@index([positionId])
-  @@index([roleId])
+  @@index([role])
   @@index([isActive])
   @@map("users")
 }
@@ -114,24 +114,10 @@ model UserPreference {
   @@map("user_preferences")
 }
 
-// Roles master data (for CRUD management)
-model Role {
-  id                    String                 @id @default(cuid())
-  code                  String                 @unique
-  name                  String                 @unique
-  description           String?
-  level                 Int                    @default(1) // Role hierarchy level (higher = more permissions)
-  permissions           Json?                  // JSON array of permission strings
-  isActive              Boolean                @default(true)
-  isSystem              Boolean                @default(false) // System roles cannot be deleted
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  users                 User[]                 @relation("UserRole")
-  approvalWorkflowSteps ApprovalWorkflowStep[] @relation("RoleApprover")
-  rolePermissions       RolePermission[]
-
-  @@index([isActive])
-  @@map("roles")
+// User role enum (simplified)
+enum UserRole {
+  ADMIN
+  USER
 }
 
 // Session management
@@ -268,9 +254,8 @@ model ApprovalWorkflowStep {
   level        Int // Step sequence
   name         String // e.g., "Manager Approval", "Director Approval"
 
-  // Role-based approver assignment
-  approverRole   Role?   @relation("RoleApprover", fields: [approverRoleId], references: [id])
-  approverRoleId String? // Role ID - auto-assign by role
+  // Role-based approver assignment (using enum)
+  approverRole UserRole? // Assign by role type (ADMIN or USER)
 
   // Fixed: Add proper FK relations
   approverDept   Department? @relation("DepartmentApprover", fields: [approverDeptId], references: [id])
@@ -298,7 +283,7 @@ model ApprovalWorkflowStep {
   createdAt DateTime @default(now())
 
   @@index([workflowId])
-  @@index([approverRoleId])
+  @@index([approverRole])
   @@index([approverDeptId])
   @@index([approverPositionId])
   @@index([specificUserId])
@@ -971,7 +956,7 @@ model Permission {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  roles RolePermission[]
+  users UserPermission[]
 
   @@unique([resource, action])
   @@index([resource])
@@ -979,18 +964,21 @@ model Permission {
   @@map("permissions")
 }
 
-// Role-Permission junction (many-to-many)
-model RolePermission {
+// User-Permission junction (many-to-many) - assign permissions directly to users
+model UserPermission {
   id           String     @id @default(cuid())
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  roleId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   permissionId String
+  grantedBy    String? // User ID who granted this permission
+  expiresAt    DateTime? // Optional expiration
   createdAt    DateTime   @default(now())
 
-  @@unique([roleId, permissionId])
-  @@index([roleId])
-  @@map("role_permissions")
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+  @@map("user_permissions")
 }
 
 // Document-level permissions (who can access specific documents)

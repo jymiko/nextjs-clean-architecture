@@ -1,5 +1,6 @@
 import {
   User,
+  UserRole,
   CreateUserDTO,
   UpdateUserDTO,
   LoginDTO,
@@ -17,7 +18,7 @@ export class InMemoryUserRepository implements IUserRepository {
       page = 1,
       limit = 10,
       search,
-      roleId,
+      role,
       departmentId,
       positionId,
       isActive,
@@ -38,9 +39,9 @@ export class InMemoryUserRepository implements IUserRepository {
       );
     }
 
-    // Filter by roleId
-    if (roleId) {
-      users = users.filter((user) => user.roleId === roleId);
+    // Filter by role
+    if (role) {
+      users = users.filter((user) => user.role === role);
     }
 
     // Filter by departmentId
@@ -115,14 +116,13 @@ export class InMemoryUserRepository implements IUserRepository {
       name: data.name,
       email: data.email,
       password: data.password,
-      roleId: data.roleId || null,
-      role: null,
+      role: data.role ?? UserRole.USER,
       departmentId: data.departmentId || null,
       department: null,
       positionId: data.positionId || null,
       position: null,
-      phone: data.phone || null,
       avatar: null,
+      signature: null,
       isActive: data.isActive ?? true,
       lastLogin: null,
       createdAt: now,
@@ -140,6 +140,7 @@ export class InMemoryUserRepository implements IUserRepository {
     const updatedUser: User = {
       ...existingUser,
       ...data,
+      role: data.role ?? existingUser.role,
       updatedAt: new Date(),
     };
     this.users.set(id, updatedUser);

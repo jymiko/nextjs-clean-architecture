@@ -1,6 +1,6 @@
 import { CreateUserUseCase } from "@/domain/usecases/CreateUserUseCase";
 import { IUserRepository } from "@/domain/repositories/IUserRepository";
-import { User, CreateUserDTO } from "@/domain/entities/User";
+import { User, UserRole, CreateUserDTO } from "@/domain/entities/User";
 
 describe("CreateUserUseCase", () => {
   let createUserUseCase: CreateUserUseCase;
@@ -11,9 +11,12 @@ describe("CreateUserUseCase", () => {
       findAll: jest.fn(),
       findById: jest.fn(),
       findByEmail: jest.fn(),
+      findByEmployeeId: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      authenticate: jest.fn(),
+      count: jest.fn(),
     };
     createUserUseCase = new CreateUserUseCase(mockUserRepository);
   });
@@ -26,8 +29,12 @@ describe("CreateUserUseCase", () => {
 
     const expectedUser: User = {
       id: "1",
-      ...createUserDTO,
+      name: createUserDTO.name,
+      email: createUserDTO.email,
+      role: UserRole.USER,
+      isActive: true,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     mockUserRepository.findByEmail.mockResolvedValue(null);
@@ -50,7 +57,10 @@ describe("CreateUserUseCase", () => {
       id: "1",
       name: "Existing User",
       email: "john@example.com",
+      role: UserRole.USER,
+      isActive: true,
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     mockUserRepository.findByEmail.mockResolvedValue(existingUser);

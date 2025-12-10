@@ -1,15 +1,16 @@
+// User role enum matching Prisma schema
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+}
+
 export interface User {
   id: string;
   employeeId?: string | null;
   name: string;
   email: string;
   password?: string | null;
-  roleId?: string | null;
-  role?: {
-    id: string;
-    code: string;
-    name: string;
-  } | null;
+  role: UserRole;
   departmentId?: string | null;
   department?: {
     id: string;
@@ -22,8 +23,8 @@ export interface User {
     code: string;
     name: string;
   } | null;
-  phone?: string | null;
   avatar?: string | null;
+  signature?: string | null;
   isActive: boolean;
   lastLogin?: Date | null;
   createdAt: Date;
@@ -35,10 +36,9 @@ export interface CreateUserDTO {
   name: string;
   email: string;
   password?: string;
-  roleId?: string;
+  role?: UserRole;
   departmentId?: string;
   positionId?: string;
-  phone?: string;
   isActive?: boolean;
 }
 
@@ -47,11 +47,11 @@ export interface UpdateUserDTO {
   name?: string;
   email?: string;
   password?: string;
-  roleId?: string | null;
+  role?: UserRole;
   departmentId?: string | null;
   positionId?: string | null;
-  phone?: string | null;
   avatar?: string | null;
+  signature?: string | null;
   isActive?: boolean;
 }
 
@@ -67,7 +67,7 @@ export interface UserQueryParams {
   page?: number;
   limit?: number;
   search?: string;
-  roleId?: string;
+  role?: UserRole;
   departmentId?: string;
   positionId?: string;
   isActive?: boolean;

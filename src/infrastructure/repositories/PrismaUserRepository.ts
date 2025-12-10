@@ -1,5 +1,6 @@
 import {
   User,
+  UserRole,
   CreateUserDTO,
   UpdateUserDTO,
   LoginDTO,
@@ -11,6 +12,7 @@ import { IUserRepository } from '@/domain/repositories/IUserRepository';
 import { prisma } from '../database';
 import { hashPassword, comparePassword, generateToken } from '../auth';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../errors';
+import { UserRole as PrismaUserRole } from '@prisma/client';
 
 export class PrismaUserRepository implements IUserRepository {
   private mapToUser(data: {
@@ -19,14 +21,13 @@ export class PrismaUserRepository implements IUserRepository {
     email: string;
     name: string;
     password: string | null;
-    roleId: string | null;
-    role?: { id: string; code: string; name: string } | null;
+    role: PrismaUserRole;
     departmentId: string | null;
     department?: { id: string; code: string; name: string } | null;
     positionId: string | null;
     position?: { id: string; code: string; name: string } | null;
-    phone: string | null;
     avatar: string | null;
+    signature: string | null;
     isActive: boolean;
     lastLogin: Date | null;
     createdAt: Date;
@@ -38,14 +39,13 @@ export class PrismaUserRepository implements IUserRepository {
       name: data.name,
       email: data.email,
       password: data.password ?? undefined,
-      roleId: data.roleId,
-      role: data.role || null,
+      role: data.role as UserRole,
       departmentId: data.departmentId,
       department: data.department || null,
       positionId: data.positionId,
       position: data.position || null,
-      phone: data.phone,
       avatar: data.avatar,
+      signature: data.signature,
       isActive: data.isActive,
       lastLogin: data.lastLogin,
       createdAt: data.createdAt,
@@ -58,7 +58,7 @@ export class PrismaUserRepository implements IUserRepository {
       page = 1,
       limit = 10,
       search,
-      roleId,
+      role,
       departmentId,
       positionId,
       isActive,
@@ -78,8 +78,8 @@ export class PrismaUserRepository implements IUserRepository {
       ];
     }
 
-    if (roleId) {
-      where.roleId = roleId;
+    if (role) {
+      where.role = role;
     }
 
     if (departmentId) {
@@ -101,9 +101,6 @@ export class PrismaUserRepository implements IUserRepository {
         take: limit,
         orderBy: { [sortBy]: sortOrder },
         include: {
-          role: {
-            select: { id: true, code: true, name: true },
-          },
           department: {
             select: { id: true, code: true, name: true },
           },
@@ -135,9 +132,6 @@ export class PrismaUserRepository implements IUserRepository {
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
-        role: {
-          select: { id: true, code: true, name: true },
-        },
         department: {
           select: { id: true, code: true, name: true },
         },
@@ -156,9 +150,6 @@ export class PrismaUserRepository implements IUserRepository {
     const user = await prisma.user.findUnique({
       where: { email },
       include: {
-        role: {
-          select: { id: true, code: true, name: true },
-        },
         department: {
           select: { id: true, code: true, name: true },
         },
@@ -177,9 +168,6 @@ export class PrismaUserRepository implements IUserRepository {
     const user = await prisma.user.findUnique({
       where: { employeeId },
       include: {
-        role: {
-          select: { id: true, code: true, name: true },
-        },
         department: {
           select: { id: true, code: true, name: true },
         },
@@ -209,14 +197,6 @@ export class PrismaUserRepository implements IUserRepository {
       }
     }
 
-    // Validate roleId if provided
-    if (data.roleId) {
-      const role = await prisma.role.findUnique({ where: { id: data.roleId } });
-      if (!role) {
-        throw new NotFoundError('Role not found');
-      }
-    }
-
     // Validate departmentId if provided
     if (data.departmentId) {
       const department = await prisma.department.findUnique({ where: { id: data.departmentId } });
@@ -242,16 +222,12 @@ export class PrismaUserRepository implements IUserRepository {
         name: data.name,
         email: data.email,
         password: hashedPassword,
-        roleId: data.roleId,
+        role: data.role ?? 'USER',
         departmentId: data.departmentId,
         positionId: data.positionId,
-        phone: data.phone,
         isActive: data.isActive ?? true,
       },
       include: {
-        role: {
-          select: { id: true, code: true, name: true },
-        },
         department: {
           select: { id: true, code: true, name: true },
         },
@@ -287,14 +263,6 @@ export class PrismaUserRepository implements IUserRepository {
       }
     }
 
-    // Validate roleId if provided
-    if (data.roleId) {
-      const role = await prisma.role.findUnique({ where: { id: data.roleId } });
-      if (!role) {
-        throw new NotFoundError('Role not found');
-      }
-    }
-
     // Validate departmentId if provided
     if (data.departmentId) {
       const department = await prisma.department.findUnique({ where: { id: data.departmentId } });
@@ -321,17 +289,14 @@ export class PrismaUserRepository implements IUserRepository {
         name: data.name,
         email: data.email,
         password: hashedPassword,
-        roleId: data.roleId,
+        role: data.role,
         departmentId: data.departmentId,
         positionId: data.positionId,
-        phone: data.phone,
         avatar: data.avatar,
+        signature: data.signature,
         isActive: data.isActive,
       },
       include: {
-        role: {
-          select: { id: true, code: true, name: true },
-        },
         department: {
           select: { id: true, code: true, name: true },
         },
