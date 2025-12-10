@@ -3,6 +3,8 @@ import { container } from "@/infrastructure/di/container";
 import { handleError, UnauthorizedError } from "@/infrastructure/errors";
 import { withAuth } from "@/infrastructure/middleware";
 import { revokeToken } from "@/infrastructure/auth";
+import { revokeAllUserRefreshTokens } from "@/infrastructure/auth/refresh-token";
+import { prisma } from "@/infrastructure/database";
 
 /**
  * @swagger
@@ -52,11 +54,26 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
+    const userId = authenticatedRequest.user?.id;
 
-    // Revoke token
-    await revokeToken(token);
+    // Check if logout all devices is requested
+    const body = await request.json().catch(() => ({}));
+    const logoutAll = body.logoutAll || false;
 
-    return NextResponse.json({ message: "Logged out successfully" });
+    if (logoutAll && userId) {
+      // Revoke all tokens for the user
+      await prisma.session.deleteMany({
+        where: { userId },
+      });
+      await revokeAllUserRefreshTokens(userId);
+    } else {
+      // Revoke only the current access token
+      await revokeToken(token);
+    }
+
+    return NextResponse.json({
+      message: logoutAll ? "Logged out from all devices successfully" : "Logged out successfully"
+    });
   } catch (error) {
     return handleError(error, request);
   }

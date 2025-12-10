@@ -82,5 +82,8 @@ export interface LoginDTO {
 
 export interface AuthResponse {
   user: Omit<User, 'password'>;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  tokenType: string;
 }

@@ -10,7 +10,8 @@ import {
 } from '@/domain/entities/User';
 import { IUserRepository } from '@/domain/repositories/IUserRepository';
 import { prisma } from '../database';
-import { hashPassword, comparePassword, generateToken } from '../auth';
+import { hashPassword, comparePassword } from '../auth';
+import { generateTokenPair } from '../auth/refresh-token';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../errors';
 import { UserRole as PrismaUserRole } from '@prisma/client';
 
@@ -345,8 +346,8 @@ export class PrismaUserRepository implements IUserRepository {
       data: { lastLogin: new Date() },
     });
 
-    // Generate JWT token
-    const token = await generateToken({
+    // Generate token pair (access token and refresh token)
+    const tokenPair = await generateTokenPair({
       userId: user.id,
       email: user.email,
     });
@@ -356,7 +357,10 @@ export class PrismaUserRepository implements IUserRepository {
 
     return {
       user: userWithoutPassword,
-      token,
+      accessToken: tokenPair.accessToken,
+      refreshToken: tokenPair.refreshToken,
+      expiresIn: 900, // 15 minutes in seconds
+      tokenType: 'Bearer',
     };
   }
 
