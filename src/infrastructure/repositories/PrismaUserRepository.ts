@@ -30,6 +30,7 @@ export class PrismaUserRepository implements IUserRepository {
     avatar: string | null;
     signature: string | null;
     isActive: boolean;
+    deletedAt: Date | null;
     lastLogin: Date | null;
     createdAt: Date;
     updatedAt: Date;
@@ -48,6 +49,7 @@ export class PrismaUserRepository implements IUserRepository {
       avatar: data.avatar,
       signature: data.signature,
       isActive: data.isActive,
+      deletedAt: data.deletedAt,
       lastLogin: data.lastLogin,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
@@ -69,7 +71,9 @@ export class PrismaUserRepository implements IUserRepository {
 
     const skip = (page - 1) * limit;
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {
+      deletedAt: null, // Exclude deleted users
+    };
 
     if (search) {
       where.OR = [
@@ -130,8 +134,11 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
-    const user = await prisma.user.findUnique({
-      where: { id },
+    const user = await prisma.user.findFirst({
+      where: {
+        id,
+        deletedAt: null, // Exclude deleted users
+      },
       include: {
         department: {
           select: { id: true, code: true, name: true },
@@ -148,8 +155,11 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const user = await prisma.user.findFirst({
+      where: {
+        email,
+        deletedAt: null, // Exclude deleted users
+      },
       include: {
         department: {
           select: { id: true, code: true, name: true },
@@ -166,8 +176,11 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async findByEmployeeId(employeeId: string): Promise<User | null> {
-    const user = await prisma.user.findUnique({
-      where: { employeeId },
+    const user = await prisma.user.findFirst({
+      where: {
+        employeeId,
+        deletedAt: null, // Exclude deleted users
+      },
       include: {
         department: {
           select: { id: true, code: true, name: true },
@@ -316,8 +329,15 @@ export class PrismaUserRepository implements IUserRepository {
       throw new NotFoundError('User not found');
     }
 
-    await prisma.user.delete({
+    // Soft delete - mark as inactive and set deletedAt timestamp
+    await prisma.user.update({
       where: { id },
+      data: {
+        isActive: false,
+        deletedAt: new Date(),
+        email: `deleted_${Date.now()}_${existingUser.email}`, // Avoid email conflicts
+        updatedAt: new Date()
+      },
     });
 
     return true;
@@ -365,6 +385,10 @@ export class PrismaUserRepository implements IUserRepository {
   }
 
   async count(): Promise<number> {
-    return prisma.user.count();
+    return prisma.user.count({
+      where: {
+        deletedAt: null, // Exclude deleted users
+      },
+    });
   }
 }

@@ -26,6 +26,7 @@ export interface User {
   avatar?: string | null;
   signature?: string | null;
   isActive: boolean;
+  deletedAt?: Date | null;
   lastLogin?: Date | null;
   createdAt: Date;
   updatedAt: Date;

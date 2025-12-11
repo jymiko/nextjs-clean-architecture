@@ -8,7 +8,7 @@ import { withAuthHandler } from "@/infrastructure/middleware/auth";
 
 const rateLimiter = createRateLimitMiddleware();
 
-export async function GET(request: NextRequest) {
+export const GET = withAuthHandler(async (request: NextRequest) => {
   try {
     const rateLimitResponse = await rateLimiter(request);
     if (rateLimitResponse) return rateLimitResponse;
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       page: searchParams.get('page') || '1',
       limit: searchParams.get('limit') || '10',
       search: searchParams.get('search') || undefined,
-      roleId: searchParams.get('roleId') || undefined,
+      role: searchParams.get('role') || undefined,
       departmentId: searchParams.get('departmentId') || undefined,
       positionId: searchParams.get('positionId') || undefined,
       isActive: searchParams.get('isActive') || undefined,
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const validatedParams = userQuerySchema.parse(queryParams);
 
     const userRepository = container.cradle.userRepository;
-    const result = await userRepository.findAll(validatedParams);
+    const result = await userRepository.findAll(validatedParams as any);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     return handleError(error, request);
   }
-}
+});
 
 export const POST = withAuthHandler(async (request: NextRequest) => {
   try {
@@ -59,7 +59,7 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
     const validatedData = createUserAdminSchema.parse(body);
 
     const userRepository = container.cradle.userRepository;
-    const user = await userRepository.create(validatedData);
+    const user = await userRepository.create(validatedData as any);
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;

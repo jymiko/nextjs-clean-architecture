@@ -1,5 +1,6 @@
 import { container } from "@/infrastructure/di/container";
 import { UserList } from "@/presentation/components/UserList";
+import { Header } from "@/components/Header";
 
 export default async function Home() {
   const userService = container.cradle.userService;
@@ -7,11 +8,9 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <main className="mx-auto max-w-4xl py-12 px-4 sm:px-6 lg:px-8">
+      <Header />
+      <main className="mx-auto max-w-4xl py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white dark:bg-zinc-900 shadow rounded-lg p-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-            Gacoan DCMS
-          </h1>
 
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createRateLimitMiddleware } from '@/infrastructure/middleware';
 import { refreshAccessToken } from '@/infrastructure/auth/refresh-token';
 import { UnauthorizedError } from '@/infrastructure/errors';
+import { getUserFriendlyMessage } from '@/infrastructure/errors';
 
 // Input validation schema
 const refreshSchema = z.object({
@@ -42,21 +43,28 @@ async function postHandler(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { success: false, message: 'Invalid request data', errors: error.errors },
+        {
+          success: false,
+          message: getUserFriendlyMessage('Validation Error'),
+          errors: error.issues.map(err => ({
+            ...err,
+            message: getUserFriendlyMessage(err.message) || err.message
+          }))
+        },
         { status: 400 }
       );
     }
 
     if (error instanceof UnauthorizedError) {
       return NextResponse.json(
-        { success: false, message: error.message },
+        { success: false, message: getUserFriendlyMessage(error.message) },
         { status: 401 }
       );
     }
 
     console.error('Error refreshing token:', error);
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { success: false, message: getUserFriendlyMessage('Internal server error') },
       { status: 500 }
     );
   }

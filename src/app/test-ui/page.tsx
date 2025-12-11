@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 
 export default function TestUI() {
-  const [checked, setChecked] = useState(false)
+  const [checked, setChecked] = useState<boolean>(false)
   const [switchOn, setSwitchOn] = useState(false)
   const [selectedTab, setSelectedTab] = useState("account")
 
@@ -70,7 +70,7 @@ export default function TestUI() {
                   <Checkbox
                     id="terms"
                     checked={checked}
-                    onCheckedChange={setChecked}
+                    onCheckedChange={(checkedState) => setChecked(checkedState === true)}
                   />
                   <Label htmlFor="terms">Accept terms and conditions</Label>
                 </div>

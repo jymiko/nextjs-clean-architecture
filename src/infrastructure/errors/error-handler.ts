@@ -1,28 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AppError } from './app-error';
 import { ZodError } from 'zod';
+import { getUserFriendlyMessage, createErrorResponse } from './user-friendly-messages';
 
 export const handleError = (error: unknown, request: NextRequest) => {
   console.error('Error:', error);
 
   if (error instanceof ZodError) {
+    const formattedErrors = error.issues.map((err) => ({
+      field: err.path.join('.'),
+      message: getUserFriendlyMessage(err.message) || err.message,
+    }));
+
     return NextResponse.json(
-      {
-        error: 'Validation Error',
-        details: error.issues.map((err) => ({
-          field: err.path.join('.'),
-          message: err.message,
-        })),
-      },
+      createErrorResponse(
+        'Validation Error',
+        400,
+        formattedErrors
+      ),
       { status: 400 }
     );
   }
 
   if (error instanceof AppError) {
+    const friendlyMessage = getUserFriendlyMessage(error.message);
     return NextResponse.json(
       {
-        error: error.message,
-        ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
+        error: friendlyMessage || error.message,
+        ...(process.env.NODE_ENV === 'development' && {
+          errorDetails: error.message,
+          stack: error.stack
+        }),
       },
       { status: error.statusCode }
     );
@@ -35,17 +43,17 @@ export const handleError = (error: unknown, request: NextRequest) => {
     switch (prismaError.code) {
       case 'P2002':
         return NextResponse.json(
-          { error: 'Unique constraint violation' },
+          createErrorResponse('Unique constraint violation', 409),
           { status: 409 }
         );
       case 'P2025':
         return NextResponse.json(
-          { error: 'Record not found' },
+          createErrorResponse('Record not found', 404),
           { status: 404 }
         );
       default:
         return NextResponse.json(
-          { error: 'Database error' },
+          createErrorResponse('Database error', 500),
           { status: 500 }
         );
     }
@@ -53,13 +61,7 @@ export const handleError = (error: unknown, request: NextRequest) => {
 
   // Generic error
   return NextResponse.json(
-    {
-      error: 'Internal server error',
-      ...(process.env.NODE_ENV === 'development' && {
-        errorDetails: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      }),
-    },
+    createErrorResponse('Internal server error', 500),
     { status: 500 }
   );
 };

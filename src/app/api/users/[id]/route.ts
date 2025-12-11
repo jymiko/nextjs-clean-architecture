@@ -48,7 +48,7 @@ export const PUT = withAuthHandler(async (request: NextRequest, { params }: Rout
     const validatedData = updateUserAdminSchema.parse(body);
 
     const userRepository = container.cradle.userRepository;
-    const user = await userRepository.update(id, validatedData);
+    const user = await userRepository.update(id, validatedData as any);
 
     if (!user) {
       return NextResponse.json(

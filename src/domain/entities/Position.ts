@@ -48,6 +48,6 @@ export interface PositionQueryParams {
   search?: string;
   departmentId?: string;
   isActive?: boolean;
-  sortBy?: 'name' | 'code' | 'level' | 'createdAt';
+  sortBy?: 'name' | 'code' | 'level' | 'createdAt' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
 }

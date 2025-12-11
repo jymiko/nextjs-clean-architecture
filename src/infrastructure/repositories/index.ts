@@ -4,3 +4,4 @@ export * from "./PrismaPasswordResetRepository";
 export * from "./PrismaDepartmentRepository";
 export * from "./PrismaPositionRepository";
 export * from "./PrismaPermissionRepository";
+export * from "./PrismaDocumentRepository";

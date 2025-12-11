@@ -5,7 +5,7 @@ import tokenManager from '@/lib/auth/token-manager';
 import apiClient from '@/lib/api-client';
 
 export default function AuthExample() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<{ id: string; name: string; email: string; role: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function AuthExample() {
       tokenManager.initializeTokens(loginResponse);
       setUser(loginResponse.user);
     } catch (error) {
-      alert('Login failed: ' + error.message);
+      alert('Login failed: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -68,7 +68,7 @@ export default function AuthExample() {
       const response = await apiClient.get('/api/documents');
       alert(`Success! Found ${response.data.length} documents`);
     } catch (error) {
-      alert('Request failed: ' + error.message);
+      alert('Request failed: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 

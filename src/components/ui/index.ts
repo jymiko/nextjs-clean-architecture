@@ -16,17 +16,6 @@ export {
   AccordionTrigger,
 } from "./accordion"
 export { Alert, AlertDescription, AlertTitle } from "./alert"
-export {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "./alert-dialog"
 export { AspectRatio } from "./aspect-ratio"
 export { Avatar, AvatarFallback, AvatarImage } from "./avatar"
 export { Badge, badgeVariants } from "./badge"
@@ -38,32 +27,12 @@ export {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "./breadcrumb"
-export { Calendar } from "./calendar"
-export {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "./carousel"
-export { ChartContainer, ChartTooltip, ChartTooltipContent } from "./chart"
 export { Checkbox } from "./checkbox"
 export {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "./collapsible"
-export {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-  CommandShortcut,
-} from "./command"
 export {
   ContextMenu,
   ContextMenuContent,
@@ -144,15 +113,6 @@ export {
   NavigationMenuViewport,
 } from "./navigation-menu"
 export {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "./pagination"
-export {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -208,10 +168,6 @@ export {
 } from "./tabs"
 export { Textarea } from "./textarea"
 export { Toggle } from "./toggle"
-export {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "./toggle-group"
 export {
   Tooltip,
   TooltipContent,

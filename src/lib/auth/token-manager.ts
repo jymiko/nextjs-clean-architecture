@@ -190,6 +190,7 @@ class TokenManager {
     }
 
     this.clearTokens();
+    // Note: Last accounts data is NOT cleared on logout to preserve user convenience
   }
 
   // Initialize tokens after login

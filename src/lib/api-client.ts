@@ -43,10 +43,22 @@ class ApiClient {
 
       if (newTokens) {
         // Retry the request with the new token
-        headers = {
-          ...headers,
-          Authorization: `Bearer ${newTokens.accessToken}`,
-        };
+        const newHeaders = new Headers();
+
+        // Copy existing headers
+        if (headers instanceof Headers) {
+          headers.forEach((value, key) => {
+            newHeaders.append(key, value);
+          });
+        } else {
+          // If headers is a plain object
+          Object.entries(headers).forEach(([key, value]) => {
+            newHeaders.append(key, value as string);
+          });
+        }
+
+        newHeaders.set('Authorization', `Bearer ${newTokens.accessToken}`);
+        headers = newHeaders as any;
 
         response = await fetch(url, {
           ...fetchOptions,

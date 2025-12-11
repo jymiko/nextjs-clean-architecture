@@ -38,7 +38,7 @@ export const positionQuerySchema = z.object({
   search: z.string().optional(),
   departmentId: z.string().cuid('Invalid department ID').optional(),
   isActive: z.enum(['true', 'false']).transform(val => val === 'true').optional(),
-  sortBy: z.enum(['name', 'code', 'level', 'createdAt']).default('createdAt'),
+  sortBy: z.enum(['name', 'code', 'level', 'createdAt', 'updatedAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 

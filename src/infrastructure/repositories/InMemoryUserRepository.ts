@@ -28,6 +28,9 @@ export class InMemoryUserRepository implements IUserRepository {
 
     let users = Array.from(this.users.values());
 
+    // Exclude deleted users
+    users = users.filter((user) => !user.deletedAt);
+
     // Filter by search
     if (search) {
       const searchLower = search.toLowerCase();
@@ -87,12 +90,16 @@ export class InMemoryUserRepository implements IUserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.users.get(id) || null;
+    const user = this.users.get(id);
+    if (!user || user.deletedAt) {
+      return null;
+    }
+    return user;
   }
 
   async findByEmail(email: string): Promise<User | null> {
     for (const user of this.users.values()) {
-      if (user.email === email) {
+      if (user.email === email && !user.deletedAt) {
         return user;
       }
     }
@@ -101,7 +108,7 @@ export class InMemoryUserRepository implements IUserRepository {
 
   async findByEmployeeId(employeeId: string): Promise<User | null> {
     for (const user of this.users.values()) {
-      if (user.employeeId === employeeId) {
+      if (user.employeeId === employeeId && !user.deletedAt) {
         return user;
       }
     }
@@ -148,7 +155,19 @@ export class InMemoryUserRepository implements IUserRepository {
   }
 
   async delete(id: string): Promise<boolean> {
-    return this.users.delete(id);
+    const user = this.users.get(id);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Soft delete - mark as inactive and set deletedAt
+    user.isActive = false;
+    user.deletedAt = new Date();
+    user.email = `deleted_${Date.now()}_${user.email}`; // Avoid email conflicts
+    user.updatedAt = new Date();
+
+    this.users.set(id, user);
+    return true;
   }
 
   async authenticate(loginData: LoginDTO): Promise<AuthResponse | null> {
@@ -167,11 +186,14 @@ export class InMemoryUserRepository implements IUserRepository {
     const { password: _, ...userWithoutPassword } = user;
     return {
       user: userWithoutPassword,
-      token: 'mock-jwt-token',
+      accessToken: 'mock-access-token',
+      refreshToken: 'mock-refresh-token',
+      expiresIn: 3600,
+      tokenType: 'Bearer',
     };
   }
 
   async count(): Promise<number> {
-    return this.users.size;
+    return Array.from(this.users.values()).filter(user => !user.deletedAt).length;
   }
 }

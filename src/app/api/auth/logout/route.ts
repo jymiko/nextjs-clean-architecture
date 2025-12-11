@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.substring(7);
-    const userId = authenticatedRequest.user?.id;
+    const userId = authenticatedRequest.user?.userId;
 
     // Check if logout all devices is requested
     const body = await request.json().catch(() => ({}));

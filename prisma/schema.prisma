@@ -65,6 +65,7 @@ model User {
   avatar                String?
   signature             String?                @db.Text // Base64 encoded signature image from canvas drawing
   isActive              Boolean                @default(true)
+  deletedAt             DateTime?
   lastLogin             DateTime?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt

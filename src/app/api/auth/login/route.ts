@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { container } from "@/infrastructure/di/container";
-import { handleError } from "@/infrastructure/errors";
+import { handleError, getUserFriendlyMessage } from "@/infrastructure/errors";
 import { loginSchema } from "@/infrastructure/validation";
 import { ZodError } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
 
     if (!authResponse) {
       return NextResponse.json(
-        { error: "Invalid credentials" },
+        { error: getUserFriendlyMessage("Invalid credentials") },
         { status: 401 }
       );
     }
@@ -77,10 +77,10 @@ export async function POST(request: NextRequest) {
     if (error instanceof ZodError) {
       return NextResponse.json(
         {
-          error: "Validation Error",
+          error: getUserFriendlyMessage("Validation Error"),
           details: error.issues.map((err) => ({
             field: err.path.join("."),
-            message: err.message,
+            message: getUserFriendlyMessage(err.message) || err.message,
           })),
         },
         { status: 400 }

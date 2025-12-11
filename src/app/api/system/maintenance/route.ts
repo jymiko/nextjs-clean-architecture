@@ -49,7 +49,7 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
       startTime: startTime ?? null,
       endTime: endTime ?? null,
       bypassKey: generateBypassKey ? Math.random().toString(36).substring(7) : null
-    };
+    } as typeof maintenanceMode;
 
     return NextResponse.json({
       success: true,

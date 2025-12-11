@@ -66,7 +66,7 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
     const health = {
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     };
     return NextResponse.json(health, { status: 503 });
   }

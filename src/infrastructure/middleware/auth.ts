@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '../auth';
 import { UnauthorizedError } from '../errors';
+import { getUserFriendlyMessage } from '../errors/user-friendly-messages';
 
 export interface AuthenticatedRequest extends NextRequest {
   user?: {
@@ -57,8 +58,9 @@ export function withAuthHandler(
       if (options.allowedRoles && options.allowedRoles.length > 0) {
         const userRole = authenticatedRequest.user?.role;
         if (!userRole || !options.allowedRoles.includes(userRole)) {
+          const friendlyMessage = getUserFriendlyMessage('Access denied');
           return NextResponse.json(
-            { error: 'Insufficient permissions' },
+            { error: friendlyMessage || 'Access denied' },
             { status: 403 }
           );
         }
@@ -68,8 +70,9 @@ export function withAuthHandler(
       return handler(authenticatedRequest, context);
     } catch (error) {
       if (error instanceof UnauthorizedError) {
+        const friendlyMessage = getUserFriendlyMessage(error.message);
         return NextResponse.json(
-          { error: error.message },
+          { error: friendlyMessage || error.message },
           { status: 401 }
         );
       }

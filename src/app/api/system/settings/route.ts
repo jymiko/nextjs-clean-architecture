@@ -29,7 +29,7 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
         'storage.max_file_size': '10MB'
       };
 
-      const value = settings[key];
+      const value = (settings as Record<string, any>)[key];
       if (value === undefined) {
         return NextResponse.json(
           { error: 'Setting not found' },
