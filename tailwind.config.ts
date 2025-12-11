@@ -7,6 +7,13 @@ const config: Config = {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       colors: {
         background: "hsl(var(--background))",
@@ -42,6 +49,40 @@ const config: Config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        dashboard: {
+          bg: "#F9FBFF",
+          text: {
+            dark: "#151D48",
+            muted: "#737791",
+          },
+          sidebar: {
+            bg: "#151D48",
+            text: "#9FA7C7",
+            active: {
+              bg: "rgba(77, 177, 212, 0.15)",
+              text: "#4DB1D4",
+            },
+          },
+          accent: {
+            cyan: "#4DB1D4",
+            pink: "#DA318C",
+            orange: "#FFB547",
+          },
+          state: {
+            success: {
+              bg: "#DBFFE0",
+              text: "#0E9211",
+            },
+            warning: {
+              bg: "#FFF4D4",
+              text: "#C08F2C",
+            },
+            error: {
+              bg: "#FFD6CD",
+              text: "#F24822",
+            },
+          },
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
