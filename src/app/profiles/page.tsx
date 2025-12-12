@@ -102,7 +102,7 @@ export default function UsersPage() {
         user =>
           user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
+          user.employeeId?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -211,9 +211,7 @@ export default function UsersPage() {
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                      user.role === 'approver' ? 'bg-green-100 text-green-800' :
-                      user.role === 'reviewer' ? 'bg-yellow-100 text-yellow-800' :
+                      user.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' :
                       'bg-gray-100 text-gray-800'
                     }`}>
                       {user.role}

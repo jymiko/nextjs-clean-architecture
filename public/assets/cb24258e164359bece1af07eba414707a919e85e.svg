@@ -1,0 +1,8 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="DocumentValidationIcon">
+<path id="Vector" d="M10.5 1.5H4.5C4.10218 1.5 3.72065 1.65803 3.43934 1.93934C3.15803 2.22064 3 2.60218 3 3V15C3 15.3978 3.15803 15.7793 3.43934 16.0606C3.72065 16.342 4.10218 16.5 4.5 16.5H13.5C13.8978 16.5 14.2793 16.342 14.5606 16.0606C14.842 15.7793 15 15.3978 15 15V6L10.5 1.5Z" stroke="var(--stroke-0, #364153)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M10.5 1.5V6H15" stroke="var(--stroke-0, #364153)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" opacity="0.15" d="M9 14.25C10.6569 14.25 12 12.9069 12 11.25C12 9.59315 10.6569 8.25 9 8.25C7.34315 8.25 6 9.59315 6 11.25C6 12.9069 7.34315 14.25 9 14.25Z" fill="var(--fill-0, #364153)"/>
+<path id="Vector_4" d="M7.125 11.25L8.25 12.375L10.875 9.75" stroke="var(--stroke-0, #364153)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>

@@ -1,0 +1,8 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 228 228" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Success modal-glow">
+<circle id="Ellipse 1" cx="114" cy="114" r="114" fill="var(--fill-0, #ECFAFF)"/>
+<circle id="Ellipse 2" cx="114" cy="114" r="82" fill="var(--fill-0, #BAE7F7)"/>
+<circle id="Ellipse 3" cx="114" cy="114" r="41" fill="var(--fill-0, #4DB1D4)"/>
+<path id="Vector 1" d="M95 118.651L111.991 136L159 88" stroke="var(--stroke-0, white)" stroke-width="10" stroke-linecap="round"/>
+</g>
+</svg>

@@ -63,87 +63,6 @@ const DEFAULT_PERMISSIONS = [
   { resource: 'system', action: 'backup', category: 'system', description: 'Manage backups' },
 ];
 
-// Default roles with permissions
-const DEFAULT_ROLES = [
-  {
-    code: 'SUPER_ADMIN',
-    name: 'Super Administrator',
-    description: 'Full system access',
-    level: 100,
-    isSystem: true,
-    permissions: '*', // All permissions
-  },
-  {
-    code: 'ADMIN',
-    name: 'Administrator',
-    description: 'Administrative access without system settings',
-    level: 90,
-    isSystem: true,
-    permissions: [
-      'documents.*',
-      'users.*',
-      'roles.read',
-      'departments.*',
-      'positions.*',
-      'approvals.*',
-      'reports.*',
-      'settings.view',
-    ],
-  },
-  {
-    code: 'MANAGER',
-    name: 'Manager',
-    description: 'Department manager with approval rights',
-    level: 70,
-    isSystem: false,
-    permissions: [
-      'documents.create',
-      'documents.read',
-      'documents.update',
-      'documents.approve',
-      'documents.reject',
-      'documents.distribute',
-      'users.read',
-      'departments.read',
-      'positions.read',
-      'approvals.*',
-      'reports.view',
-      'reports.export',
-    ],
-  },
-  {
-    code: 'STAFF',
-    name: 'Staff',
-    description: 'Regular staff member',
-    level: 50,
-    isSystem: false,
-    permissions: [
-      'documents.create',
-      'documents.read',
-      'documents.update',
-      'users.read',
-      'departments.read',
-      'positions.read',
-      'approvals.view',
-      'reports.view',
-    ],
-  },
-  {
-    code: 'VIEWER',
-    name: 'Viewer',
-    description: 'Read-only access',
-    level: 10,
-    isSystem: false,
-    permissions: [
-      'documents.read',
-      'users.read',
-      'departments.read',
-      'positions.read',
-      'reports.view',
-    ],
-  },
-];
-
 async function seedPermissions() {
   console.log('Seeding permissions...');
 
@@ -172,81 +91,47 @@ async function seedPermissions() {
   console.log(`Created/updated ${DEFAULT_PERMISSIONS.length} permissions`);
 }
 
-async function seedRoles() {
-  console.log('Seeding roles...');
+async function assignAdminPermissions() {
+  console.log('Assigning permissions to admin user...');
 
-  // Get all permissions for assignment
-  const allPermissions = await prisma.permission.findMany();
-  const permissionMap = new Map(allPermissions.map((p) => [p.name, p.id]));
+  // Find admin user
+  const adminUser = await prisma.user.findFirst({
+    where: { role: 'ADMIN' },
+  });
 
-  for (const roleData of DEFAULT_ROLES) {
-    // Create or update role
-    const role = await prisma.role.upsert({
-      where: { code: roleData.code },
-      update: {
-        name: roleData.name,
-        description: roleData.description,
-        level: roleData.level,
-        isSystem: roleData.isSystem,
-      },
-      create: {
-        code: roleData.code,
-        name: roleData.name,
-        description: roleData.description,
-        level: roleData.level,
-        isSystem: roleData.isSystem,
-        isActive: true,
-      },
-    });
-
-    // Delete existing role permissions
-    await prisma.rolePermission.deleteMany({
-      where: { roleId: role.id },
-    });
-
-    // Assign permissions
-    const permissionIds: string[] = [];
-
-    if (roleData.permissions === '*') {
-      // All permissions
-      permissionIds.push(...allPermissions.map((p) => p.id));
-    } else {
-      // Specific permissions
-      for (const permPattern of roleData.permissions) {
-        if (permPattern.endsWith('.*')) {
-          // Wildcard: get all permissions for resource
-          const resource = permPattern.replace('.*', '');
-          const matchingPerms = allPermissions.filter((p) => p.resource === resource);
-          permissionIds.push(...matchingPerms.map((p) => p.id));
-        } else {
-          // Exact match
-          const permId = permissionMap.get(permPattern);
-          if (permId) {
-            permissionIds.push(permId);
-          }
-        }
-      }
-    }
-
-    // Create role permissions
-    if (permissionIds.length > 0) {
-      await prisma.rolePermission.createMany({
-        data: permissionIds.map((permissionId) => ({
-          roleId: role.id,
-          permissionId,
-        })),
-        skipDuplicates: true,
-      });
-    }
-
-    console.log(`Role "${roleData.name}" created with ${permissionIds.length} permissions`);
+  if (!adminUser) {
+    console.log('No admin user found, skipping permission assignment');
+    return;
   }
+
+  // Get all permissions
+  const allPermissions = await prisma.permission.findMany();
+
+  // Assign all permissions to admin
+  for (const permission of allPermissions) {
+    await prisma.userPermission.upsert({
+      where: {
+        userId_permissionId: {
+          userId: adminUser.id,
+          permissionId: permission.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: adminUser.id,
+        permissionId: permission.id,
+        grantedBy: adminUser.id,
+      },
+    });
+  }
+
+  console.log(`Assigned ${allPermissions.length} permissions to admin user`);
 }
 
 async function main() {
   try {
     await seedPermissions();
-    await seedRoles();
+    await assignAdminPermissions();
     console.log('Seeding completed successfully!');
   } catch (error) {
     console.error('Seeding failed:', error);
