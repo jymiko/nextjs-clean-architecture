@@ -1,0 +1,7 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="DraftDocumentIcon">
+<path id="Vector" d="M9.75 1.5H4.5C4.10218 1.5 3.72065 1.65803 3.43934 1.93934C3.15803 2.22064 3 2.60218 3 3V15C3 15.3978 3.15803 15.7793 3.43934 16.0606C3.72065 16.342 4.10218 16.5 4.5 16.5H13.5C13.8978 16.5 14.2793 16.342 14.5606 16.0606C14.842 15.7793 15 15.3978 15 15V6.75L9.75 1.5Z" stroke="var(--stroke-0, #243644)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 4"/>
+<path id="Vector_2" d="M9.75 1.5V6.75H15" stroke="var(--stroke-0, #243644)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M12.375 13.5L10.5 11.625V9.375L12.75 8.625L13.5 10.875L12.375 13.5Z" stroke="var(--stroke-0, #243644)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</svg>
