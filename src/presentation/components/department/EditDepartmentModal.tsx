@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -23,59 +24,96 @@ interface Department {
   id: string;
   code: string;
   name: string;
-  headOfDepartment: string;
-  divisionId: string;
-  divisionName: string;
-  status: "Active" | "Inactive";
+  description?: string | null;
+  headOfDepartmentId?: string | null;
+  headOfDepartment?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  isActive: boolean;
+  totalEmployees?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface Division {
+interface User {
   id: string;
-  code: string;
   name: string;
+  email: string;
 }
 
 interface EditDepartmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: Department) => void;
+  onSave: (data: {
+    code: string;
+    name: string;
+    description?: string | null;
+    headOfDepartmentId?: string | null;
+    isActive: boolean;
+  }) => void;
   department: Department | null;
-  divisions?: Division[];
 }
 
-export function EditDepartmentModal({ isOpen, onClose, onSave, department, divisions = [] }: EditDepartmentModalProps) {
-  const [formData, setFormData] = useState<Department>({
-    id: "",
+export function EditDepartmentModal({ isOpen, onClose, onSave, department }: EditDepartmentModalProps) {
+  const [formData, setFormData] = useState({
     code: "",
     name: "",
-    headOfDepartment: "",
-    divisionId: "",
-    divisionName: "",
-    status: "Active",
+    description: "",
+    headOfDepartmentId: "",
+    isActive: true,
   });
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (department) {
-      setFormData(department);
+      setFormData({
+        code: department.code,
+        name: department.name,
+        description: department.description || "",
+        headOfDepartmentId: department.headOfDepartmentId || "",
+        isActive: department.isActive,
+      });
     }
   }, [department]);
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/users?limit=100&isActive=true');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSave = () => {
-    onSave(formData);
+    const dataToSave = {
+      code: formData.code,
+      name: formData.name,
+      description: formData.description || null,
+      headOfDepartmentId: formData.headOfDepartmentId || null,
+      isActive: formData.isActive,
+    };
+    onSave(dataToSave);
   };
 
   const handleClose = () => {
     onClose();
   };
-
-  // Sample head of department options
-  const headOptions = [
-    { value: "Khoirul Ma'arif", label: "Khoirul Ma'arif" },
-    { value: "Sari Siwandari", label: "Sari Siwandari" },
-    { value: "Trisna Piliandy", label: "Trisna Piliandy" },
-    { value: "Kristo Suharto", label: "Kristo Suharto" },
-    { value: "Hamdan Mursyid", label: "Hamdan Mursyid" },
-  ];
 
   if (!department) return null;
 
@@ -92,7 +130,7 @@ export function EditDepartmentModal({ isOpen, onClose, onSave, department, divis
           {/* Department Code */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Department Code
+              Department Code <span className="text-red-500">*</span>
             </Label>
             <Input
               value={formData.code}
@@ -104,7 +142,7 @@ export function EditDepartmentModal({ isOpen, onClose, onSave, department, divis
           {/* Department Name */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Department Name
+              Department Name <span className="text-red-500">*</span>
             </Label>
             <Input
               value={formData.name}
@@ -113,51 +151,41 @@ export function EditDepartmentModal({ isOpen, onClose, onSave, department, divis
             />
           </div>
 
+          {/* Description */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Description
+            </Label>
+            <Textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="min-h-20 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+            />
+          </div>
+
           {/* Head Of Department */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
               Head Of Department
             </Label>
-            <Input
-              value={formData.headOfDepartment}
-              onChange={(e) => setFormData({ ...formData, headOfDepartment: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
-            />
-          </div>
-
-          {/* Division */}
-          <div className="space-y-2">
-            <Label className="text-xs font-normal text-slate-700">
-              Division
-            </Label>
             <Select
-              value={formData.divisionId}
-              onValueChange={(value) => {
-                const selectedDivision = divisions.find(d => d.id === value);
-                setFormData({
-                  ...formData,
-                  divisionId: value,
-                  divisionName: selectedDivision ? `${selectedDivision.code} - ${selectedDivision.name}` : formData.divisionName
-                });
-              }}
+              value={formData.headOfDepartmentId}
+              onValueChange={(value) => setFormData({ ...formData, headOfDepartmentId: value })}
             >
               <SelectTrigger className="h-10 bg-slate-100 border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus:ring-0 focus:ring-offset-0 focus:outline-none">
-                <SelectValue placeholder="Division" />
+                <SelectValue placeholder="Select Head Of Department" />
               </SelectTrigger>
               <SelectContent className="bg-white border border-[#e1e2e3]">
-                {divisions.length > 0 ? (
-                  divisions.map((division) => (
-                    <SelectItem key={division.id} value={division.id}>
-                      {division.code} - {division.name}
+                {loading ? (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                ) : users.length > 0 ? (
+                  users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({user.email})
                     </SelectItem>
                   ))
                 ) : (
-                  <>
-                    <SelectItem value="IT">IT - Information Technology</SelectItem>
-                    <SelectItem value="OPS">OPS - Operations</SelectItem>
-                    <SelectItem value="FSC">FSC - Food Safety & Compliance</SelectItem>
-                    <SelectItem value="HR">HR - Human Resources</SelectItem>
-                  </>
+                  <SelectItem value="no-users" disabled>No users available</SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -169,15 +197,15 @@ export function EditDepartmentModal({ isOpen, onClose, onSave, department, divis
               Status
             </Label>
             <Select
-              value={formData.status}
-              onValueChange={(value: "Active" | "Inactive") => setFormData({ ...formData, status: value })}
+              value={formData.isActive ? "true" : "false"}
+              onValueChange={(value) => setFormData({ ...formData, isActive: value === "true" })}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm text-[#243644] focus:ring-0 focus:ring-offset-0 focus:outline-none">
                 <SelectValue placeholder="Choose status" />
               </SelectTrigger>
               <SelectContent className="bg-white border border-[#e1e2e3]">
-                <SelectItem value="Active">Active</SelectItem>
-                <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="true">Active</SelectItem>
+                <SelectItem value="false">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -194,6 +222,7 @@ export function EditDepartmentModal({ isOpen, onClose, onSave, department, divis
           <Button
             onClick={handleSave}
             className="w-[164px] h-11 bg-[#4db1d4] hover:bg-[#3da0c2] text-white"
+            disabled={!formData.code || !formData.name}
           >
             Edit
           </Button>

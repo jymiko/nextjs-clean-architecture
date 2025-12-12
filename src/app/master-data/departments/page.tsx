@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { Search, Plus, Eye, Pencil, Trash2, Building2, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
@@ -36,88 +36,33 @@ import {
   ErrorModal,
 } from "@/presentation/components/department";
 
-// Department data type
+// Department data type from API
 interface Department {
   id: string;
   code: string;
   name: string;
-  headOfDepartment: string;
-  divisionId: string;
-  divisionName: string;
-  status: "Active" | "Inactive";
+  description?: string | null;
+  headOfDepartmentId?: string | null;
+  headOfDepartment?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  isActive: boolean;
+  totalEmployees?: number;
+  createdAt: string;
+  updatedAt: string;
 }
-
-// Division data type for dropdowns
-interface Division {
-  id: string;
-  code: string;
-  name: string;
-}
-
-// Sample divisions
-const sampleDivisions: Division[] = [
-  { id: "IT", code: "IT", name: "Information Technology" },
-  { id: "OPS", code: "OPS", name: "Operations" },
-  { id: "FSC", code: "FSC", name: "Food Safety & Compliance" },
-  { id: "HR", code: "HR", name: "Human Resources" },
-  { id: "FIN", code: "FIN", name: "Finance & Accounting" },
-];
-
-// Sample data matching Figma design
-const initialDepartments: Department[] = [
-  {
-    id: "1",
-    code: "DT",
-    name: "Digital Transformation",
-    headOfDepartment: "Khoirul Ma'arif",
-    divisionId: "IT",
-    divisionName: "Information Technology",
-    status: "Active",
-  },
-  {
-    id: "2",
-    code: "QA",
-    name: "Quality Assurance",
-    headOfDepartment: "Sari Siwandari",
-    divisionId: "OPS",
-    divisionName: "Operations",
-    status: "Active",
-  },
-  {
-    id: "3",
-    code: "FS",
-    name: "Food Safety",
-    headOfDepartment: "Trisna Piliandy",
-    divisionId: "FSC",
-    divisionName: "Food Safety & Compliance",
-    status: "Active",
-  },
-  {
-    id: "4",
-    code: "EHS",
-    name: "Environment, Health and Safety",
-    headOfDepartment: "Kristo Suharto",
-    divisionId: "FSC",
-    divisionName: "Food Safety & Compliance",
-    status: "Inactive",
-  },
-  {
-    id: "5",
-    code: "WH",
-    name: "Warehouse",
-    headOfDepartment: "Hamdan Mursyid",
-    divisionId: "OPS",
-    divisionName: "Operations",
-    status: "Inactive",
-  },
-];
 
 export default function DepartmentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [departments, setDepartments] = useState<Department[]>(initialDepartments);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [totalDepartments, setTotalDepartments] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -128,24 +73,49 @@ export default function DepartmentPage() {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null);
   const [successMessage, setSuccessMessage] = useState({ title: "", message: "" });
+  const [errorMessage, setErrorMessage] = useState({ title: "", message: "" });
 
-  const totalDepartments = departments.length;
-  const activeDepartments = departments.filter((d) => d.status === "Active").length;
-  const inactiveDepartments = departments.filter((d) => d.status === "Inactive").length;
+  const activeDepartments = departments.filter((d) => d.isActive).length;
+  const inactiveDepartments = departments.filter((d) => !d.isActive).length;
 
-  const filteredDepartments = departments.filter(
-    (d) =>
-      d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.headOfDepartment.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.divisionName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fetch departments from API
+  const fetchDepartments = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      });
 
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredDepartments.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedDepartments = filteredDepartments.slice(startIndex, endIndex);
+      if (searchQuery) {
+        params.append('search', searchQuery);
+      }
+
+      const response = await fetch(`/api/departments?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch departments');
+
+      const data = await response.json();
+      setDepartments(data.data);
+      setTotalDepartments(data.total);
+      setTotalPages(data.totalPages);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+      setErrorMessage({
+        title: "Error",
+        message: "Failed to fetch departments. Please try again.",
+      });
+      setIsErrorModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch departments on mount and when dependencies change
+  useEffect(() => {
+    fetchDepartments();
+  }, [currentPage, itemsPerPage, searchQuery]);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -158,30 +128,68 @@ export default function DepartmentPage() {
     setCurrentPage(1);
   };
 
-  // Modal handlers
-  const handleAddDepartment = (data: { code: string; name: string; headOfDepartment: string; divisionId: string; status: string }) => {
-    const division = sampleDivisions.find(d => d.id === data.divisionId);
-    const newDepartment: Department = {
-      id: String(departments.length + 1),
-      code: data.code,
-      name: data.name,
-      headOfDepartment: data.headOfDepartment,
-      divisionId: data.divisionId,
-      divisionName: division ? division.name : "",
-      status: data.status as "Active" | "Inactive",
-    };
-    setDepartments([...departments, newDepartment]);
-    setIsAddModalOpen(false);
-    setSuccessMessage({
-      title: "Successfully Added!",
-      message: "The department data has been added to the system. The changes have been saved successfully.",
-    });
-    setIsSuccessModalOpen(true);
+  // Search with debounce
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
   };
 
-  const handleViewDepartment = (department: Department) => {
-    setSelectedDepartment(department);
-    setIsViewModalOpen(true);
+  // Modal handlers
+  const handleAddDepartment = async (data: { 
+    code: string; 
+    name: string; 
+    description?: string;
+    headOfDepartmentId?: string; 
+    isActive: boolean;
+  }) => {
+    try {
+      const response = await fetch('/api/departments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create department');
+      }
+
+      setIsAddModalOpen(false);
+      setSuccessMessage({
+        title: "Successfully Added!",
+        message: "The department data has been added to the system. The changes have been saved successfully.",
+      });
+      setIsSuccessModalOpen(true);
+      fetchDepartments(); // Refresh data
+    } catch (error: unknown) {
+      console.error('Error creating department:', error);
+      setIsAddModalOpen(false);
+      setErrorMessage({
+        title: "Error",
+        message: error instanceof Error ? error.message : "Failed to create department. Please try again.",
+      });
+      setIsErrorModalOpen(true);
+    }
+  };
+
+  const handleViewDepartment = async (department: Department) => {
+    try {
+      const response = await fetch(`/api/departments/${department.id}`);
+      if (!response.ok) throw new Error('Failed to fetch department details');
+      
+      const data = await response.json();
+      setSelectedDepartment(data);
+      setIsViewModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching department:', error);
+      setErrorMessage({
+        title: "Error",
+        message: "Failed to fetch department details. Please try again.",
+      });
+      setIsErrorModalOpen(true);
+    }
   };
 
   const handleEditDepartment = (department: Department) => {
@@ -189,14 +197,45 @@ export default function DepartmentPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (data: Department) => {
-    setDepartments(departments.map((d) => (d.id === data.id ? { ...d, ...data } : d)));
-    setIsEditModalOpen(false);
-    setSuccessMessage({
-      title: "Successfully Updated!",
-      message: "The department data has been updated in the system. The changes have been saved successfully.",
-    });
-    setIsSuccessModalOpen(true);
+  const handleSaveEdit = async (data: {
+    code: string;
+    name: string;
+    description?: string | null;
+    headOfDepartmentId?: string | null;
+    isActive: boolean;
+  }) => {
+    if (!selectedDepartment) return;
+
+    try {
+      const response = await fetch(`/api/departments/${selectedDepartment.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update department');
+      }
+
+      setIsEditModalOpen(false);
+      setSuccessMessage({
+        title: "Successfully Updated!",
+        message: "The department data has been updated in the system. The changes have been saved successfully.",
+      });
+      setIsSuccessModalOpen(true);
+      fetchDepartments(); // Refresh data
+    } catch (error: unknown) {
+      console.error('Error updating department:', error);
+      setIsEditModalOpen(false);
+      setErrorMessage({
+        title: "Error",
+        message: error instanceof Error ? error.message : "Failed to update department. Please try again.",
+      });
+      setIsErrorModalOpen(true);
+    }
   };
 
   const handleDeleteDepartment = (department: Department) => {
@@ -204,9 +243,19 @@ export default function DepartmentPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedDepartment) {
-      setDepartments(departments.filter((d) => d.id !== selectedDepartment.id));
+  const handleConfirmDelete = async () => {
+    if (!selectedDepartment) return;
+
+    try {
+      const response = await fetch(`/api/departments/${selectedDepartment.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete department');
+      }
+
       setIsDeleteModalOpen(false);
       setSuccessMessage({
         title: "Successfully Deleted!",
@@ -214,6 +263,15 @@ export default function DepartmentPage() {
       });
       setIsSuccessModalOpen(true);
       setSelectedDepartment(null);
+      fetchDepartments(); // Refresh data
+    } catch (error: unknown) {
+      console.error('Error deleting department:', error);
+      setIsDeleteModalOpen(false);
+      setErrorMessage({
+        title: "Error",
+        message: error instanceof Error ? error.message : "Failed to delete department. Please try again.",
+      });
+      setIsErrorModalOpen(true);
     }
   };
 
@@ -319,12 +377,12 @@ export default function DepartmentPage() {
                 type="text"
                 placeholder="Search"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-[40px] lg:h-[44px] bg-white border-[#e1e2e3]"
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 h-10 lg:h-11 bg-white border-[#e1e2e3]"
               />
             </div>
             <Button
-              className="h-[40px] lg:h-[44px] bg-[#4db1d4] hover:bg-[#3a9fc2] shadow-[0px_6px_12px_0px_rgba(10,141,208,0.2)]"
+              className="h-10 lg:h-11 bg-[#4db1d4] hover:bg-[#3a9fc2] shadow-[0px_6px_12px_0px_rgba(10,141,208,0.2)]"
               onClick={() => setIsAddModalOpen(true)}
             >
               <Plus className="size-[18px] mr-2" />
@@ -337,63 +395,83 @@ export default function DepartmentPage() {
             <Table className="min-w-[800px]">
               <TableHeader className="bg-[#e9f5fe]">
                 <TableRow className="hover:bg-[#e9f5fe]">
-                  <TableHead className="w-[80px] text-[#384654] font-semibold text-xs lg:text-sm">Code</TableHead>
+                  <TableHead className="w-20 text-[#384654] font-semibold text-xs lg:text-sm">Code</TableHead>
                   <TableHead className="w-[200px] text-[#384654] font-semibold text-xs lg:text-sm">Department Name</TableHead>
                   <TableHead className="w-[180px] text-[#384654] font-semibold text-xs lg:text-sm">Head of Department</TableHead>
-                  <TableHead className="w-[200px] text-[#384654] font-semibold text-xs lg:text-sm">Division</TableHead>
+                  <TableHead className="w-[120px] text-[#384654] font-semibold text-xs lg:text-sm">Employees</TableHead>
                   <TableHead className="w-[120px] text-[#384654] font-semibold text-xs lg:text-sm">Status</TableHead>
                   <TableHead className="w-[150px] text-[#384654] font-semibold text-xs lg:text-sm">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedDepartments.map((department) => (
-                  <TableRow key={department.id} className="h-[68px]">
-                    <TableCell className="text-[#4db1d4] font-semibold">{department.code}</TableCell>
-                    <TableCell className="text-[#384654]">{department.name}</TableCell>
-                    <TableCell className="text-[#384654]">{department.headOfDepartment}</TableCell>
-                    <TableCell className="text-[#384654]">{department.divisionName}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`${
-                          department.status === "Active"
-                            ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
-                            : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
-                        }`}
-                      >
-                        {department.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleViewDepartment(department)}
-                        >
-                          <Eye className="size-4 text-[#384654]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleEditDepartment(department)}
-                        >
-                          <Pencil className="size-4 text-[#4db1d4]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleDeleteDepartment(department)}
-                        >
-                          <Trash2 className="size-4 text-[#f24822]" />
-                        </Button>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex justify-center items-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4db1d4]"></div>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : departments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-[#6b7280]">
+                      No departments found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  departments.map((department) => (
+                    <TableRow key={department.id} className="h-[68px]">
+                      <TableCell className="text-[#4db1d4] font-semibold">{department.code}</TableCell>
+                      <TableCell className="text-[#384654]">{department.name}</TableCell>
+                      <TableCell className="text-[#384654]">
+                        {department.headOfDepartment?.name || '-'}
+                      </TableCell>
+                      <TableCell className="text-[#384654]">
+                        {department.totalEmployees || 0}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`${
+                            department.isActive
+                              ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
+                              : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
+                          }`}
+                        >
+                          {department.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleViewDepartment(department)}
+                          >
+                            <Eye className="size-4 text-[#384654]" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleEditDepartment(department)}
+                          >
+                            <Pencil className="size-4 text-[#4db1d4]" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleDeleteDepartment(department)}
+                          >
+                            <Trash2 className="size-4 text-[#f24822]" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
 
@@ -418,7 +496,7 @@ export default function DepartmentPage() {
 
               {/* Page info */}
               <div className="text-xs lg:text-sm text-[#384654]">
-                Showing {filteredDepartments.length === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, filteredDepartments.length)} of {filteredDepartments.length} entries
+                Showing {totalDepartments === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalDepartments)} of {totalDepartments} entries
               </div>
 
               {/* Page navigation */}
@@ -428,7 +506,7 @@ export default function DepartmentPage() {
                   size="icon"
                   className="h-8 w-8 lg:h-9 lg:w-9"
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || loading}
                 >
                   <ChevronLeft className="size-4" />
                 </Button>
@@ -445,6 +523,7 @@ export default function DepartmentPage() {
                         : ""
                     }`}
                     onClick={() => handlePageChange(page)}
+                    disabled={loading}
                   >
                     {page}
                   </Button>
@@ -455,7 +534,7 @@ export default function DepartmentPage() {
                   size="icon"
                   className="h-8 w-8 lg:h-9 lg:w-9"
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages || totalPages === 0}
+                  disabled={currentPage === totalPages || totalPages === 0 || loading}
                 >
                   <ChevronRight className="size-4" />
                 </Button>
@@ -468,7 +547,7 @@ export default function DepartmentPage() {
                 <Button
                   variant="outline"
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || loading}
                   className="h-9 px-4 text-xs"
                 >
                   <ChevronLeft className="size-4 mr-1" />
@@ -482,7 +561,7 @@ export default function DepartmentPage() {
                 <Button
                   variant="outline"
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages || totalPages === 0}
+                  disabled={currentPage === totalPages || totalPages === 0 || loading}
                   className="h-9 px-4 text-xs"
                 >
                   Next
@@ -490,7 +569,7 @@ export default function DepartmentPage() {
                 </Button>
               </div>
               <span className="text-xs text-[#6b7280]">
-                Showing {filteredDepartments.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredDepartments.length)} of {filteredDepartments.length}
+                Showing {totalDepartments === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalDepartments)} of {totalDepartments}
               </span>
             </div>
           </div>
@@ -502,7 +581,6 @@ export default function DepartmentPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleAddDepartment}
-        divisions={sampleDivisions}
       />
 
       <ViewDepartmentModal
@@ -516,7 +594,6 @@ export default function DepartmentPage() {
         onClose={() => setIsEditModalOpen(false)}
         onSave={handleSaveEdit}
         department={selectedDepartment}
-        divisions={sampleDivisions}
       />
 
       <DeleteConfirmModal
@@ -535,6 +612,8 @@ export default function DepartmentPage() {
       <ErrorModal
         isOpen={isErrorModalOpen}
         onClose={() => setIsErrorModalOpen(false)}
+        title={errorMessage.title}
+        message={errorMessage.message}
       />
     </div>
   );

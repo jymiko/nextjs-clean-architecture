@@ -14,10 +14,17 @@ interface Department {
   id: string;
   code: string;
   name: string;
-  headOfDepartment: string;
-  divisionId: string;
-  divisionName: string;
-  status: "Active" | "Inactive";
+  description?: string | null;
+  headOfDepartmentId?: string | null;
+  headOfDepartment?: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  isActive: boolean;
+  totalEmployees?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ViewDepartmentModalProps {
@@ -59,23 +66,39 @@ export function ViewDepartmentModal({ isOpen, onClose, department }: ViewDepartm
             </div>
           </div>
 
+          {/* Description */}
+          {department.description && (
+            <div className="space-y-2">
+              <Label className="text-xs font-normal text-slate-700">
+                Description
+              </Label>
+              <div className="min-h-20 bg-slate-100 border-b border-slate-400 px-3 py-2">
+                <span className="text-sm text-[#243644]">{department.description}</span>
+              </div>
+            </div>
+          )}
+
           {/* Head Of Department */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
               Head Of Department
             </Label>
             <div className="h-10 bg-slate-100 border-b border-slate-400 px-3 flex items-center">
-              <span className="text-sm text-[#243644]">{department.headOfDepartment}</span>
+              <span className="text-sm text-[#243644]">
+                {department.headOfDepartment 
+                  ? `${department.headOfDepartment.name} (${department.headOfDepartment.email})` 
+                  : '-'}
+              </span>
             </div>
           </div>
 
-          {/* Division */}
+          {/* Total Employees */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Division
+              Total Employees
             </Label>
             <div className="h-10 bg-slate-100 border-b border-slate-400 px-3 flex items-center">
-              <span className="text-sm text-[#243644]">{department.divisionName}</span>
+              <span className="text-sm text-[#243644]">{department.totalEmployees || 0}</span>
             </div>
           </div>
 
@@ -85,7 +108,7 @@ export function ViewDepartmentModal({ isOpen, onClose, department }: ViewDepartm
               Status
             </Label>
             <div className="h-10 bg-slate-100 border-b border-[#4db1d4] px-3 flex items-center">
-              <span className="text-sm text-[#243644]">{department.status}</span>
+              <span className="text-sm text-[#243644]">{department.isActive ? 'Active' : 'Inactive'}</span>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -17,12 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-interface Division {
+interface User {
   id: string;
-  code: string;
   name: string;
+  email: string;
 }
 
 interface AddDepartmentModalProps {
@@ -31,40 +32,61 @@ interface AddDepartmentModalProps {
   onSave: (data: {
     code: string;
     name: string;
-    headOfDepartment: string;
-    divisionId: string;
-    status: string;
+    description?: string;
+    headOfDepartmentId?: string;
+    isActive: boolean;
   }) => void;
-  divisions?: Division[];
 }
 
-export function AddDepartmentModal({ isOpen, onClose, onSave, divisions = [] }: AddDepartmentModalProps) {
+export function AddDepartmentModal({ isOpen, onClose, onSave }: AddDepartmentModalProps) {
   const [formData, setFormData] = useState({
     code: "",
     name: "",
-    headOfDepartment: "",
-    divisionId: "",
-    status: "",
+    description: "",
+    headOfDepartmentId: "",
+    isActive: true,
   });
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch users for head of department dropdown
+  useEffect(() => {
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/users?limit=100&isActive=true');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = () => {
-    onSave(formData);
-    setFormData({ code: "", name: "", headOfDepartment: "", divisionId: "", status: "" });
+    const dataToSave = {
+      code: formData.code,
+      name: formData.name,
+      description: formData.description || undefined,
+      headOfDepartmentId: formData.headOfDepartmentId || undefined,
+      isActive: formData.isActive,
+    };
+    onSave(dataToSave);
+    setFormData({ code: "", name: "", description: "", headOfDepartmentId: "", isActive: true });
   };
 
   const handleClose = () => {
-    setFormData({ code: "", name: "", headOfDepartment: "", divisionId: "", status: "" });
+    setFormData({ code: "", name: "", description: "", headOfDepartmentId: "", isActive: true });
     onClose();
   };
-
-  // Sample head of department options
-  const headOptions = [
-    { value: "khoirul", label: "Khoirul Ma'arif" },
-    { value: "sari", label: "Sari Siwandari" },
-    { value: "trisna", label: "Trisna Piliandy" },
-    { value: "kristo", label: "Kristo Suharto" },
-    { value: "hamdan", label: "Hamdan Mursyid" },
-  ];
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -79,7 +101,7 @@ export function AddDepartmentModal({ isOpen, onClose, onSave, divisions = [] }: 
           {/* Department Code */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Department Code
+              Department Code <span className="text-red-500">*</span>
             </Label>
             <Input
               placeholder="Department Code"
@@ -92,7 +114,7 @@ export function AddDepartmentModal({ isOpen, onClose, onSave, divisions = [] }: 
           {/* Department Name */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Department Name
+              Department Name <span className="text-red-500">*</span>
             </Label>
             <Input
               placeholder="Department Name"
@@ -102,54 +124,42 @@ export function AddDepartmentModal({ isOpen, onClose, onSave, divisions = [] }: 
             />
           </div>
 
+          {/* Description */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Description
+            </Label>
+            <Textarea
+              placeholder="Description"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="min-h-20 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+            />
+          </div>
+
           {/* Head Of Department */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
               Head Of Department
             </Label>
             <Select
-              value={formData.headOfDepartment}
-              onValueChange={(value) => setFormData({ ...formData, headOfDepartment: value })}
+              value={formData.headOfDepartmentId}
+              onValueChange={(value) => setFormData({ ...formData, headOfDepartmentId: value })}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm focus:ring-0 focus:ring-offset-0 focus:outline-none">
-                <SelectValue placeholder="Head Of Department" />
+                <SelectValue placeholder="Select Head Of Department" />
               </SelectTrigger>
               <SelectContent className="bg-white border border-[#e1e2e3]">
-                {headOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Division */}
-          <div className="space-y-2">
-            <Label className="text-xs font-normal text-slate-700">
-              Division
-            </Label>
-            <Select
-              value={formData.divisionId}
-              onValueChange={(value) => setFormData({ ...formData, divisionId: value })}
-            >
-              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm focus:ring-0 focus:ring-offset-0 focus:outline-none">
-                <SelectValue placeholder="Division" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border border-[#e1e2e3]">
-                {divisions.length > 0 ? (
-                  divisions.map((division) => (
-                    <SelectItem key={division.id} value={division.id}>
-                      {division.code} - {division.name}
+                {loading ? (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                ) : users.length > 0 ? (
+                  users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({user.email})
                     </SelectItem>
                   ))
                 ) : (
-                  <>
-                    <SelectItem value="IT">IT - Information Technology</SelectItem>
-                    <SelectItem value="OPS">OPS - Operations</SelectItem>
-                    <SelectItem value="FSC">FSC - Food Safety & Compliance</SelectItem>
-                    <SelectItem value="HR">HR - Human Resources</SelectItem>
-                  </>
+                  <SelectItem value="no-users" disabled>No users available</SelectItem>
                 )}
               </SelectContent>
             </Select>
@@ -161,15 +171,15 @@ export function AddDepartmentModal({ isOpen, onClose, onSave, divisions = [] }: 
               Status
             </Label>
             <Select
-              value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
+              value={formData.isActive ? "true" : "false"}
+              onValueChange={(value) => setFormData({ ...formData, isActive: value === "true" })}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0 focus:ring-offset-0 focus:outline-none">
                 <SelectValue placeholder="Choose status department" />
               </SelectTrigger>
               <SelectContent className="bg-white border border-[#e1e2e3]">
-                <SelectItem value="Active">Active</SelectItem>
-                <SelectItem value="Inactive">Inactive</SelectItem>
+                <SelectItem value="true">Active</SelectItem>
+                <SelectItem value="false">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -186,6 +196,7 @@ export function AddDepartmentModal({ isOpen, onClose, onSave, divisions = [] }: 
           <Button
             onClick={handleSave}
             className="w-[164px] h-11 bg-[#4db1d4] hover:bg-[#3da0c2] text-white"
+            disabled={!formData.code || !formData.name}
           >
             Save
           </Button>
