@@ -2,7 +2,9 @@ import { LayoutDashboard, Database, FileText, FolderOpen, Settings, LogOut, Chev
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { tokenManager } from "@/lib/auth/token-manager";
+import { clearAuthCookies } from "@/lib/cookies";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -15,11 +17,26 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems);
   const pathname = usePathname();
+  const router = useRouter();
 
   const toggleExpand = (item: string) => {
     setExpandedItems(prev =>
       prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
     );
+  };
+
+  const handleLogout = async () => {
+    try {
+      await tokenManager.logout();
+      clearAuthCookies();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Clear tokens locally even if server logout fails
+      tokenManager.clearTokens();
+      clearAuthCookies();
+      router.push('/login');
+    }
   };
 
   return (
@@ -256,7 +273,10 @@ export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarP
 
           {/* Logout Button */}
           <div className="p-4 border-t border-[#e9f5fe]">
-            <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#4DB1D4] text-white transition-colors hover:bg-[#3da0bf]">
+            <button 
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-[#4DB1D4] text-white transition-colors hover:bg-[#3da0bf]"
+            >
               <LogOut className="size-5" />
               <span>Logout</span>
             </button>

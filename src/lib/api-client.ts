@@ -34,6 +34,7 @@ class ApiClient {
     let response = await fetch(url, {
       ...fetchOptions,
       headers,
+      credentials: 'include', // Important: include cookies for authentication
     });
 
     // If we get a 401 and haven't retried yet, try to refresh the token
@@ -63,6 +64,7 @@ class ApiClient {
         response = await fetch(url, {
           ...fetchOptions,
           headers,
+          credentials: 'include', // Important: include cookies for authentication
         });
       }
     }
@@ -71,8 +73,8 @@ class ApiClient {
       // Handle 401 unauthorized
       if (response.status === 401) {
         tokenManager.clearTokens();
-        // Redirect to login if in browser
-        if (typeof window !== 'undefined') {
+        // Redirect to login if in browser and not already on login page
+        if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
           window.location.href = '/login';
         }
       }
