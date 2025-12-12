@@ -24,6 +24,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { useLastAccounts } from '@/hooks/use-last-accounts';
 import { LastAccountCard } from '@/components/auth/last-account-card';
+import { clearAuthCookies } from '@/lib/cookies';
 
 const loginSchema = z.object({
   email: z.string().email('Email tidak valid'),
@@ -40,18 +41,31 @@ export default function LoginPage() {
   const { accounts, saveAccount, removeAccount } = useLastAccounts();
 
   useEffect(() => {
-    // Check if already authenticated
+    // Only check auth if we have tokens, otherwise clear and stay on login
+    const tokens = tokenManager.getTokens();
+    
+    if (!tokens || !tokens.accessToken) {
+      // No tokens, clear any stale data and stay on login
+      tokenManager.clearTokens();
+      clearAuthCookies();
+      return;
+    }
+    
+    // We have tokens, verify they're still valid
     const checkAuth = async () => {
-      const tokens = tokenManager.getTokens();
-      if (tokens) {
-        try {
-          await apiClient.get('/api/auth/me');
+      try {
+        const response = await apiClient.get('/api/auth/me');
+        if (response) {
+          // Valid session, redirect to home
           router.push('/');
-        } catch {
-          tokenManager.clearTokens();
         }
+      } catch {
+        // Invalid tokens, clear them
+        tokenManager.clearTokens();
+        clearAuthCookies();
       }
     };
+    
     checkAuth();
   }, [router]);
 
@@ -110,6 +124,10 @@ export default function LoginPage() {
         router.push('/');
       }, 1000);
     } catch (err: any) {
+      // Clear any tokens/cookies on login failure
+      tokenManager.clearTokens();
+      clearAuthCookies();
+      
       let errorMessage = 'Login gagal. Periksa kembali email dan password Anda.';
 
       // Handle specific error cases

@@ -82,6 +82,7 @@ export function PDFViewer({ file, className = "", showDownload = false }: PDFVie
         canvas.width = viewport.width;
 
         const renderContext = {
+          canvas: canvas,
           canvasContext: context,
           viewport: viewport,
         };

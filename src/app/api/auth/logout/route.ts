@@ -47,13 +47,20 @@ export async function POST(request: NextRequest) {
     // Authenticate user
     const authenticatedRequest = await withAuth(request);
 
-    // Get token from Authorization header
+    // Get token from Authorization header or cookie
+    let token: string | undefined;
     const authHeader = request.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      token = authHeader.substring(7);
+    } else {
+      token = request.cookies.get('auth-token')?.value;
+    }
+    
+    if (!token) {
       throw new UnauthorizedError("No token provided");
     }
 
-    const token = authHeader.substring(7);
     const userId = authenticatedRequest.user?.userId;
 
     // Check if logout all devices is requested
@@ -71,9 +78,15 @@ export async function POST(request: NextRequest) {
       await revokeToken(token);
     }
 
-    return NextResponse.json({
+    // Create response and clear cookie
+    const response = NextResponse.json({
       message: logoutAll ? "Logged out from all devices successfully" : "Logged out successfully"
     });
+    
+    // Clear auth token cookie
+    response.cookies.delete('auth-token');
+
+    return response;
   } catch (error) {
     return handleError(error, request);
   }

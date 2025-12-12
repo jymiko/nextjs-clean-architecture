@@ -174,19 +174,25 @@ class TokenManager {
   async logout(logoutAll: boolean = false): Promise<void> {
     const accessToken = this.getAccessToken();
 
-    if (accessToken) {
-      try {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ logoutAll }),
-        });
-      } catch (error) {
-        console.error('Error during logout:', error);
+    try {
+      // Send logout request with token in header or rely on cookie
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
       }
+      
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers,
+        credentials: 'include', // Important: include cookies
+        body: JSON.stringify({ logoutAll }),
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Continue to clear tokens even if server request fails
     }
 
     this.clearTokens();

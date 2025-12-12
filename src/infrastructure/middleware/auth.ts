@@ -12,13 +12,20 @@ export interface AuthenticatedRequest extends NextRequest {
 }
 
 export const withAuth = async (request: NextRequest): Promise<AuthenticatedRequest> => {
+  // Try to get token from Authorization header first, then from cookie
+  let token: string | undefined;
   const authHeader = request.headers.get('authorization');
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else {
+    token = request.cookies.get('auth-token')?.value;
+  }
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!token) {
     throw new UnauthorizedError('No token provided');
   }
 
-  const token = authHeader.substring(7);
   const payload = await verifyToken(token);
 
   if (!payload) {
