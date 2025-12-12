@@ -18,14 +18,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useEffect } from "react";
+import { apiClient } from "@/lib/api-client";
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
 
 interface Division {
   id: string;
   code: string;
   name: string;
-  headOfDivision: string;
-  departments: string;
-  status: "Active" | "Inactive";
+  headOfDivisionId?: string;
+  headOfDivision?: {
+    id: string;
+    name: string;
+  };
+  isActive: boolean;
 }
 
 interface EditDivisionModalProps {
@@ -40,16 +50,41 @@ export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDiv
     id: "",
     code: "",
     name: "",
-    headOfDivision: "",
-    departments: "",
-    status: "Active",
+    headOfDivisionId: "",
+    isActive: true,
   });
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (division) {
-      setFormData(division);
+      setFormData({
+        id: division.id,
+        code: division.code,
+        name: division.name,
+        headOfDivisionId: division.headOfDivisionId || "",
+        isActive: division.isActive,
+      });
     }
   }, [division]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchUsers();
+    }
+  }, [isOpen]);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get('/api/users?limit=100&isActive=true');
+      setUsers(response.data || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = () => {
     onSave(formData);
@@ -66,7 +101,7 @@ export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDiv
       <DialogContent className="sm:max-w-[579px] p-0 gap-0">
         <DialogHeader className="px-6 py-3 border-b border-[#f5f5f5]">
           <DialogTitle className="text-base font-medium text-black">
-            Edit Master Data - Department
+            Edit Master Data - Division
           </DialogTitle>
         </DialogHeader>
 
@@ -98,21 +133,28 @@ export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDiv
           {/* Head Of Division */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Head Of Division
+              Head Of Division (Optional)
             </Label>
             <Select
-              value={formData.headOfDivision}
-              onValueChange={(value) => setFormData({ ...formData, headOfDivision: value })}
+              value={formData.headOfDivisionId || "none"}
+              onValueChange={(value) => setFormData({ ...formData, headOfDivisionId: value === "none" ? "" : value })}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus:ring-0 focus:ring-offset-0 focus:outline-none">
                 <SelectValue placeholder="Head Of Division" />
               </SelectTrigger>
               <SelectContent className="bg-white border border-[#e1e2e3]">
-                <SelectItem value="Khoirul Ma'arif">Khoirul Ma&apos;arif</SelectItem>
-                <SelectItem value="Sari Siwandari">Sari Siwandari</SelectItem>
-                <SelectItem value="Trisna Piliandy">Trisna Piliandy</SelectItem>
-                <SelectItem value="Kristo Suharto">Kristo Suharto</SelectItem>
-                <SelectItem value="Hamdan Mursyid">Hamdan Mursyid</SelectItem>
+                <SelectItem value="none">-- None --</SelectItem>
+                {loading ? (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                ) : users.length > 0 ? (
+                  users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name} ({user.email})
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-users" disabled>No users available</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -123,8 +165,8 @@ export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDiv
               Status
             </Label>
             <Select
-              value={formData.status}
-              onValueChange={(value: "Active" | "Inactive") => setFormData({ ...formData, status: value })}
+              value={formData.isActive ? "Active" : "Inactive"}
+              onValueChange={(value) => setFormData({ ...formData, isActive: value === "Active" })}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm text-[#243644] focus:ring-0 focus:ring-offset-0 focus:outline-none">
                 <SelectValue placeholder="Choose status" />

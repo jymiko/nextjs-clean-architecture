@@ -15,11 +15,13 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
     code: string;
     name: string;
     description: string | null;
+    divisionId: string | null;
     headOfDepartmentId: string | null;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
     _count?: { users: number };
+    division?: { id: string; code: string; name: string } | null;
     headOfDepartment?: { id: string; name: string; email: string } | null;
   }): Department {
     return {
@@ -27,6 +29,8 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
       code: data.code,
       name: data.name,
       description: data.description,
+      divisionId: data.divisionId,
+      division: data.division || null,
       headOfDepartmentId: data.headOfDepartmentId,
       headOfDepartment: data.headOfDepartment || null,
       isActive: data.isActive,
@@ -72,6 +76,9 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
           _count: {
             select: { users: true },
           },
+          division: {
+            select: { id: true, code: true, name: true },
+          },
         },
       }),
       prisma.department.count({ where }),
@@ -108,6 +115,9 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
         _count: {
           select: { users: true },
         },
+        division: {
+          select: { id: true, code: true, name: true },
+        },
       },
     });
 
@@ -132,6 +142,9 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
         _count: {
           select: { users: true },
         },
+        division: {
+          select: { id: true, code: true, name: true },
+        },
       },
     });
 
@@ -146,6 +159,9 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
       include: {
         _count: {
           select: { users: true },
+        },
+        division: {
+          select: { id: true, code: true, name: true },
         },
       },
     });
@@ -168,6 +184,16 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
       throw new ConflictError(`Department with name '${data.name}' already exists`);
     }
 
+    // Validate divisionId if provided
+    if (data.divisionId) {
+      const division = await prisma.division.findUnique({
+        where: { id: data.divisionId },
+      });
+      if (!division) {
+        throw new NotFoundError('Division not found');
+      }
+    }
+
     // Validate headOfDepartmentId if provided
     if (data.headOfDepartmentId) {
       const user = await prisma.user.findUnique({
@@ -183,12 +209,16 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
         code: data.code,
         name: data.name,
         description: data.description,
+        divisionId: data.divisionId,
         headOfDepartmentId: data.headOfDepartmentId,
         isActive: data.isActive ?? true,
       },
       include: {
         _count: {
           select: { users: true },
+        },
+        division: {
+          select: { id: true, code: true, name: true },
         },
       },
     });
@@ -227,6 +257,16 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
       }
     }
 
+    // Validate divisionId if provided
+    if (data.divisionId) {
+      const division = await prisma.division.findUnique({
+        where: { id: data.divisionId },
+      });
+      if (!division) {
+        throw new NotFoundError('Division not found');
+      }
+    }
+
     // Validate headOfDepartmentId if provided
     if (data.headOfDepartmentId) {
       const user = await prisma.user.findUnique({
@@ -243,12 +283,16 @@ export class PrismaDepartmentRepository implements IDepartmentRepository {
         code: data.code,
         name: data.name,
         description: data.description,
+        divisionId: data.divisionId,
         headOfDepartmentId: data.headOfDepartmentId,
         isActive: data.isActive,
       },
       include: {
         _count: {
           select: { users: true },
+        },
+        division: {
+          select: { id: true, code: true, name: true },
         },
       },
     });

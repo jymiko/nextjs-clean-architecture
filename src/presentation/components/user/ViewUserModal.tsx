@@ -14,11 +14,12 @@ interface ViewUserModalProps {
   onClose: () => void;
   user: {
     id: string;
+    displayId: string;
     name: string;
     email: string;
-    departmentName: string;
-    positionName: string;
-    roleName: string;
+    departmentName?: string;
+    positionName?: string;
+    roleName?: string;
     status: string;
   } | null;
 }
@@ -42,7 +43,7 @@ export function ViewUserModal({ isOpen, onClose, user }: ViewUserModalProps) {
               User ID
             </label>
             <div className="h-10 bg-[#f6faff] border-0 border-b border-[#e5e5e5] flex items-center px-3">
-              <span className="text-sm text-[#1a1a1a]">{user.id}</span>
+              <span className="text-sm text-[#1a1a1a]">{user.displayId}</span>
             </div>
           </div>
 
@@ -72,7 +73,7 @@ export function ViewUserModal({ isOpen, onClose, user }: ViewUserModalProps) {
               Department
             </label>
             <div className="h-10 bg-[#f6faff] border-0 border-b border-[#e5e5e5] flex items-center px-3">
-              <span className="text-sm text-[#1a1a1a]">{user.departmentName}</span>
+              <span className="text-sm text-[#1a1a1a]">{user.departmentName || "-"}</span>
             </div>
           </div>
 
@@ -82,7 +83,7 @@ export function ViewUserModal({ isOpen, onClose, user }: ViewUserModalProps) {
               Position
             </label>
             <div className="h-10 bg-[#f6faff] border-0 border-b border-[#e5e5e5] flex items-center px-3">
-              <span className="text-sm text-[#1a1a1a]">{user.positionName}</span>
+              <span className="text-sm text-[#1a1a1a]">{user.positionName || "-"}</span>
             </div>
           </div>
 
@@ -92,7 +93,7 @@ export function ViewUserModal({ isOpen, onClose, user }: ViewUserModalProps) {
               Role
             </label>
             <div className="h-10 bg-[#f6faff] border-0 border-b border-[#e5e5e5] flex items-center px-3">
-              <span className="text-sm text-[#1a1a1a]">{user.roleName}</span>
+              <span className="text-sm text-[#1a1a1a]">{user.roleName || "-"}</span>
             </div>
           </div>
 

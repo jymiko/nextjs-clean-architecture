@@ -83,7 +83,7 @@ class ApiClient {
         message: 'An error occurred',
       }));
 
-      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+      throw new Error(error.message || error.error || `HTTP error! status: ${response.status}`);
     }
 
     return response.json();

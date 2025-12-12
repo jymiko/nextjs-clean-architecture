@@ -1,53 +1,49 @@
-export interface Department {
+export interface Division {
   id: string;
   code: string;
   name: string;
   description?: string | null;
-  divisionId?: string | null;
-  division?: {
-    id: string;
-    code: string;
-    name: string;
-  } | null;
-  headOfDepartmentId?: string | null;
-  headOfDepartment?: {
+  headOfDivisionId?: string | null;
+  headOfDivision?: {
     id: string;
     name: string;
     email: string;
   } | null;
+  departments?: Array<{
+    id: string;
+    name: string;
+  }>;
   isActive: boolean;
-  totalEmployees?: number;
+  totalDepartments?: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface CreateDepartmentDTO {
+export interface CreateDivisionDTO {
   code: string;
   name: string;
   description?: string;
-  divisionId?: string;
-  headOfDepartmentId?: string;
+  headOfDivisionId?: string;
   isActive?: boolean;
 }
 
-export interface UpdateDepartmentDTO {
+export interface UpdateDivisionDTO {
   code?: string;
   name?: string;
   description?: string | null;
-  divisionId?: string | null;
-  headOfDepartmentId?: string | null;
+  headOfDivisionId?: string | null;
   isActive?: boolean;
 }
 
-export interface DepartmentListResponse {
-  data: Department[];
+export interface DivisionListResponse {
+  data: Division[];
   total: number;
   page: number;
   limit: number;
   totalPages: number;
 }
 
-export interface DepartmentQueryParams {
+export interface DivisionQueryParams {
   page?: number;
   limit?: number;
   search?: string;

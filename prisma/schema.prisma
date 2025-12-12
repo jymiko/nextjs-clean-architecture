@@ -14,12 +14,30 @@ datasource db {
 // AUTHENTICATION & USER MANAGEMENT
 // ============================================================================
 
+// Divisions master data (highest level organizational unit)
+model Division {
+  id                 String       @id @default(cuid())
+  code               String       @unique
+  name               String       @unique
+  description        String?
+  headOfDivisionId   String?
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  departments        Department[]
+
+  @@index([headOfDivisionId])
+  @@map("divisions")
+}
+
 // Departments master data (normalized)
 model Department {
   id                   String                 @id @default(cuid())
   code                 String                 @unique
   name                 String                 @unique
   description          String?
+  division             Division?              @relation(fields: [divisionId], references: [id])
+  divisionId           String?
   headOfDepartmentId   String?
   isActive             Boolean                @default(true)
   createdAt            DateTime               @default(now())
@@ -28,6 +46,7 @@ model Department {
   positions            Position[]
   workflowSteps        ApprovalWorkflowStep[] @relation("DepartmentApprover")
 
+  @@index([divisionId])
   @@index([headOfDepartmentId])
   @@map("departments")
 }

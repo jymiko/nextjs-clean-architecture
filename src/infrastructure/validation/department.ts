@@ -9,6 +9,7 @@ export const createDepartmentSchema = z.object({
     .min(3, 'Department name must be at least 3 characters')
     .max(100, 'Department name must not exceed 100 characters'),
   description: z.string().max(500, 'Description must not exceed 500 characters').optional(),
+  divisionId: z.string().cuid('Invalid division ID').optional(),
   headOfDepartmentId: z.string().cuid('Invalid head of department ID').optional(),
   isActive: z.boolean().default(true),
 });
@@ -24,6 +25,7 @@ export const updateDepartmentSchema = z.object({
     .max(100, 'Department name must not exceed 100 characters')
     .optional(),
   description: z.string().max(500, 'Description must not exceed 500 characters').nullable().optional(),
+  divisionId: z.string().cuid('Invalid division ID').nullable().optional(),
   headOfDepartmentId: z.string().cuid('Invalid head of department ID').nullable().optional(),
   isActive: z.boolean().optional(),
 }).refine(data => Object.keys(data).length > 0, {

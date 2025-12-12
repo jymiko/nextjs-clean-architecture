@@ -19,11 +19,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useState, useEffect } from "react";
+import { apiClient } from "@/lib/api-client";
 
 interface User {
   id: string;
   name: string;
   email: string;
+}
+
+interface Division {
+  id: string;
+  code: string;
+  name: string;
 }
 
 interface AddDepartmentModalProps {
@@ -33,6 +40,7 @@ interface AddDepartmentModalProps {
     code: string;
     name: string;
     description?: string;
+    divisionId?: string;
     headOfDepartmentId?: string;
     isActive: boolean;
   }) => void;
@@ -43,31 +51,44 @@ export function AddDepartmentModal({ isOpen, onClose, onSave }: AddDepartmentMod
     code: "",
     name: "",
     description: "",
+    divisionId: "",
     headOfDepartmentId: "",
     isActive: true,
   });
   const [users, setUsers] = useState<User[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingDivisions, setLoadingDivisions] = useState(false);
 
-  // Fetch users for head of department dropdown
+  // Fetch users and divisions when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchUsers();
+      fetchDivisions();
     }
   }, [isOpen]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/users?limit=100&isActive=true');
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.data);
-      }
+      const response = await apiClient.get('/api/users?limit=100&isActive=true');
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchDivisions = async () => {
+    try {
+      setLoadingDivisions(true);
+      const response = await apiClient.get('/api/divisions?limit=100&isActive=true');
+      setDivisions(response.data || []);
+    } catch (error) {
+      console.error('Error fetching divisions:', error);
+    } finally {
+      setLoadingDivisions(false);
     }
   };
 
@@ -76,15 +97,16 @@ export function AddDepartmentModal({ isOpen, onClose, onSave }: AddDepartmentMod
       code: formData.code,
       name: formData.name,
       description: formData.description || undefined,
+      divisionId: formData.divisionId || undefined,
       headOfDepartmentId: formData.headOfDepartmentId || undefined,
       isActive: formData.isActive,
     };
     onSave(dataToSave);
-    setFormData({ code: "", name: "", description: "", headOfDepartmentId: "", isActive: true });
+    setFormData({ code: "", name: "", description: "", divisionId: "", headOfDepartmentId: "", isActive: true });
   };
 
   const handleClose = () => {
-    setFormData({ code: "", name: "", description: "", headOfDepartmentId: "", isActive: true });
+    setFormData({ code: "", name: "", description: "", divisionId: "", headOfDepartmentId: "", isActive: true });
     onClose();
   };
 
@@ -147,7 +169,7 @@ export function AddDepartmentModal({ isOpen, onClose, onSave }: AddDepartmentMod
               onValueChange={(value) => setFormData({ ...formData, headOfDepartmentId: value })}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm focus:ring-0 focus:ring-offset-0 focus:outline-none">
-                <SelectValue placeholder="Select Head Of Department" />
+                <SelectValue placeholder="Head Of Department" />
               </SelectTrigger>
               <SelectContent className="bg-white border border-[#e1e2e3]">
                 {loading ? (
@@ -160,6 +182,34 @@ export function AddDepartmentModal({ isOpen, onClose, onSave }: AddDepartmentMod
                   ))
                 ) : (
                   <SelectItem value="no-users" disabled>No users available</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Division */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Division
+            </Label>
+            <Select
+              value={formData.divisionId}
+              onValueChange={(value) => setFormData({ ...formData, divisionId: value })}
+            >
+              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm focus:ring-0 focus:ring-offset-0 focus:outline-none">
+                <SelectValue placeholder="Division" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border border-[#e1e2e3]">
+                {loadingDivisions ? (
+                  <SelectItem value="loading" disabled>Loading...</SelectItem>
+                ) : divisions.length > 0 ? (
+                  divisions.map((division) => (
+                    <SelectItem key={division.id} value={division.id}>
+                      {division.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="no-divisions" disabled>No divisions available</SelectItem>
                 )}
               </SelectContent>
             </Select>

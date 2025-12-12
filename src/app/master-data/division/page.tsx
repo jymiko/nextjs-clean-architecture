@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { Search, Plus, Eye, Pencil, Trash2, Building2, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
@@ -41,61 +41,28 @@ interface Division {
   id: string;
   code: string;
   name: string;
-  headOfDivision: string;
-  departments: string;
-  status: "Active" | "Inactive";
+  headOfDivisionId?: string;
+  headOfDivision?: {
+    id: string;
+    name: string;
+  };
+  departments?: Array<{
+    id: string;
+    name: string;
+  }>;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
-
-// Sample data
-const initialDivisions: Division[] = [
-  {
-    id: "1",
-    code: "OPS",
-    name: "Operations",
-    headOfDivision: "Khoirul Ma'arif",
-    departments: "Production, QA, QC, Warehouse, Logistics, Maintenance",
-    status: "Active",
-  },
-  {
-    id: "2",
-    code: "HR",
-    name: "Human Resources",
-    headOfDivision: "Sari Siwandari",
-    departments: "Recruitment, Training, Payroll, Industrial Relations, GA",
-    status: "Active",
-  },
-  {
-    id: "3",
-    code: "IT",
-    name: "Information Technology",
-    headOfDivision: "Trisna Piliandy",
-    departments: "Digital Transformation, IT Infra, App Dev, Cybersecurity",
-    status: "Active",
-  },
-  {
-    id: "4",
-    code: "SC",
-    name: "Supply Chain",
-    headOfDivision: "Kristo Suharto",
-    departments: "Planning, Procurement, Distribution, Inventory Control",
-    status: "Inactive",
-  },
-  {
-    id: "5",
-    code: "FIN",
-    name: "Finance & Accounting",
-    headOfDivision: "Hamdan Mursyid",
-    departments: "Finance, Accounting, Cost Control",
-    status: "Inactive",
-  },
-];
 
 export default function DivisionPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [divisions, setDivisions] = useState<Division[]>(initialDivisions);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -107,21 +74,40 @@ export default function DivisionPage() {
   const [selectedDivision, setSelectedDivision] = useState<Division | null>(null);
   const [successMessage, setSuccessMessage] = useState({ title: "", message: "" });
 
-  const totalDivisions = divisions.length;
-  const activeDivisions = divisions.filter((d) => d.status === "Active").length;
-  const inactiveDivisions = divisions.filter((d) => d.status === "Inactive").length;
+  // Fetch divisions
+  useEffect(() => {
+    fetchDivisions();
+  }, [currentPage, itemsPerPage, searchQuery]);
 
-  const filteredDivisions = divisions.filter(
-    (d) =>
-      d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const fetchDivisions = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        ...(searchQuery && { search: searchQuery }),
+      });
+
+      const response = await fetch(`/api/divisions?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch divisions");
+
+      const data = await response.json();
+      setDivisions(data.data || []);
+      setTotalCount(data.pagination?.total || 0);
+    } catch (error) {
+      console.error("Error fetching divisions:", error);
+      setIsErrorModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totalDivisions = totalCount;
+  const activeDivisions = divisions.filter((d) => d.isActive).length;
+  const inactiveDivisions = divisions.filter((d) => !d.isActive).length;
 
   // Pagination calculations
-  const totalPages = Math.ceil(filteredDivisions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedDivisions = filteredDivisions.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -135,22 +121,30 @@ export default function DivisionPage() {
   };
 
   // Modal handlers
-  const handleAddDivision = (data: { code: string; name: string; headOfDivision: string; status: string }) => {
-    const newDivision: Division = {
-      id: String(divisions.length + 1),
-      code: data.code,
-      name: data.name,
-      headOfDivision: data.headOfDivision,
-      departments: "",
-      status: data.status as "Active" | "Inactive",
-    };
-    setDivisions([...divisions, newDivision]);
-    setIsAddModalOpen(false);
-    setSuccessMessage({
-      title: "Successfully Added!",
-      message: "The Division data has been added to the system. The changes have been saved successfully.",
-    });
-    setIsSuccessModalOpen(true);
+  const handleAddDivision = async (data: { code: string; name: string; headOfDivisionId?: string; isActive: boolean }) => {
+    try {
+      const response = await fetch("/api/divisions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Failed to add division");
+
+      setIsAddModalOpen(false);
+      setSuccessMessage({
+        title: "Successfully Added!",
+        message: "The Division data has been added to the system. The changes have been saved successfully.",
+      });
+      setIsSuccessModalOpen(true);
+      fetchDivisions();
+    } catch (error) {
+      console.error("Error adding division:", error);
+      setIsAddModalOpen(false);
+      setIsErrorModalOpen(true);
+    }
   };
 
   const handleViewDivision = (division: Division) => {
@@ -163,14 +157,30 @@ export default function DivisionPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleSaveEdit = (data: Division) => {
-    setDivisions(divisions.map((d) => (d.id === data.id ? { ...d, ...data } : d)));
-    setIsEditModalOpen(false);
-    setSuccessMessage({
-      title: "Successfully Updated!",
-      message: "The Division data has been updated in the system. The changes have been saved successfully.",
-    });
-    setIsSuccessModalOpen(true);
+  const handleSaveEdit = async (data: Division) => {
+    try {
+      const response = await fetch(`/api/divisions/${data.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error("Failed to update division");
+
+      setIsEditModalOpen(false);
+      setSuccessMessage({
+        title: "Successfully Updated!",
+        message: "The Division data has been updated in the system. The changes have been saved successfully.",
+      });
+      setIsSuccessModalOpen(true);
+      fetchDivisions();
+    } catch (error) {
+      console.error("Error updating division:", error);
+      setIsEditModalOpen(false);
+      setIsErrorModalOpen(true);
+    }
   };
 
   const handleDeleteDivision = (division: Division) => {
@@ -178,15 +188,28 @@ export default function DivisionPage() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleConfirmDelete = () => {
-    if (selectedDivision) {
-      setDivisions(divisions.filter((d) => d.id !== selectedDivision.id));
+  const handleConfirmDelete = async () => {
+    if (!selectedDivision) return;
+
+    try {
+      const response = await fetch(`/api/divisions/${selectedDivision.id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) throw new Error("Failed to delete division");
+
       setIsDeleteModalOpen(false);
       setSuccessMessage({
         title: "Successfully Deleted!",
         message: "The Division data has been deleted from the system. The changes have been saved successfully.",
       });
       setIsSuccessModalOpen(true);
+      setSelectedDivision(null);
+      fetchDivisions();
+    } catch (error) {
+      console.error("Error deleting division:", error);
+      setIsDeleteModalOpen(false);
+      setIsErrorModalOpen(true);
       setSelectedDivision(null);
     }
   };
@@ -320,54 +343,74 @@ export default function DivisionPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedDivisions.map((division) => (
-                  <TableRow key={division.id} className="h-[68px]">
-                    <TableCell className="text-[#4db1d4] font-semibold">{division.code}</TableCell>
-                    <TableCell className="text-[#384654]">{division.name}</TableCell>
-                    <TableCell className="text-[#384654]">{division.headOfDivision}</TableCell>
-                    <TableCell className="text-[#384654]">{division.departments}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`${
-                          division.status === "Active"
-                            ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
-                            : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
-                        }`}
-                      >
-                        {division.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleViewDivision(division)}
-                        >
-                          <Eye className="size-4 text-[#384654]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleEditDivision(division)}
-                        >
-                          <Pencil className="size-4 text-[#4db1d4]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleDeleteDivision(division)}
-                        >
-                          <Trash2 className="size-4 text-[#f24822]" />
-                        </Button>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4db1d4]"></div>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : divisions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8 text-[#384654]">
+                      No divisions found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  divisions.map((division) => (
+                    <TableRow key={division.id} className="h-[68px]">
+                      <TableCell className="text-[#4db1d4] font-semibold">{division.code}</TableCell>
+                      <TableCell className="text-[#384654]">{division.name}</TableCell>
+                      <TableCell className="text-[#384654]">
+                        {division.headOfDivision?.name || "-"}
+                      </TableCell>
+                      <TableCell className="text-[#384654]">
+                        {division.departments?.map(d => d.name).join(", ") || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`${
+                            division.isActive
+                              ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
+                              : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
+                          }`}
+                        >
+                          {division.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleViewDivision(division)}
+                          >
+                            <Eye className="size-4 text-[#384654]" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleEditDivision(division)}
+                          >
+                            <Pencil className="size-4 text-[#4db1d4]" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleDeleteDivision(division)}
+                          >
+                            <Trash2 className="size-4 text-[#f24822]" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
 
@@ -392,7 +435,7 @@ export default function DivisionPage() {
 
               {/* Page info */}
               <div className="text-sm text-[#384654]">
-                Showing {filteredDivisions.length === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, filteredDivisions.length)} of {filteredDivisions.length} entries
+                Showing {totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} entries
               </div>
 
               {/* Page navigation */}
@@ -463,7 +506,7 @@ export default function DivisionPage() {
                 </Button>
               </div>
               <span className="text-xs text-[#6b7280]">
-                Showing {filteredDivisions.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredDivisions.length)} of {filteredDivisions.length}
+                Showing {totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
               </span>
             </div>
           </div>

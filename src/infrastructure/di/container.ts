@@ -4,6 +4,7 @@ import {
   PrismaUserRepository,
   PrismaPasswordResetRepository,
   PrismaDepartmentRepository,
+  PrismaDivisionRepository,
   PrismaPositionRepository,
   PrismaPermissionRepository,
   PrismaDocumentRepository,
@@ -21,6 +22,7 @@ import {
   IUserRepository,
   IPasswordResetRepository,
   IDepartmentRepository,
+  IDivisionRepository,
   IPositionRepository,
   IPermissionRepository,
   IDocumentRepository,
@@ -31,6 +33,7 @@ export interface Cradle {
   userRepository: IUserRepository;
   passwordResetRepository: IPasswordResetRepository;
   departmentRepository: IDepartmentRepository;
+  divisionRepository: IDivisionRepository;
   positionRepository: IPositionRepository;
   permissionRepository: IPermissionRepository;
   documentRepository: IDocumentRepository;
@@ -59,6 +62,8 @@ container.register({
   passwordResetRepository: asClass(PrismaPasswordResetRepository).singleton(),
 
   departmentRepository: asClass(PrismaDepartmentRepository).singleton(),
+
+  divisionRepository: asClass(PrismaDivisionRepository).singleton(),
 
   positionRepository: asClass(PrismaPositionRepository).singleton(),
 

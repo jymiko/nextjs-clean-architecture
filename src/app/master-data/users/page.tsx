@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { Plus, Search, Eye, Pencil, Trash2, Users, UserCheck, UserX, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
@@ -32,82 +32,31 @@ import {
   ErrorModal,
 } from "@/presentation/components/user";
 import { UserFormData } from "@/presentation/components/user/AddUserModal";
+import apiClient from "@/lib/api-client";
 
-// Sample data
-const sampleUsers = [
-  {
-    id: "USR001",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    departmentId: "1",
-    departmentName: "Engineering",
-    positionId: "1",
-    positionName: "Manager",
-    roleId: "1",
-    roleName: "Admin",
-    status: "active",
-    lastLogin: "2024-01-15 09:30",
-  },
-  {
-    id: "USR002",
-    name: "Jane Smith",
-    email: "jane.smith@example.com",
-    departmentId: "2",
-    departmentName: "Human Resources",
-    positionId: "2",
-    positionName: "Supervisor",
-    roleId: "2",
-    roleName: "User",
-    status: "active",
-    lastLogin: "2024-01-14 14:22",
-  },
-  {
-    id: "USR003",
-    name: "Bob Johnson",
-    email: "bob.johnson@example.com",
-    departmentId: "3",
-    departmentName: "Finance",
-    positionId: "3",
-    positionName: "Staff",
-    roleId: "2",
-    roleName: "User",
-    status: "inactive",
-    lastLogin: "2024-01-10 11:45",
-  },
-  {
-    id: "USR004",
-    name: "Alice Brown",
-    email: "alice.brown@example.com",
-    departmentId: "4",
-    departmentName: "Marketing",
-    positionId: "3",
-    positionName: "Staff",
-    roleId: "2",
-    roleName: "User",
-    status: "active",
-    lastLogin: "2024-01-15 08:15",
-  },
-  {
-    id: "USR005",
-    name: "Charlie Wilson",
-    email: "charlie.wilson@example.com",
-    departmentId: "1",
-    departmentName: "Engineering",
-    positionId: "3",
-    positionName: "Staff",
-    roleId: "2",
-    roleName: "User",
-    status: "active",
-    lastLogin: "2024-01-15 10:00",
-  },
-];
+interface User {
+  id: string;          // Database ID (cuid) for API calls
+  displayId: string;   // Employee ID for display
+  name: string;
+  email: string;
+  departmentId: string;
+  departmentName?: string;
+  positionId: string;
+  positionName?: string;
+  roleId: string;
+  roleName?: string;
+  status: string;
+  lastLogin?: string;
+}
 
 export default function UsersPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [users, setUsers] = useState(sampleUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -116,27 +65,70 @@ export default function UsersPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<typeof sampleUsers[0] | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [successMessage, setSuccessMessage] = useState({ title: "", message: "" });
 
-  // Filter users based on search
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fetch users
+  useEffect(() => {
+    fetchUsers();
+  }, [currentPage, itemsPerPage, searchQuery]);
 
-  // Pagination
-  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        ...(searchQuery && { search: searchQuery }),
+      });
+
+      const data = await apiClient.get(`/api/users?${params}`);
+
+      // Transform API response to frontend format
+      const transformedUsers = (data.data || []).map((user: {
+        id: string;
+        employeeId?: string;
+        name: string;
+        email: string;
+        role?: string;
+        departmentId?: string;
+        department?: { id: string; name: string };
+        positionId?: string;
+        position?: { id: string; name: string };
+        isActive: boolean;
+        lastLogin?: string;
+      }) => ({
+        id: user.id,                              // Keep database ID for API calls
+        displayId: user.employeeId || user.id,    // Employee ID for display
+        name: user.name,
+        email: user.email,
+        departmentId: user.departmentId || "",
+        departmentName: user.department?.name || "-",
+        positionId: user.positionId || "",
+        positionName: user.position?.name || "-",
+        roleId: user.role === "ADMIN" ? "1" : "2",
+        roleName: user.role || "-",
+        status: user.isActive ? "active" : "inactive",
+        lastLogin: user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : "-",
+      }));
+
+      setUsers(transformedUsers);
+      setTotalCount(data.pagination?.total || 0);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      setIsErrorModalOpen(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Stats
-  const totalUsers = users.length;
+  const totalUsers = totalCount;
   const activeUsers = users.filter((u) => u.status === "active").length;
   const inactiveUsers = users.filter((u) => u.status === "inactive").length;
+  
+  // Pagination
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -150,97 +142,92 @@ export default function UsersPage() {
   };
 
   // Handlers
-  const handleAdd = (data: UserFormData) => {
-    const newUser = {
-      ...data,
-      departmentName: getDepartmentName(data.departmentId),
-      positionName: getPositionName(data.positionId),
-      roleName: getRoleName(data.roleId),
-      lastLogin: "-",
-    };
-    setUsers([...users, newUser]);
-    setSuccessMessage({
-      title: "Successfully Added!",
-      message: "The user data has been added to the system. The changes have been saved successfully.",
-    });
-    setIsSuccessModalOpen(true);
+  const handleAdd = async (data: UserFormData) => {
+    try {
+      // Transform frontend data to API format
+      const apiData = {
+        employeeId: data.displayId || undefined, // displayId is the Employee ID
+        name: data.name,
+        email: data.email,
+        departmentId: data.departmentId || undefined,
+        positionId: data.positionId || undefined,
+        role: data.roleId === "1" ? "ADMIN" : data.roleId === "2" ? "USER" : undefined,
+        isActive: data.status === "active",
+      };
+
+      await apiClient.post("/api/users", apiData);
+
+      setSuccessMessage({
+        title: "Successfully Added!",
+        message: "The user data has been added to the system. The changes have been saved successfully.",
+      });
+      setIsSuccessModalOpen(true);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error adding user:", error);
+      setIsErrorModalOpen(true);
+    }
   };
 
-  const handleEdit = (data: UserFormData) => {
-    setUsers(
-      users.map((u) =>
-        u.id === data.id
-          ? {
-              ...u,
-              ...data,
-              departmentName: getDepartmentName(data.departmentId),
-              positionName: getPositionName(data.positionId),
-              roleName: getRoleName(data.roleId),
-            }
-          : u
-      )
-    );
-    setSuccessMessage({
-      title: "Successfully Updated!",
-      message: "The user data has been updated. The changes have been saved successfully.",
-    });
-    setIsSuccessModalOpen(true);
+  const handleEdit = async (data: UserFormData) => {
+    try {
+      // Transform frontend data to API format
+      const apiData = {
+        name: data.name,
+        email: data.email,
+        departmentId: data.departmentId || null,
+        positionId: data.positionId || null,
+        role: data.roleId === "1" ? "ADMIN" : data.roleId === "2" ? "USER" : undefined,
+        isActive: data.status === "active",
+      };
+
+      await apiClient.put(`/api/users/${data.id}`, apiData);
+
+      setSuccessMessage({
+        title: "Successfully Updated!",
+        message: "The user data has been updated. The changes have been saved successfully.",
+      });
+      setIsSuccessModalOpen(true);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error updating user:", error);
+      setIsErrorModalOpen(true);
+    }
   };
 
-  const handleDelete = () => {
-    if (selectedUser) {
-      setUsers(users.filter((u) => u.id !== selectedUser.id));
+  const handleDelete = async () => {
+    if (!selectedUser) return;
+
+    try {
+      await apiClient.delete(`/api/users/${selectedUser.id}`);
+
       setIsDeleteModalOpen(false);
       setSuccessMessage({
         title: "Successfully Deleted!",
         message: "The user data has been deleted from the system. The changes have been saved successfully.",
       });
       setIsSuccessModalOpen(true);
+      fetchUsers();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      setIsDeleteModalOpen(false);
+      setIsErrorModalOpen(true);
     }
   };
 
-  const handleView = (user: typeof sampleUsers[0]) => {
+  const handleView = (user: User) => {
     setSelectedUser(user);
     setIsViewModalOpen(true);
   };
 
-  const handleEditClick = (user: typeof sampleUsers[0]) => {
+  const handleEditClick = (user: User) => {
     setSelectedUser(user);
     setIsEditModalOpen(true);
   };
 
-  const handleDeleteClick = (user: typeof sampleUsers[0]) => {
+  const handleDeleteClick = (user: User) => {
     setSelectedUser(user);
     setIsDeleteModalOpen(true);
-  };
-
-  // Helper functions
-  const getDepartmentName = (id: string) => {
-    const departments: Record<string, string> = {
-      "1": "Engineering",
-      "2": "Human Resources",
-      "3": "Finance",
-      "4": "Marketing",
-    };
-    return departments[id] || "";
-  };
-
-  const getPositionName = (id: string) => {
-    const positions: Record<string, string> = {
-      "1": "Manager",
-      "2": "Supervisor",
-      "3": "Staff",
-      "4": "Intern",
-    };
-    return positions[id] || "";
-  };
-
-  const getRoleName = (id: string) => {
-    const roles: Record<string, string> = {
-      "1": "Admin",
-      "2": "User",
-    };
-    return roles[id] || "";
   };
 
   return (
@@ -374,56 +361,72 @@ export default function UsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedUsers.map((user) => (
-                  <TableRow key={user.id} className="h-[68px]">
-                    <TableCell className="text-[#4db1d4] font-semibold">{user.id}</TableCell>
-                    <TableCell className="text-[#384654]">{user.name}</TableCell>
-                    <TableCell className="text-[#384654]">{user.email}</TableCell>
-                    <TableCell className="text-[#384654]">{user.roleName}</TableCell>
-                    <TableCell className="text-[#384654]">{user.departmentName}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`${
-                          user.status === "active"
-                            ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
-                            : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
-                        }`}
-                      >
-                        {user.status === "active" ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-[#384654]">{user.lastLogin}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleView(user)}
-                        >
-                          <Eye className="size-4 text-[#384654]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleEditClick(user)}
-                        >
-                          <Pencil className="size-4 text-[#4db1d4]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10 border-[#e1e2e3]"
-                          onClick={() => handleDeleteClick(user)}
-                        >
-                          <Trash2 className="size-4 text-[#f24822]" />
-                        </Button>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4db1d4]"></div>
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : users.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-[#384654]">
+                      No users found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  users.map((user) => (
+                    <TableRow key={user.id} className="h-[68px]">
+                      <TableCell className="text-[#4db1d4] font-semibold">{user.displayId}</TableCell>
+                      <TableCell className="text-[#384654]">{user.name}</TableCell>
+                      <TableCell className="text-[#384654]">{user.email}</TableCell>
+                      <TableCell className="text-[#384654]">{user.roleName || "-"}</TableCell>
+                      <TableCell className="text-[#384654]">{user.departmentName || "-"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`${
+                            user.status === "active"
+                              ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
+                              : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
+                          }`}
+                        >
+                          {user.status === "active" ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-[#384654]">{user.lastLogin || "-"}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleView(user)}
+                          >
+                            <Eye className="size-4 text-[#384654]" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleEditClick(user)}
+                          >
+                            <Pencil className="size-4 text-[#4db1d4]" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleDeleteClick(user)}
+                          >
+                            <Trash2 className="size-4 text-[#f24822]" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
 
@@ -448,7 +451,7 @@ export default function UsersPage() {
 
               {/* Page info */}
               <div className="text-xs lg:text-sm text-[#384654]">
-                Showing {filteredUsers.length === 0 ? 0 : startIndex + 1} to {Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length} entries
+                Showing {totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} entries
               </div>
 
               {/* Page navigation */}
@@ -520,7 +523,7 @@ export default function UsersPage() {
                 </Button>
               </div>
               <span className="text-xs text-[#6b7280]">
-                Showing {filteredUsers.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length}
+                Showing {totalCount === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
               </span>
             </div>
           </div>
@@ -547,7 +550,8 @@ export default function UsersPage() {
         user={
           selectedUser
             ? {
-                id: selectedUser.id,
+                id: selectedUser.id,              // Database ID for API
+                displayId: selectedUser.displayId, // Employee ID for display
                 name: selectedUser.name,
                 email: selectedUser.email,
                 departmentId: selectedUser.departmentId,

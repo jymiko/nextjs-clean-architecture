@@ -18,6 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { UserFormData } from "./AddUserModal";
+import apiClient from "@/lib/api-client";
+import { Department, DepartmentListResponse } from "@/domain/entities/Department";
+import { Division, DivisionListResponse } from "@/domain/entities/Division";
 
 interface EditUserModalProps {
   isOpen: boolean;
@@ -25,20 +28,6 @@ interface EditUserModalProps {
   onSubmit: (data: UserFormData) => void;
   user: UserFormData | null;
 }
-
-const departments = [
-  { id: "1", name: "Engineering" },
-  { id: "2", name: "Human Resources" },
-  { id: "3", name: "Finance" },
-  { id: "4", name: "Marketing" },
-];
-
-const positions = [
-  { id: "1", name: "Manager" },
-  { id: "2", name: "Supervisor" },
-  { id: "3", name: "Staff" },
-  { id: "4", name: "Intern" },
-];
 
 const roles = [
   { id: "1", name: "Admin" },
@@ -48,6 +37,7 @@ const roles = [
 export function EditUserModal({ isOpen, onClose, onSubmit, user }: EditUserModalProps) {
   const [formData, setFormData] = useState<UserFormData>({
     id: "",
+    displayId: "",
     name: "",
     email: "",
     departmentId: "",
@@ -55,12 +45,47 @@ export function EditUserModal({ isOpen, onClose, onSubmit, user }: EditUserModal
     roleId: "",
     status: "",
   });
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Division[]>([]);
+  const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [isLoadingPositions, setIsLoadingPositions] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDepartments();
+      fetchPositions();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (user) {
       setFormData(user);
     }
   }, [user]);
+
+  const fetchDepartments = async () => {
+    setIsLoadingDepartments(true);
+    try {
+      const response = await apiClient.get<DepartmentListResponse>('/api/departments?limit=100&isActive=true');
+      setDepartments(response.data);
+    } catch (error) {
+      console.error('Failed to fetch departments:', error);
+    } finally {
+      setIsLoadingDepartments(false);
+    }
+  };
+
+  const fetchPositions = async () => {
+    setIsLoadingPositions(true);
+    try {
+      const response = await apiClient.get<DivisionListResponse>('/api/divisions?limit=100&isActive=true');
+      setPositions(response.data);
+    } catch (error) {
+      console.error('Failed to fetch positions:', error);
+    } finally {
+      setIsLoadingPositions(false);
+    }
+  };
 
   const handleSubmit = () => {
     onSubmit(formData);
@@ -70,6 +95,7 @@ export function EditUserModal({ isOpen, onClose, onSubmit, user }: EditUserModal
   const handleClose = () => {
     setFormData({
       id: "",
+      displayId: "",
       name: "",
       email: "",
       departmentId: "",
@@ -90,16 +116,16 @@ export function EditUserModal({ isOpen, onClose, onSubmit, user }: EditUserModal
         </DialogHeader>
 
         <div className="p-6 space-y-4">
-          {/* User ID */}
+          {/* User ID (Employee ID - Read Only) */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-[#1a1a1a]">
               User ID
             </label>
             <Input
-              placeholder="Input user ID"
-              value={formData.id}
-              onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:border-[#4db1d4]"
+              placeholder="User ID"
+              value={formData.displayId}
+              readOnly
+              className="h-10 bg-[#f0f0f0] border-0 border-b border-[#e5e5e5] rounded-none text-sm text-[#666] cursor-not-allowed focus-visible:ring-0"
             />
           </div>
 
@@ -138,9 +164,10 @@ export function EditUserModal({ isOpen, onClose, onSubmit, user }: EditUserModal
             <Select
               value={formData.departmentId}
               onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
+              disabled={isLoadingDepartments}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0">
-                <SelectValue placeholder="Select department" />
+                <SelectValue placeholder={isLoadingDepartments ? "Loading..." : "Select department"} />
               </SelectTrigger>
               <SelectContent className="bg-white">
                 {departments.map((dept) => (
@@ -160,9 +187,10 @@ export function EditUserModal({ isOpen, onClose, onSubmit, user }: EditUserModal
             <Select
               value={formData.positionId}
               onValueChange={(value) => setFormData({ ...formData, positionId: value })}
+              disabled={isLoadingPositions}
             >
               <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0">
-                <SelectValue placeholder="Select position" />
+                <SelectValue placeholder={isLoadingPositions ? "Loading..." : "Select position"} />
               </SelectTrigger>
               <SelectContent className="bg-white">
                 {positions.map((pos) => (
