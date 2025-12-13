@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { DocumentManagementHeader } from "@/presentation/components/document-management/DocumentManagementHeader";
-import { DocumentManagementPagination } from "@/presentation/components/document-management/DocumentManagementPagination";
+import { Pagination } from "@/components/ui/pagination";
 import {
   DocumentSubmissionTable,
   DocumentSubmissionFilters,
@@ -52,7 +52,12 @@ export default function DocumentSubmissionPage() {
   // "user" | "reviewer" | "admin" | "approval" | "ack"
   const userRole = "user" as const;
 
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
 
   // Fetch documents from API
   const fetchDocuments = useCallback(async () => {
@@ -260,10 +265,15 @@ export default function DocumentSubmissionPage() {
                 onRejectDocument={handleRejectDocument}
               />
             )}
-            <DocumentManagementPagination
+            <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
+              totalItems={documents.length}
+              itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              showItemsPerPage={true}
+              showPageInfo={true}
             />
           </div>
         </div>

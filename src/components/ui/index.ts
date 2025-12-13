@@ -174,3 +174,5 @@ export {
   TooltipProvider,
   TooltipTrigger,
 } from "./tooltip"
+export { Pagination } from "./pagination"
+export type { PaginationProps } from "./pagination"

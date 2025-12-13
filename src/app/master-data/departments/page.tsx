@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
-import { Search, Plus, Eye, Pencil, Trash2, Building2, CheckCircle, XCircle, ChevronLeft, ChevronRight, User, Bell } from "lucide-react";
+import { Search, Plus, Eye, Pencil, Trash2, Building2, CheckCircle, XCircle, User, Bell } from "lucide-react";
 import Image from "next/image";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
@@ -19,13 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Pagination } from "@/components/ui/pagination";
 
 // Department Modals
 import {
@@ -125,8 +119,8 @@ export default function DepartmentPage() {
     }
   };
 
-  const handleItemsPerPageChange = (value: string) => {
-    setItemsPerPage(Number(value));
+  const handleItemsPerPageChange = (value: number) => {
+    setItemsPerPage(value);
     setCurrentPage(1);
   };
 
@@ -480,103 +474,16 @@ export default function DepartmentPage() {
               </TableBody>
             </Table>
 
-            {/* Pagination - Desktop */}
-            <div className="hidden lg:flex items-center justify-between px-4 lg:px-6 py-4 border-t border-[#e1e2e3]">
-              {/* Items per page */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs lg:text-sm text-[#384654]">Show</span>
-                <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
-                  <SelectTrigger className="w-[60px] lg:w-[70px] h-8 lg:h-9 text-xs lg:text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                  </SelectContent>
-                </Select>
-                <span className="text-xs lg:text-sm text-[#384654]">entries</span>
-              </div>
-
-              {/* Page info */}
-              <div className="text-xs lg:text-sm text-[#384654]">
-                Showing {totalDepartments === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalDepartments)} of {totalDepartments} entries
-              </div>
-
-              {/* Page navigation */}
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 lg:h-9 lg:w-9"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1 || loading}
-                >
-                  <ChevronLeft className="size-4" />
-                </Button>
-
-                {/* Page numbers */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? "default" : "outline"}
-                    size="icon"
-                    className={`h-8 w-8 lg:h-9 lg:w-9 text-xs lg:text-sm ${
-                      currentPage === page
-                        ? "bg-[#4db1d4] hover:bg-[#3a9fc2]"
-                        : ""
-                    }`}
-                    onClick={() => handlePageChange(page)}
-                    disabled={loading}
-                  >
-                    {page}
-                  </Button>
-                ))}
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 lg:h-9 lg:w-9"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages || totalPages === 0 || loading}
-                >
-                  <ChevronRight className="size-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Pagination - Mobile */}
-            <div className="flex lg:hidden flex-col items-center gap-2 px-4 py-4 border-t border-[#e1e2e3]">
-              <div className="flex items-center justify-between w-full">
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1 || loading}
-                  className="h-9 px-4 text-xs"
-                >
-                  <ChevronLeft className="size-4 mr-1" />
-                  Prev
-                </Button>
-
-                <span className="text-sm font-medium text-[#384654]">
-                  Page {currentPage} of {totalPages || 1}
-                </span>
-
-                <Button
-                  variant="outline"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages || totalPages === 0 || loading}
-                  className="h-9 px-4 text-xs"
-                >
-                  Next
-                  <ChevronRight className="size-4 ml-1" />
-                </Button>
-              </div>
-              <span className="text-xs text-[#6b7280]">
-                Showing {totalDepartments === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalDepartments)} of {totalDepartments}
-              </span>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalDepartments}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+              showItemsPerPage={true}
+              showPageInfo={true}
+            />
           </div>
         </div>
       </div>

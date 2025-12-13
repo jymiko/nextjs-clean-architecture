@@ -6,6 +6,7 @@ export type DocumentStatus =
   | "active"
   | "obsolete"
   | "pending_obsolete_approval"
+  | "obsolete_request"
   | "expiring_soon"
   | "draft"
   | "pending_approval"
@@ -15,7 +16,8 @@ export type DocumentStatus =
   | "revision_by_reviewer"
   | "pending_ack"
   | "approved"
-  | "distributed";
+  | "distributed"
+  | "waiting_validation";
 
 interface DocumentStatusBadgeProps {
   status: DocumentStatus;
@@ -33,6 +35,10 @@ const statusConfig: Record<DocumentStatus, { label: string; className: string }>
   },
   pending_obsolete_approval: {
     label: "Pending Obsolete Approval",
+    className: "bg-[#FFF4D4] text-[#C08F2C]",
+  },
+  obsolete_request: {
+    label: "Obsolete Request",
     className: "bg-[#FFF4D4] text-[#C08F2C]",
   },
   expiring_soon: {
@@ -74,6 +80,10 @@ const statusConfig: Record<DocumentStatus, { label: string; className: string }>
   distributed: {
     label: "Distributed",
     className: "bg-[#E9F5FE] text-[#4DB1D4]",
+  },
+  waiting_validation: {
+    label: "Waiting Validation",
+    className: "bg-[#FFF4D4] text-[#C08F2C]",
   },
 };
 

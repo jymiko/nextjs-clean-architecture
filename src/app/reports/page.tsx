@@ -7,13 +7,13 @@ import {
   ReportFilters,
   ReportStatsCard,
   ReportDocumentsTable,
-  ReportPagination,
   DetailReportModal,
   TotalSubmissionsIcon,
   ActiveDocumentsIcon,
   ObsoleteDocumentsIcon,
   FilterState,
 } from "@/presentation/components/reports";
+import { Pagination } from "@/components/ui/pagination";
 import { useReports, useReportFilters, type ReportFilters as ReportFiltersType } from "@/hooks/use-reports";
 import { format } from "date-fns";
 
@@ -156,13 +156,15 @@ export default function ReportDocumentsPage() {
             onViewDocument={handleViewDocument}
             isLoading={reportsLoading}
           />
-          <ReportPagination
+          <Pagination
             currentPage={currentPage}
             totalPages={pagination.totalPages}
             totalItems={pagination.total}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
             onItemsPerPageChange={handleItemsPerPageChange}
+            showItemsPerPage={true}
+            showPageInfo={true}
           />
         </div>
       </div>

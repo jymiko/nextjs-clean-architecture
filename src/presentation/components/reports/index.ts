@@ -14,6 +14,4 @@ export { DocumentStatusBadge } from "./DocumentStatusBadge";
 export { ReportDocumentsTable } from "./ReportDocumentsTable";
 export type { ReportDocument } from "./ReportDocumentsTable";
 
-export { ReportPagination } from "./ReportPagination";
-
 export { DetailReportModal } from "./DetailReportModal";

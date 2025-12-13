@@ -2,119 +2,135 @@
 
 import { useState, useMemo } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
+import { DocumentManagementHeader } from "@/presentation/components/document-management/DocumentManagementHeader";
 import {
-  DocumentManagementHeader,
-  DocumentManagementFilters,
-  DocumentManagementTable,
-  DocumentViewerModal,
-  RejectReasonModal,
-  ManagementDocument,
+  DistributedDocumentStats,
+  DistributedDocumentFilters,
+  DistributedDocumentTable,
+  DistributedDocument,
   FilterState,
-} from "@/presentation/components/document-management";
+} from "@/presentation/components/distributed-document";
 import { Pagination } from "@/components/ui/pagination";
+import {
+  DocumentViewerModal,
+} from "@/presentation/components/document-management";
 import { DocumentStatus } from "@/presentation/components/reports/DocumentStatusBadge";
 
-// Mock data for User role (with Department column)
-// pdfUrl bisa berupa:
-// 1. URL langsung: "https://api.example.com/documents/123/file.pdf"
-// 2. URL dengan auth: akan di-fetch dengan token di header
-// 3. Local file: "/documents/sample.pdf"
-const mockUserDocuments: ManagementDocument[] = [
+// Mock data for distributed documents
+const mockDistributedDocuments: DistributedDocument[] = [
   {
     id: "1",
-    code: "SOP-DT-001-002",
+    code: "SOP-DT-001-003",
     title: "Digitalisasi Arsip Kepegawaian",
     type: "SOP",
-    department: "Digital Transformation",
-    distributedDate: "Mon, 17 Jun 2024",
-    expiredDate: "Fri, 17 Jun 2025",
+    originDepartment: "Digital Transformation",
+    documentBy: "Firdiyatus Sholihah",
+    distributedDate: "Fri, 17 Jun 2025",
     status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf", // Contoh: local file
+    pdfUrl: "/documents/draft-bawang.pdf",
   },
   {
     id: "2",
-    code: "STANDART-WH-003-002",
+    code: "STANDART-WH-011-005",
     title: "Dokumen Operasional",
     type: "Standart",
-    department: "Warehouse",
-    distributedDate: "Tue, 23 Feb 2024",
-    expiredDate: "Thu, 23 Feb 2025",
-    status: "pending_obsolete_approval" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf", // Contoh: dari API nanti
+    originDepartment: "Warehouse",
+    documentBy: "Sanusi",
+    distributedDate: "Thu, 23 Feb 2025",
+    status: "obsolete_request" as DocumentStatus,
+    pdfUrl: "/documents/draft-bawang.pdf",
   },
   {
     id: "3",
-    code: "SPEK-PDI-RM-003-002",
+    code: "SPEK-PDI-RM-001-002",
     title: "Manual Mutu dan Keamanan Pangan",
     type: "Spesifikasi",
-    department: "Food Safety",
-    distributedDate: "Fri, 12 Feb 2024",
-    expiredDate: "Mon, 12 Feb 2025",
+    originDepartment: "Food Safety",
+    documentBy: "Handoko",
+    distributedDate: "Mon, 12 Feb 2025",
     status: "active" as DocumentStatus,
     pdfUrl: "/documents/draft-bawang.pdf",
   },
   {
     id: "4",
-    code: "WI-EHS-004-001",
+    code: "WI-EHS-002-006-001",
     title: "Penanganan dan Pembuangan Limbah Kimia",
     type: "WI",
-    department: "Environment, Health and Safety",
-    distributedDate: "Wed, 10 Jan 2024",
-    expiredDate: "Tue, 10 Jan 2025",
-    status: "expiring_soon" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-];
-
-// Mock data for Admin role (with Approved Date column)
-const mockAdminDocuments: ManagementDocument[] = [
-  {
-    id: "1",
-    code: "SOP-DT-001-002",
-    title: "Digitalisasi Arsip Kepegawaian",
-    type: "SOP",
-    approvedDate: "Fri, 17 Jun 2025",
-    distributedDate: "Wed, 17 Jun 2025",
-    expiredDate: "Fri, 17 Jun 2025",
-    status: "pending_obsolete_approval" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "2",
-    code: "STANDART-DT-001-001",
-    title: "Dokumen Operasional",
-    type: "Standart",
-    approvedDate: "Thu, 23 Feb 2025",
-    distributedDate: "Fri, 23 Feb 2024",
-    expiredDate: "Thu, 23 Feb 2025",
+    originDepartment: "Environment, Health and Safety",
+    documentBy: "Kaluna",
+    distributedDate: "Tue, 10 Jan 2025",
     status: "active" as DocumentStatus,
     pdfUrl: "/documents/draft-bawang.pdf",
   },
   {
-    id: "3",
-    code: "SPEK-DT-RM-001-004",
-    title: "Manual Mutu dan Keamanan Pangan",
-    type: "Spesifikasi",
-    approvedDate: "Mon, 12 Feb 2025",
-    distributedDate: "Tue, 12 Feb 2025",
-    expiredDate: "Mon, 12 Feb 2025",
-    status: "pending_obsolete_approval" as DocumentStatus,
+    id: "5",
+    code: "WI-EHS-002-006-002",
+    title: "Penanganan dan Pembuangan Limbah Kimia",
+    type: "WI",
+    originDepartment: "Environment, Health and Safety",
+    documentBy: "Kaluna",
+    distributedDate: "Tue, 10 Jan 2025",
+    status: "active" as DocumentStatus,
     pdfUrl: "/documents/draft-bawang.pdf",
   },
   {
-    id: "4",
-    code: "WI-DT-001-003",
+    id: "6",
+    code: "WI-EHS-002-006-003",
     title: "Penanganan dan Pembuangan Limbah Kimia",
     type: "WI",
-    approvedDate: "Tue, 10 Jan 2025",
-    distributedDate: "Thu, 10 Jan 2024",
-    expiredDate: "Tue, 10 Jan 2025",
-    status: "expiring_soon" as DocumentStatus,
+    originDepartment: "Environment, Health and Safety",
+    documentBy: "Kaluna",
+    distributedDate: "Tue, 10 Jan 2025",
+    status: "active" as DocumentStatus,
+    pdfUrl: "/documents/draft-bawang.pdf",
+  },
+  {
+    id: "7",
+    code: "WI-EHS-002-006-004",
+    title: "Penanganan dan Pembuangan Limbah Kimia",
+    type: "WI",
+    originDepartment: "Environment, Health and Safety",
+    documentBy: "Kaluna",
+    distributedDate: "Tue, 10 Jan 2025",
+    status: "active" as DocumentStatus,
+    pdfUrl: "/documents/draft-bawang.pdf",
+  },
+  {
+    id: "8",
+    code: "WI-EHS-002-006-005",
+    title: "Penanganan dan Pembuangan Limbah Kimia",
+    type: "WI",
+    originDepartment: "Environment, Health and Safety",
+    documentBy: "Kaluna",
+    distributedDate: "Tue, 10 Jan 2025",
+    status: "active" as DocumentStatus,
+    pdfUrl: "/documents/draft-bawang.pdf",
+  },
+  {
+    id: "9",
+    code: "WI-EHS-002-006-006",
+    title: "Penanganan dan Pembuangan Limbah Kimia",
+    type: "WI",
+    originDepartment: "Environment, Health and Safety",
+    documentBy: "Kaluna",
+    distributedDate: "Tue, 10 Jan 2025",
+    status: "active" as DocumentStatus,
+    pdfUrl: "/documents/draft-bawang.pdf",
+  },
+  {
+    id: "10",
+    code: "WI-EHS-002-006-007",
+    title: "Penanganan dan Pembuangan Limbah Kimia",
+    type: "WI",
+    originDepartment: "Environment, Health and Safety",
+    documentBy: "Kaluna",
+    distributedDate: "Tue, 10 Jan 2025",
+    status: "active" as DocumentStatus,
     pdfUrl: "/documents/draft-bawang.pdf",
   },
 ];
 
-export default function DocumentManagementPage() {
+export default function DistributedDocumentsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<FilterState>({
@@ -128,12 +144,7 @@ export default function DocumentManagementPage() {
 
   // Modal states
   const [viewerModalOpen, setViewerModalOpen] = useState(false);
-  const [rejectModalOpen, setRejectModalOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<ManagementDocument | null>(null);
-
-  // For demo purposes, this should come from auth context in real app
-  // Set to true to show Admin view, false for User view
-  const isAdmin = true;
+  const [selectedDocument, setSelectedDocument] = useState<DistributedDocument | null>(null);
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -142,14 +153,23 @@ export default function DocumentManagementPage() {
     setCurrentPage(1);
   };
 
-  // Select data based on role
-  const mockDocuments = isAdmin ? mockAdminDocuments : mockUserDocuments;
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = mockDistributedDocuments.length;
+    const approved = mockDistributedDocuments.filter(
+      (doc) => doc.status === "active"
+    ).length;
+    const pending = mockDistributedDocuments.filter(
+      (doc) => doc.status === "obsolete_request"
+    ).length;
+    return { total, approved, pending };
+  }, []);
 
   // Filter documents based on current filters
   const filteredDocuments = useMemo(() => {
-    return mockDocuments.filter((doc) => {
-      // Department filter (only for user role)
-      if (!isAdmin && filters.department && doc.department) {
+    return mockDistributedDocuments.filter((doc) => {
+      // Department filter
+      if (filters.department) {
         const deptMap: Record<string, string> = {
           "digital-transformation": "Digital Transformation",
           "warehouse": "Warehouse",
@@ -159,7 +179,7 @@ export default function DocumentManagementPage() {
           "finance": "Finance",
           "operations": "Operations",
         };
-        if (doc.department !== deptMap[filters.department]) {
+        if (doc.originDepartment !== deptMap[filters.department]) {
           return false;
         }
       }
@@ -197,7 +217,7 @@ export default function DocumentManagementPage() {
 
       return true;
     });
-  }, [filters, mockDocuments, isAdmin]);
+  }, [filters]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
@@ -211,33 +231,14 @@ export default function DocumentManagementPage() {
     setCurrentPage(1); // Reset to first page when filters change
   };
 
-  const handleViewDocument = (document: ManagementDocument) => {
+  const handleViewDocument = (document: DistributedDocument) => {
     setSelectedDocument(document);
     setViewerModalOpen(true);
   };
 
-  const handleApproveDocument = (document: ManagementDocument) => {
-    setSelectedDocument(document);
-    setViewerModalOpen(true);
-  };
-
-  const handleApproveFromViewer = (document: ManagementDocument) => {
-    // TODO: Implement API call to approve document
-    console.log("Approving document:", document);
-    setViewerModalOpen(false);
-    setSelectedDocument(null);
-  };
-
-  const handleRejectFromViewer = (document: ManagementDocument) => {
-    setViewerModalOpen(false);
-    setRejectModalOpen(true);
-  };
-
-  const handleRejectSubmit = (document: ManagementDocument, reason: string) => {
-    // TODO: Implement API call to reject document with reason
-    console.log("Rejecting document:", document, "Reason:", reason);
-    setRejectModalOpen(false);
-    setSelectedDocument(null);
+  const handleEditDocument = (document: DistributedDocument) => {
+    // TODO: Implement edit functionality for obsolete request
+    console.log("Edit document:", document);
   };
 
   return (
@@ -254,27 +255,33 @@ export default function DocumentManagementPage() {
         {/* Header */}
         <DocumentManagementHeader
           onMenuClick={() => setSidebarOpen(true)}
-          title="Document Management"
-          subtitle="Digitize Your Archives with Maximum Speed and Security"
+          title="Distributed Documents"
+          subtitle="View documents distributed to your department"
         />
 
         {/* Content Area */}
         <div className="flex flex-col gap-1.5 p-4 lg:p-0 lg:px-0">
           {/* Filters Section */}
           <div className="bg-white px-4 py-2">
-            <DocumentManagementFilters
+            <DistributedDocumentFilters
               filters={filters}
               onFilterChange={handleFilterChange}
             />
           </div>
 
+          {/* Stats Section */}
+          <DistributedDocumentStats
+            totalDocuments={stats.total}
+            approvedDocuments={stats.approved}
+            pendingDocuments={stats.pending}
+          />
+
           {/* Documents Table */}
           <div className="bg-white px-4 py-2">
-            <DocumentManagementTable
+            <DistributedDocumentTable
               documents={paginatedDocuments}
               onViewDocument={handleViewDocument}
-              onApproveDocument={handleApproveDocument}
-              isAdmin={isAdmin}
+              onEditDocument={handleEditDocument}
             />
             <Pagination
               currentPage={currentPage}
@@ -291,22 +298,24 @@ export default function DocumentManagementPage() {
       </div>
 
       {/* Document Viewer Modal */}
-      <DocumentViewerModal
-        open={viewerModalOpen}
-        onOpenChange={setViewerModalOpen}
-        document={selectedDocument}
-        onApprove={handleApproveFromViewer}
-        onReject={handleRejectFromViewer}
-        isAdmin={isAdmin}
-      />
-
-      {/* Reject Reason Modal */}
-      <RejectReasonModal
-        open={rejectModalOpen}
-        onOpenChange={setRejectModalOpen}
-        document={selectedDocument}
-        onSubmit={handleRejectSubmit}
-      />
+      {selectedDocument && (
+        <DocumentViewerModal
+          open={viewerModalOpen}
+          onOpenChange={setViewerModalOpen}
+          document={{
+            id: selectedDocument.id,
+            code: selectedDocument.code,
+            title: selectedDocument.title,
+            type: selectedDocument.type,
+            department: selectedDocument.originDepartment,
+            distributedDate: selectedDocument.distributedDate,
+            expiredDate: "",
+            status: selectedDocument.status,
+            pdfUrl: selectedDocument.pdfUrl,
+          }}
+          isAdmin={false}
+        />
+      )}
     </div>
   );
 }
