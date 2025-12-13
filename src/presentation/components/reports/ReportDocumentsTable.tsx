@@ -20,6 +20,10 @@ export interface ReportDocument {
   type: string;
   status: "active" | "obsolete";
   date: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
 }
 
 interface ReportDocumentsTableProps {

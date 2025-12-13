@@ -6,14 +6,19 @@ export async function getServerAuth() {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth-token')?.value;
 
+  console.log('[ServerAuth] Checking auth, token exists:', !!token);
+
   if (!token) {
+    console.log('[ServerAuth] No auth-token cookie found');
     return null;
   }
 
   try {
     const payload = await verifyToken(token);
+    console.log('[ServerAuth] Token verification result:', payload ? 'valid' : 'invalid');
     return payload;
-  } catch {
+  } catch (error) {
+    console.log('[ServerAuth] Token verification error:', error);
     return null;
   }
 }

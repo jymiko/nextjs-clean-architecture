@@ -612,6 +612,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return categories.map(cat => ({
       id: cat.id,
       name: cat.name,
+      code: cat.code,
       description: cat.description || undefined,
       isActive: cat.isActive,
       createdAt: cat.createdAt,
@@ -641,6 +642,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return {
       id: category.id,
       name: category.name,
+      code: category.code,
       description: category.description || undefined,
       isActive: category.isActive,
       createdAt: category.createdAt,

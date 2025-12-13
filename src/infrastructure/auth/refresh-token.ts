@@ -24,16 +24,40 @@ export const generateRefreshToken = async (
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 30);
 
-  // Store in database
-  await prisma.refreshToken.create({
-    data: {
-      userId,
-      token,
-      tokenHash,
-      expiresAt,
-      deviceId,
-    },
-  });
+  // Use upsert to handle unique constraint on [userId, deviceId]
+  if (deviceId) {
+    await prisma.refreshToken.upsert({
+      where: {
+        unique_refresh_per_device: {
+          userId,
+          deviceId,
+        },
+      },
+      update: {
+        token,
+        tokenHash,
+        expiresAt,
+      },
+      create: {
+        userId,
+        token,
+        tokenHash,
+        expiresAt,
+        deviceId,
+      },
+    });
+  } else {
+    // No deviceId, just create a new refresh token
+    await prisma.refreshToken.create({
+      data: {
+        userId,
+        token,
+        tokenHash,
+        expiresAt,
+        deviceId,
+      },
+    });
+  }
 
   return token;
 };
@@ -119,26 +143,49 @@ export const generateTokenPair = async (
   payload: JWTPayload,
   deviceId?: string
 ): Promise<TokenPair> => {
-  // Generate access token (short-lived)
+  // Generate access token (matches cookie expiry of 7 days)
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     throw new Error('JWT_SECRET is not defined');
   }
 
-  const accessToken = jwt.sign(payload, secret, { expiresIn: '15m' });
+  const accessToken = jwt.sign(payload, secret, { expiresIn: '7d' });
 
-  // Save session to database
+  // Save session to database (7 days to match cookie and JWT)
   const expiresAt = new Date();
-  expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+  expiresAt.setDate(expiresAt.getDate() + 7);
 
-  await prisma.session.create({
-    data: {
-      userId: payload.userId,
-      token: accessToken,
-      expiresAt,
-      deviceId,
-    },
-  });
+  // Use upsert to handle unique constraint on [userId, deviceId]
+  if (deviceId) {
+    await prisma.session.upsert({
+      where: {
+        unique_session_per_device: {
+          userId: payload.userId,
+          deviceId,
+        },
+      },
+      update: {
+        token: accessToken,
+        expiresAt,
+      },
+      create: {
+        userId: payload.userId,
+        token: accessToken,
+        expiresAt,
+        deviceId,
+      },
+    });
+  } else {
+    // No deviceId, just create a new session
+    await prisma.session.create({
+      data: {
+        userId: payload.userId,
+        token: accessToken,
+        expiresAt,
+        deviceId,
+      },
+    });
+  }
 
   // Generate refresh token (long-lived)
   const refreshToken = await generateRefreshToken(payload.userId, deviceId);
@@ -173,28 +220,52 @@ export const refreshAccessToken = async (
     const jwtPayload: JWTPayload = {
       userId: user.id,
       email: user.email,
+      role: user.role,
     };
 
-    // Generate new access token
+    // Generate new access token (matches cookie expiry of 7 days)
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       throw new Error('JWT_SECRET is not defined');
     }
 
-    const accessToken = jwt.sign(jwtPayload, secret, { expiresIn: '15min' });
+    const accessToken = jwt.sign(jwtPayload, secret, { expiresIn: '7d' });
 
-    // Save new session to database
+    // Save new session to database (7 days to match cookie and JWT)
     const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
+    expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await prisma.session.create({
-      data: {
-        userId: user.id,
-        token: accessToken,
-        expiresAt,
-        deviceId,
-      },
-    });
+    // Use upsert to handle unique constraint on [userId, deviceId]
+    if (deviceId) {
+      await prisma.session.upsert({
+        where: {
+          unique_session_per_device: {
+            userId: user.id,
+            deviceId,
+          },
+        },
+        update: {
+          token: accessToken,
+          expiresAt,
+        },
+        create: {
+          userId: user.id,
+          token: accessToken,
+          expiresAt,
+          deviceId,
+        },
+      });
+    } else {
+      // No deviceId, just create a new session
+      await prisma.session.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          expiresAt,
+          deviceId,
+        },
+      });
+    }
 
     // Rotate the refresh token
     const newRefreshToken = await rotateRefreshToken(refreshToken, deviceId);

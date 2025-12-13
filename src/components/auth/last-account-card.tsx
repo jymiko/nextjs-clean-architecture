@@ -50,20 +50,20 @@ export function LastAccountCard({ account, onSelect, onRemove }: LastAccountCard
 
   return (
     <div
-      className="bg-[#f6faff] dark:bg-zinc-800 h-[164px] w-[145px] rounded-lg p-4 relative cursor-pointer hover:shadow-md transition-shadow"
+      className="bg-[#f6faff] h-[164px] w-[145px] rounded-[9px] p-[15px] relative cursor-pointer hover:shadow-md transition-shadow flex flex-col items-center justify-between"
       onClick={handleClick}
     >
       <Button
         variant="ghost"
         size="sm"
-        className="absolute top-2 right-2 h-3 w-3 p-0 hover:bg-gray-200"
+        className="absolute top-[8px] right-[8px] h-[13px] w-[13px] p-0 hover:bg-transparent"
         onClick={handleRemove}
       >
-        <X className="h-3 w-3 text-gray-500" />
+        <X className="h-[13px] w-[13px] text-gray-400" />
       </Button>
 
       {/* Avatar */}
-      <div className="w-[76px] h-[76px] mx-auto mb-2">
+      <div className="w-[76px] h-[76px] shrink-0 mt-[5px]">
         <Avatar className="w-full h-full">
           <AvatarImage src={account.avatar} alt={account.name} />
           <AvatarFallback className="bg-[#4db1d4] text-white text-2xl font-medium w-full h-full">
@@ -74,11 +74,11 @@ export function LastAccountCard({ account, onSelect, onRemove }: LastAccountCard
 
       {/* User info */}
       <div className="text-center">
-        <p className="text-[15px] font-medium text-[#243644] dark:text-white mb-1">
+        <p className="text-[15px] font-medium text-[#243644] leading-tight">
           {account.name}
         </p>
         {account.lastLogin && (
-          <p className="text-[13px] text-[#a4b4c8] dark:text-gray-400">
+          <p className="text-[13px] text-[#a4b4c8] mt-[2px]">
             {formatLastLogin(account.lastLogin)}
           </p>
         )}

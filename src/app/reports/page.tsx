@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { DashboardHeader } from "@/presentation/components/dashboard";
 import {
@@ -13,84 +13,22 @@ import {
   ActiveDocumentsIcon,
   ObsoleteDocumentsIcon,
   FilterState,
-  ReportDocument,
 } from "@/presentation/components/reports";
+import { useReports, useReportFilters, type ReportFilters as ReportFiltersType } from "@/hooks/use-reports";
+import { format } from "date-fns";
 
-// Mock data for demonstration
-const mockDocuments: ReportDocument[] = [
-  {
-    id: "1",
-    code: "IT-POL-011",
-    title: "Data Protection Guidelines",
-    department: "IT",
-    type: "Policy",
-    status: "active",
-    date: "22 February 2024",
-  },
-  {
-    id: "2",
-    code: "IT-POL-010",
-    title: "Cloud Security Framework",
-    department: "IT",
-    type: "Policy",
-    status: "active",
-    date: "21 February 2024",
-  },
-  {
-    id: "3",
-    code: "HR-POL-008",
-    title: "Employee Onboarding Guide",
-    department: "HR",
-    type: "Procedure",
-    status: "active",
-    date: "20 February 2024",
-  },
-  {
-    id: "4",
-    code: "FIN-POL-015",
-    title: "Budget Allocation Policy",
-    department: "Finance",
-    type: "Policy",
-    status: "obsolete",
-    date: "19 February 2024",
-  },
-  {
-    id: "5",
-    code: "OPS-SOP-023",
-    title: "Quality Control Procedures",
-    department: "Operations",
-    type: "SOP",
-    status: "active",
-    date: "18 February 2024",
-  },
-  {
-    id: "6",
-    code: "IT-SOP-012",
-    title: "Network Security Protocol",
-    department: "IT",
-    type: "SOP",
-    status: "obsolete",
-    date: "17 February 2024",
-  },
-  {
-    id: "7",
-    code: "HR-POL-007",
-    title: "Performance Review Process",
-    department: "HR",
-    type: "Policy",
-    status: "active",
-    date: "16 February 2024",
-  },
-  {
-    id: "8",
-    code: "FIN-SOP-014",
-    title: "Invoice Processing Guide",
-    department: "Finance",
-    type: "SOP",
-    status: "active",
-    date: "15 February 2024",
-  },
-];
+// Map API response to table format
+interface ReportDocument {
+  id: string;
+  code: string;
+  title: string;
+  department: string;
+  type: string;
+  status: "active" | "obsolete";
+  date: string;
+  fileUrl?: string;
+  fileName?: string;
+}
 
 export default function ReportDocumentsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -107,74 +45,65 @@ export default function ReportDocumentsPage() {
     search: "",
   });
 
-  // Filter documents based on current filters
-  const filteredDocuments = useMemo(() => {
-    return mockDocuments.filter((doc) => {
-      // Department filter
-      if (filters.department && doc.department.toLowerCase() !== filters.department.toLowerCase()) {
-        return false;
-      }
+  // Fetch filter options (departments and categories)
+  const { options: filterOptions, isLoading: filtersLoading } = useReportFilters();
 
-      // Document type filter
-      if (filters.documentType && doc.type.toLowerCase() !== filters.documentType.toLowerCase()) {
-        return false;
-      }
+  // Build API filters from UI filters
+  const apiFilters: ReportFiltersType = useMemo(() => ({
+    search: filters.search || undefined,
+    departmentId: filters.department || undefined,
+    categoryId: filters.documentType || undefined,
+    status: (filters.status as 'active' | 'obsolete' | 'all') || undefined,
+    dateFrom: filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined,
+    dateTo: filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined,
+  }), [filters]);
 
-      // Status filter
-      if (filters.status && doc.status !== filters.status) {
-        return false;
-      }
+  // Fetch reports data
+  const {
+    documents: apiDocuments,
+    statistics,
+    pagination,
+    isLoading: reportsLoading,
+  } = useReports({
+    page: currentPage,
+    limit: itemsPerPage,
+    filters: apiFilters,
+  });
 
-      // Search filter (searches in code and title)
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        if (
-          !doc.code.toLowerCase().includes(searchLower) &&
-          !doc.title.toLowerCase().includes(searchLower)
-        ) {
-          return false;
-        }
-      }
+  // Map API documents to table format
+  const documents: ReportDocument[] = useMemo(() => {
+    return apiDocuments.map((doc) => ({
+      id: doc.id,
+      code: doc.code,
+      title: doc.title,
+      department: doc.department,
+      type: doc.type,
+      status: doc.status,
+      date: doc.date,
+      fileUrl: doc.fileUrl,
+      fileName: doc.fileName,
+    }));
+  }, [apiDocuments]);
 
-      return true;
-    });
-  }, [filters]);
-
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
-  const paginatedDocuments = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDocuments, currentPage, itemsPerPage]);
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    return {
-      total: filteredDocuments.length,
-      active: filteredDocuments.filter((d) => d.status === "active").length,
-      obsolete: filteredDocuments.filter((d) => d.status === "obsolete").length,
-    };
-  }, [filteredDocuments]);
-
-  const handleFilterChange = (newFilters: FilterState) => {
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
     setCurrentPage(1); // Reset to first page when filters change
-  };
+  }, []);
 
-  const handleItemsPerPageChange = (value: number) => {
+  const handleItemsPerPageChange = useCallback((value: number) => {
     setItemsPerPage(value);
     setCurrentPage(1); // Reset to first page when items per page change
-  };
+  }, []);
 
-  const handleViewDocument = (document: ReportDocument) => {
+  const handleViewDocument = useCallback((document: ReportDocument) => {
     setSelectedDocument(document);
     setIsDetailModalOpen(true);
-  };
+  }, []);
 
-  const handleCloseDetailModal = () => {
+  const handleCloseDetailModal = useCallback(() => {
     setIsDetailModalOpen(false);
     setSelectedDocument(null);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f9fbff] relative">
@@ -190,25 +119,31 @@ export default function ReportDocumentsPage() {
         />
 
         {/* Filters Section */}
-        <ReportFilters filters={filters} onFilterChange={handleFilterChange} />
+        <ReportFilters
+          departments={filterOptions.departments}
+          documentTypes={filterOptions.categories}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          isLoading={filtersLoading}
+        />
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
           <ReportStatsCard
             title="Total Submission"
-            value={stats.total}
+            value={statistics.total}
             icon={<TotalSubmissionsIcon />}
             valueColor="default"
           />
           <ReportStatsCard
             title="Active Documents"
-            value={stats.active}
+            value={statistics.active}
             icon={<ActiveDocumentsIcon />}
             valueColor="success"
           />
           <ReportStatsCard
             title="Obsolete Documents"
-            value={stats.obsolete}
+            value={statistics.obsolete}
             icon={<ObsoleteDocumentsIcon />}
             valueColor="warning"
           />
@@ -217,13 +152,14 @@ export default function ReportDocumentsPage() {
         {/* Documents Table */}
         <div className="flex flex-col">
           <ReportDocumentsTable
-            documents={paginatedDocuments}
+            documents={documents}
             onViewDocument={handleViewDocument}
+            isLoading={reportsLoading}
           />
           <ReportPagination
             currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={filteredDocuments.length}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.total}
             itemsPerPage={itemsPerPage}
             onPageChange={setCurrentPage}
             onItemsPerPageChange={handleItemsPerPageChange}

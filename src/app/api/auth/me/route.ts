@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleError } from "@/infrastructure/errors";
-import { withAuth } from "@/infrastructure/middleware";
+import { withAuth, getRequestUser } from "@/infrastructure/middleware";
 import { container } from "@/infrastructure/di/container";
 
 /**
@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
     // Authenticate user
     const authenticatedRequest = await withAuth(request);
 
-    if (!authenticatedRequest.user) {
+    // Get user from WeakMap (more reliable) or request property
+    const authUser = getRequestUser(request) || authenticatedRequest.user;
+    if (!authUser) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     // Get user details
     const userService = container.cradle.userService;
-    const user = await userService.getUserById(authenticatedRequest.user.userId);
+    const user = await userService.getUserById(authUser.userId);
 
     if (!user) {
       return NextResponse.json(

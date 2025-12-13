@@ -1,10 +1,11 @@
-import { LayoutDashboard, Database, FileText, FolderOpen, Settings, LogOut, ChevronDown, Users, Building2, FilePlus, FileEdit, FileQuestion, FileCheck2, FolderCog, Share2, FileX, Layers } from "lucide-react";
+import { LayoutDashboard, Database, FileText, FolderOpen, Settings, LogOut, ChevronDown, Users, Building2, FilePlus, FileEdit, FileQuestion, FileCheck2, FolderCog, Share2, FileX, Layers, Briefcase } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { tokenManager } from "@/lib/auth/token-manager";
 import { clearAuthCookies } from "@/lib/cookies";
+import { useLastAccounts } from "@/hooks/use-last-accounts";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarP
   const [expandedItems, setExpandedItems] = useState<string[]>(defaultExpandedItems);
   const pathname = usePathname();
   const router = useRouter();
+  const { saveAccountFromSession } = useLastAccounts();
 
   const toggleExpand = (item: string) => {
     setExpandedItems(prev =>
@@ -27,11 +29,16 @@ export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarP
 
   const handleLogout = async () => {
     try {
+      // Save account to "Login As" if Remember Me was checked during login
+      saveAccountFromSession();
+
       await tokenManager.logout();
       clearAuthCookies();
       router.push('/login');
     } catch (error) {
       console.error('Logout error:', error);
+      // Still save account even if server logout fails
+      saveAccountFromSession();
       // Clear tokens locally even if server logout fails
       tokenManager.clearTokens();
       clearAuthCookies();
@@ -139,6 +146,17 @@ export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarP
                       >
                         <Users className="size-4" />
                         <span className="flex-1 text-left">Users</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        href="/master-data/positions"
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-colors ${
+                          pathname === "/master-data/positions" ? "bg-[#E9F5FE] text-[#4DB1D4]" : "text-[#425166] hover:bg-[#F8F9FA]"
+                        }`}
+                      >
+                        <Briefcase className="size-4" />
+                        <span className="flex-1 text-left">Positions</span>
                       </Link>
                     </li>
                   </ul>

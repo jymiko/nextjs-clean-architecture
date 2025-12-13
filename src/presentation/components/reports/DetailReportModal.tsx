@@ -9,18 +9,52 @@ import {
 import { Button } from "@/components/ui/button";
 import { FileText, Download } from "lucide-react";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
-import { ReportDocument } from "./ReportDocumentsTable";
+
+// Extended interface for modal that includes file information
+interface ReportDocumentWithFile {
+  id: string;
+  code: string;
+  title: string;
+  department: string;
+  type: string;
+  status: "active" | "obsolete";
+  date: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+}
 
 interface DetailReportModalProps {
-  document: ReportDocument | null;
+  document: ReportDocumentWithFile | null;
   open: boolean;
   onClose: () => void;
 }
 
-interface DocumentAttachment {
-  name: string;
-  type: string;
-  size: string;
+// Helper function to format file size
+function formatFileSize(bytes?: number): string {
+  if (!bytes) return "Unknown size";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+// Helper function to get file type from mime type or filename
+function getFileType(mimeType?: string, fileName?: string): string {
+  if (mimeType) {
+    if (mimeType.includes('pdf')) return 'PDF';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'DOCX';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'XLSX';
+    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'PPTX';
+    if (mimeType.includes('image')) return 'Image';
+    if (mimeType.includes('text')) return 'TXT';
+  }
+  if (fileName) {
+    const ext = fileName.split('.').pop()?.toUpperCase();
+    if (ext) return ext;
+  }
+  return 'File';
 }
 
 export function DetailReportModal({
@@ -30,11 +64,18 @@ export function DetailReportModal({
 }: DetailReportModalProps) {
   if (!document) return null;
 
-  // Mock attachment data - in real implementation, this would come from document data
-  const attachment: DocumentAttachment = {
-    name: `${document.code}.pdf`,
-    type: "PDF",
-    size: "2.4 MB",
+  // Use real file data from document
+  const attachment = {
+    name: document.fileName || `${document.code}.pdf`,
+    type: getFileType(document.mimeType, document.fileName),
+    size: formatFileSize(document.fileSize),
+    url: document.fileUrl,
+  };
+
+  const handleDownload = () => {
+    if (attachment.url) {
+      window.open(attachment.url, '_blank');
+    }
   };
 
   return (
@@ -134,6 +175,8 @@ export function DetailReportModal({
                 variant="outline"
                 size="sm"
                 className="h-10 px-4 border-[#4DB1D4] text-[#4DB1D4] text-base hover:bg-[#e9f5fe] hover:text-[#4DB1D4]"
+                onClick={handleDownload}
+                disabled={!attachment.url}
               >
                 <Download className="h-4 w-4 mr-2" />
                 Download

@@ -35,6 +35,7 @@ interface ReportFiltersProps {
   documentTypes?: DocumentType[];
   filters?: FilterState;
   onFilterChange?: (filters: FilterState) => void;
+  isLoading?: boolean;
 }
 
 export interface FilterState {
@@ -46,25 +47,12 @@ export interface FilterState {
   search: string;
 }
 
-const defaultDepartments: Department[] = [
-  { id: "it", name: "IT" },
-  { id: "hr", name: "HR" },
-  { id: "finance", name: "Finance" },
-  { id: "operations", name: "Operations" },
-];
-
-const defaultDocumentTypes: DocumentType[] = [
-  { id: "policy", name: "Policy" },
-  { id: "procedure", name: "Procedure" },
-  { id: "sop", name: "SOP" },
-  { id: "guideline", name: "Guideline" },
-];
-
 export function ReportFilters({
-  departments = defaultDepartments,
-  documentTypes = defaultDocumentTypes,
+  departments = [],
+  documentTypes = [],
   filters: externalFilters,
   onFilterChange,
+  isLoading = false,
 }: ReportFiltersProps) {
   const [internalFilters, setInternalFilters] = useState<FilterState>({
     department: "",
@@ -94,17 +82,24 @@ export function ReportFilters({
           <Select
             value={filters.department || "all"}
             onValueChange={(value) => updateFilter("department", value === "all" ? "" : value)}
+            disabled={isLoading}
           >
             <SelectTrigger className="w-full h-11 bg-white border-[#e1e2e3] text-base text-[#384654]">
               <SelectValue placeholder="All Departments" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
-              {departments.map((dept) => (
-                <SelectItem key={dept.id} value={dept.id}>
-                  {dept.name}
+              {departments.length > 0 ? (
+                departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="loading" disabled>
+                  {isLoading ? "Loading..." : "No departments available"}
                 </SelectItem>
-              ))}
+              )}
             </SelectContent>
           </Select>
 
@@ -112,17 +107,24 @@ export function ReportFilters({
           <Select
             value={filters.documentType || "all"}
             onValueChange={(value) => updateFilter("documentType", value === "all" ? "" : value)}
+            disabled={isLoading}
           >
             <SelectTrigger className="w-full h-11 bg-white border-[#e1e2e3] text-base text-[#384654]">
               <SelectValue placeholder="All Type Documents" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Type Documents</SelectItem>
-              {documentTypes.map((type) => (
-                <SelectItem key={type.id} value={type.id}>
-                  {type.name}
+              {documentTypes.length > 0 ? (
+                documentTypes.map((type) => (
+                  <SelectItem key={type.id} value={type.id}>
+                    {type.name}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="loading" disabled>
+                  {isLoading ? "Loading..." : "No document types available"}
                 </SelectItem>
-              ))}
+              )}
             </SelectContent>
           </Select>
 

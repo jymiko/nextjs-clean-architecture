@@ -1,9 +1,10 @@
 "use client";
 
-import { Menu, Search, Upload } from "lucide-react";
+import { Menu, Search, Upload, User, Bell } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 interface DashboardHeaderProps {
   onMenuClick?: () => void;
@@ -14,6 +15,8 @@ export function DashboardHeader({
   onMenuClick,
   title = "Dashboard",
 }: DashboardHeaderProps) {
+  const { user, isLoading } = useCurrentUser();
+
   return (
     <div className="flex flex-col gap-[6px] w-full">
       {/* Top Header */}
@@ -34,28 +37,27 @@ export function DashboardHeader({
         {/* User Info */}
         <div className="flex items-center gap-2 lg:gap-3">
           {/* Notification Bell */}
-          <Button variant="ghost" size="icon" className="size-8 lg:size-[34px] p-0">
-            <div className="size-8 lg:size-[34px] relative">
-              <Image
-                src="/assets/04a50ad105e936b2494be230cd07cdd14d10d4e1.png"
-                alt="Notification"
-                fill
-                className="object-cover"
-              />
-            </div>
+          <Button variant="ghost" size="icon" className="relative size-8 lg:size-[34px] p-0">
+            <Bell className="size-5 lg:size-6 text-[#DA318C]" />
+            <span className="absolute top-0 right-0 size-2 bg-[#DA318C] rounded-full" />
           </Button>
 
           {/* User Profile */}
           <div className="flex items-center gap-2 lg:gap-[15px]">
-            <Image
-              src="/assets/b67e969598fad8dfebcaaec93a901ad71da4fab6.png"
-              alt="User avatar"
-              width={32}
-              height={32}
-              className="rounded-full object-cover"
-            />
+            <div className="relative size-8 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+              {user?.avatar ? (
+                <Image
+                  src={user.avatar}
+                  alt="User avatar"
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <User className="size-5 text-gray-400" />
+              )}
+            </div>
             <span className="hidden sm:block text-black text-sm lg:text-base font-semibold text-center whitespace-nowrap">
-              Annesa Ayu
+              {isLoading ? '...' : user?.name || 'User'}
             </span>
           </div>
         </div>

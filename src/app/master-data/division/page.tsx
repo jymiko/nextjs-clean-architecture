@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
-import { Search, Plus, Eye, Pencil, Trash2, Building2, CheckCircle, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus, Eye, Pencil, Trash2, Building2, CheckCircle, XCircle, ChevronLeft, ChevronRight, User, Bell } from "lucide-react";
 import Image from "next/image";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 // Shadcn UI Components
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ interface Division {
 }
 
 export default function DivisionPage() {
+  const { user: currentUser, isLoading: isUserLoading } = useCurrentUser();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -241,23 +243,26 @@ export default function DivisionPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
-            <div className="size-8 lg:size-[34px] relative">
-              <Image
-                src="/assets/04a50ad105e936b2494be230cd07cdd14d10d4e1.png"
-                alt="Notification"
-                fill
-                className="object-cover"
-              />
-            </div>
+            <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
+              <Bell className="size-5 lg:size-6 text-[#DA318C]" />
+              <span className="absolute top-1 right-1 size-2 bg-[#DA318C] rounded-full" />
+            </button>
             <div className="flex items-center gap-2 lg:gap-4">
-              <Image
-                src="/assets/b67e969598fad8dfebcaaec93a901ad71da4fab6.png"
-                alt="User avatar"
-                width={32}
-                height={32}
-                className="rounded-full object-cover"
-              />
-              <span className="hidden sm:block text-black text-sm lg:text-base font-semibold">Annesa Ayu</span>
+              <div className="relative size-8 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                {currentUser?.avatar ? (
+                  <Image
+                    src={currentUser.avatar}
+                    alt="User avatar"
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <User className="size-5 text-gray-400" />
+                )}
+              </div>
+              <span className="hidden sm:block text-black text-sm lg:text-base font-semibold">
+                {isUserLoading ? '...' : currentUser?.name || 'User'}
+              </span>
             </div>
           </div>
         </header>

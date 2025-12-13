@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { User, Camera, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -13,17 +13,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SignaturePad } from "./SignaturePad";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export function ProfileSettings() {
+  const { user, isLoading } = useCurrentUser();
+
   const [formData, setFormData] = useState({
-    userId: "1001010",
-    fullName: "Annesa Ayu",
-    email: "annesa.ayu@miegacoan.id",
-    division: "Information Technology",
-    department: "Digital Transformation",
-    position: "Staff",
+    userId: "",
+    fullName: "",
+    email: "",
+    division: "",
+    department: "",
+    position: "",
     status: "Active",
-    role: "Admin",
+    role: "",
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
@@ -32,6 +35,25 @@ export function ProfileSettings() {
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [isSignaturePadOpen, setIsSignaturePadOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Update form data when user data is loaded
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        userId: user.employeeId || user.id,
+        fullName: user.name,
+        email: user.email,
+        department: user.department?.name || "",
+        position: user.position?.name || "",
+        status: user.isActive ? "Active" : "Inactive",
+        role: user.role,
+      }));
+      if (user.signature) {
+        setSignatureDataUrl(user.signature);
+      }
+    }
+  }, [user]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -65,14 +87,25 @@ export function ProfileSettings() {
       {/* Profile Header */}
       <div className="flex items-center gap-4 pb-4 border-b border-gray-200">
         <div className="relative">
-          <div className="size-20 rounded-full bg-blue-100 flex items-center justify-center">
-            <User className="size-10 text-blue-600" />
+          <div className="size-20 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden">
+            {user?.avatar ? (
+              <Image
+                src={user.avatar}
+                alt="User avatar"
+                fill
+                className="object-cover"
+              />
+            ) : (
+              <User className="size-10 text-blue-600" />
+            )}
           </div>
         </div>
         <div className="flex flex-col">
-          <h3 className="text-lg font-normal text-[#101828]">Annesa Ayu</h3>
-          <p className="text-sm text-[#4a5565]">annesa.ayu@miegacoan.id</p>
-          <p className="text-sm text-[#6a7282] capitalize">admin</p>
+          <h3 className="text-lg font-normal text-[#101828]">
+            {isLoading ? '...' : user?.name || 'User'}
+          </h3>
+          <p className="text-sm text-[#4a5565]">{user?.email || ''}</p>
+          <p className="text-sm text-[#6a7282] capitalize">{user?.role?.toLowerCase() || ''}</p>
         </div>
       </div>
 

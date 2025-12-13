@@ -9,7 +9,13 @@ export type DocumentStatus =
   | "expiring_soon"
   | "draft"
   | "pending_approval"
-  | "rejected";
+  | "rejected"
+  | "on_review"
+  | "on_approval"
+  | "revision_by_reviewer"
+  | "pending_ack"
+  | "approved"
+  | "distributed";
 
 interface DocumentStatusBadgeProps {
   status: DocumentStatus;
@@ -44,6 +50,30 @@ const statusConfig: Record<DocumentStatus, { label: string; className: string }>
   rejected: {
     label: "Rejected",
     className: "bg-[#FFD6CD] text-[#F24822]",
+  },
+  on_review: {
+    label: "On Review",
+    className: "bg-[#FFF4D4] text-[#C08F2C]",
+  },
+  on_approval: {
+    label: "On Approval",
+    className: "bg-[#FFF4D4] text-[#C08F2C]",
+  },
+  revision_by_reviewer: {
+    label: "Revision by Reviewer",
+    className: "bg-[#FFD6CD] text-[#F24822]",
+  },
+  pending_ack: {
+    label: "Pending Ack",
+    className: "bg-[#FFF4D4] text-[#C08F2C]",
+  },
+  approved: {
+    label: "Approved",
+    className: "bg-[#DBFFE0] text-[#0E9211]",
+  },
+  distributed: {
+    label: "Distributed",
+    className: "bg-[#E9F5FE] text-[#4DB1D4]",
   },
 };
 

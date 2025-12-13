@@ -1,0 +1,24 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 897 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="Container">
+<mask id="path-1-inside-1_75_5896" fill="white">
+<path d="M0 10C0 4.47715 4.47715 0 10 0H887C892.523 0 897 4.47715 897 10V52H0V10Z"/>
+</mask>
+<path d="M0 10C0 4.47715 4.47715 0 10 0H887C892.523 0 897 4.47715 897 10V52H0V10Z" fill="var(--fill-0, #F9FAFB)" fill-opacity="0.5"/>
+<path d="M0 0H897H0ZM897 53.1111H0V50.8889H897V53.1111ZM0 52V0V52ZM897 0V52V0Z" fill="var(--stroke-0, #E5E7EB)" mask="url(#path-1-inside-1_75_5896)"/>
+<g id="material-symbols:delete">
+</g>
+<g id="Button">
+</g>
+<g id="Group">
+<path id="Vector" d="M67.8487 36H71.4834L84.8109 21.857L81.1758 18L67.8487 32.143V36Z" stroke="var(--stroke-0, #0A0A0A)" stroke-width="2" stroke-linejoin="round"/>
+<path id="Vector_2" d="M77.5412 21.8567L81.1758 25.7137" stroke="var(--stroke-0, black)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<line id="Line 38" x1="53.5" y1="12" x2="53.5" y2="44" stroke="var(--stroke-0, #E1E2E3)"/>
+<line id="Line 39" x1="96.5" y1="12" x2="96.5" y2="44" stroke="var(--stroke-0, #E1E2E3)"/>
+<g id="Group_2">
+<path id="Vector_3" d="M35.421 18.25V35.75C35.421 36.375 34.7974 37 34.1738 37H27.9377H21.7016C21.078 37 20.4544 36.375 20.4544 35.75V18.25" stroke="var(--stroke-0, black)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_4" d="M17.96 18.25H37.9155" stroke="var(--stroke-0, black)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M25.4433 17H30.4321M25.4433 23.25V32M30.4321 23.25V32" stroke="var(--stroke-0, black)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+</g>
+</svg>

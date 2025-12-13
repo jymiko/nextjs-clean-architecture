@@ -2,14 +2,12 @@ export interface Position {
   id: string;
   code: string;
   name: string;
-  description?: string | null;
   departmentId?: string | null;
   department?: {
     id: string;
     code: string;
     name: string;
   } | null;
-  level: number;
   isActive: boolean;
   totalEmployees?: number;
   createdAt: Date;
@@ -19,18 +17,14 @@ export interface Position {
 export interface CreatePositionDTO {
   code: string;
   name: string;
-  description?: string;
   departmentId?: string;
-  level?: number;
   isActive?: boolean;
 }
 
 export interface UpdatePositionDTO {
   code?: string;
   name?: string;
-  description?: string | null;
   departmentId?: string | null;
-  level?: number;
   isActive?: boolean;
 }
 
@@ -48,6 +42,6 @@ export interface PositionQueryParams {
   search?: string;
   departmentId?: string;
   isActive?: boolean;
-  sortBy?: 'name' | 'code' | 'level' | 'createdAt' | 'updatedAt';
+  sortBy?: 'name' | 'code' | 'createdAt' | 'updatedAt';
   sortOrder?: 'asc' | 'desc';
 }
