@@ -43,5 +43,8 @@ export interface IDocumentRepository {
 
   // Document categories
   getCategories(params: { isActive?: boolean }): Promise<DocumentCategory[]>;
+  getCategoryById(id: string): Promise<DocumentCategory | null>;
   createCategory(data: CreateDocumentCategoryInput): Promise<DocumentCategory>;
+  updateCategory(id: string, data: { name?: string; code?: string; description?: string | null; prefix?: string | null; isActive?: boolean }): Promise<DocumentCategory>;
+  deleteCategory(id: string): Promise<void>;
 }

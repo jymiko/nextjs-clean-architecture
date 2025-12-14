@@ -159,6 +159,17 @@ export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarP
                         <span className="flex-1 text-left">Positions</span>
                       </Link>
                     </li>
+                    <li>
+                      <Link
+                        href="/master-data/document-types"
+                        className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm transition-colors ${
+                          pathname === "/master-data/document-types" ? "bg-[#E9F5FE] text-[#4DB1D4]" : "text-[#425166] hover:bg-[#F8F9FA]"
+                        }`}
+                      >
+                        <FileText className="size-4" />
+                        <span className="flex-1 text-left">Document Types</span>
+                      </Link>
+                    </li>
                   </ul>
                 )}
               </li>

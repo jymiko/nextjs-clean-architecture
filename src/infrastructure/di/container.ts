@@ -8,6 +8,7 @@ import {
   PrismaPositionRepository,
   PrismaPermissionRepository,
   PrismaDocumentRepository,
+  PrismaSystemSettingRepository,
 } from "../repositories";
 import {
   GetUsersUseCase,
@@ -26,6 +27,7 @@ import {
   IPositionRepository,
   IPermissionRepository,
   IDocumentRepository,
+  ISystemSettingRepository,
 } from "@/domain/repositories";
 import { EmailService, IEmailService } from "../services/EmailService";
 
@@ -37,6 +39,7 @@ export interface Cradle {
   positionRepository: IPositionRepository;
   permissionRepository: IPermissionRepository;
   documentRepository: IDocumentRepository;
+  systemSettingRepository: ISystemSettingRepository;
   emailService: IEmailService;
   getUsersUseCase: GetUsersUseCase;
   createUserUseCase: CreateUserUseCase;
@@ -70,6 +73,8 @@ container.register({
   permissionRepository: asClass(PrismaPermissionRepository).singleton(),
 
   documentRepository: asClass(PrismaDocumentRepository).singleton(),
+
+  systemSettingRepository: asClass(PrismaSystemSettingRepository).singleton(),
 
   emailService: asClass(EmailService).singleton(),
 

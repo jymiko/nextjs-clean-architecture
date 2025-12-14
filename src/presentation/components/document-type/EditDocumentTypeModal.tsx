@@ -1,0 +1,189 @@
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState, useEffect } from "react";
+
+interface DocumentType {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  prefix?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    documents: number;
+    children: number;
+  };
+}
+
+interface EditDocumentTypeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (data: {
+    code: string;
+    name: string;
+    description?: string | null;
+    prefix?: string | null;
+    isActive: boolean;
+  }) => void;
+  documentType: DocumentType | null;
+}
+
+export function EditDocumentTypeModal({ isOpen, onClose, onSave, documentType }: EditDocumentTypeModalProps) {
+  const [formData, setFormData] = useState({
+    code: "",
+    name: "",
+    description: "",
+    prefix: "",
+    isActive: true,
+  });
+
+  useEffect(() => {
+    if (documentType) {
+      setFormData({
+        code: documentType.code,
+        name: documentType.name,
+        description: documentType.description || "",
+        prefix: documentType.prefix || "",
+        isActive: documentType.isActive,
+      });
+    }
+  }, [documentType]);
+
+  const handleSave = () => {
+    const dataToSave = {
+      code: formData.code.toUpperCase(),
+      name: formData.name,
+      description: formData.description || null,
+      prefix: formData.prefix || null,
+      isActive: formData.isActive,
+    };
+    onSave(dataToSave);
+  };
+
+  const handleClose = () => {
+    onClose();
+  };
+
+  if (!documentType) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[579px] p-0 gap-0">
+        <DialogHeader className="px-6 py-3 border-b border-[#f5f5f5]">
+          <DialogTitle className="text-base font-medium text-black">
+            Edit Document Type
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="p-6 space-y-4">
+          {/* Document Type Code */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Document Type Code <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={formData.code}
+              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+              className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+            />
+            <p className="text-xs text-slate-500">Use uppercase letters, numbers, hyphens, and underscores only</p>
+          </div>
+
+          {/* Document Type Name */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Document Type Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+            />
+          </div>
+
+          {/* Document Number Prefix */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Document Number Prefix
+            </Label>
+            <Input
+              placeholder="e.g., WI, SOP, SPEC"
+              value={formData.prefix}
+              onChange={(e) => setFormData({ ...formData, prefix: e.target.value.toUpperCase() })}
+              className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+            />
+            <p className="text-xs text-slate-500">This prefix will be used when generating document numbers</p>
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Description
+            </Label>
+            <Textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="min-h-20 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+            />
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <Label className="text-xs font-normal text-slate-700">
+              Status
+            </Label>
+            <Select
+              value={formData.isActive ? "true" : "false"}
+              onValueChange={(value) => setFormData({ ...formData, isActive: value === "true" })}
+            >
+              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm text-[#243644] focus:ring-0 focus:ring-offset-0 focus:outline-none">
+                <SelectValue placeholder="Choose status" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border border-[#e1e2e3]">
+                <SelectItem value="true">Active</SelectItem>
+                <SelectItem value="false">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter className="px-6 py-4 bg-[#fcfcfc] border-t border-[#f5f5f5]">
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            className="w-[164px] h-11 border-[#4db1d4] text-[#4db1d4] hover:bg-[#4db1d4]/10"
+          >
+            Close
+          </Button>
+          <Button
+            onClick={handleSave}
+            className="w-[164px] h-11 bg-[#4db1d4] hover:bg-[#3da0c2] text-white"
+            disabled={!formData.code || !formData.name}
+          >
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

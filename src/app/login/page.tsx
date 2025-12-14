@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,12 +34,59 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
+// Default branding values
+const DEFAULT_BRANDING = {
+  systemName: 'DCMS',
+  systemDescription: 'Document Control Management System (DCMS) is a centralized platform that standardizes the creation, distribution, revision, and archiving of documents across departments. It ensures version accuracy, approval transparency, and easy tracking, helping organizations maintain compliance and operational efficiency.',
+  primaryColor: '#4DB1D4',
+  secondaryColor: '#00B3D8',
+  logoUrl: '/gacoan-logo.png',
+};
+
+interface BrandingSettings {
+  systemName: string;
+  systemDescription: string;
+  primaryColor: string;
+  secondaryColor: string;
+  logoUrl: string | null;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const { accounts, removeAccount } = useLastAccounts();
+  const [branding, setBranding] = useState<BrandingSettings>(DEFAULT_BRANDING);
+  const [brandingLoaded, setBrandingLoaded] = useState(false);
+
+  // Fetch branding settings
+  const fetchBranding = useCallback(async () => {
+    try {
+      const response = await fetch('/api/system/settings/branding');
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        setBranding({
+          systemName: result.data.systemName || DEFAULT_BRANDING.systemName,
+          systemDescription: result.data.systemDescription || DEFAULT_BRANDING.systemDescription,
+          primaryColor: result.data.primaryColor || DEFAULT_BRANDING.primaryColor,
+          secondaryColor: result.data.secondaryColor || DEFAULT_BRANDING.secondaryColor,
+          logoUrl: result.data.logoUrl || DEFAULT_BRANDING.logoUrl,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch branding:', error);
+      // Keep default branding on error
+    } finally {
+      setBrandingLoaded(true);
+    }
+  }, []);
+
+  // Fetch branding on mount
+  useEffect(() => {
+    fetchBranding();
+  }, [fetchBranding]);
 
   useEffect(() => {
     // Only check auth if we have tokens, otherwise clear and stay on login
@@ -168,7 +215,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen w-full bg-white relative overflow-x-hidden">
       {/* Blue Background - 50% viewport height on desktop */}
-      <div className="absolute top-0 left-0 right-0 h-[40vh] sm:h-[45vh] lg:h-[50vh] bg-[#4DB1D4]" />
+      <div
+        className="absolute top-0 left-0 right-0 h-[40vh] sm:h-[45vh] lg:h-[50vh] transition-colors duration-300"
+        style={{ backgroundColor: branding.primaryColor }}
+      />
 
       {/* Desktop Layout (lg+) - Absolute positioning */}
       <div className="hidden lg:block relative min-h-screen">
@@ -179,11 +229,11 @@ export default function LoginPage() {
               Sign in to
             </h1>
             <h2 className="text-[20px] font-medium text-white">
-              Document Control Management System
+              {branding.systemName}
             </h2>
           </div>
           <p className="text-[14px] text-white leading-normal text-justify">
-            Document Control Management System (DCMS) is a centralized platform that standardizes the creation, distribution, revision, and archiving of documents across departments. It ensures version accuracy, approval transparency, and easy tracking, helping organizations maintain compliance and operational efficiency.
+            {branding.systemDescription}
           </p>
         </div>
 
@@ -214,15 +264,17 @@ export default function LoginPage() {
               <div className="flex flex-col gap-[40px] w-full">
                 {/* Logo */}
                 <div className="flex gap-[10px] items-center">
-                  <div className="w-[43px] h-[31px] relative overflow-hidden">
-                    <img
-                      src="/gacoan-logo.png"
-                      alt="Gacoan Logo"
-                      className="absolute h-[193%] left-[-20%] top-[-40%] w-[139%] max-w-none"
-                    />
-                  </div>
+                  {branding.logoUrl && (
+                    <div className="w-[43px] h-[31px] relative overflow-hidden">
+                      <img
+                        src={branding.logoUrl}
+                        alt={`${branding.systemName} Logo`}
+                        className="absolute h-[193%] left-[-20%] top-[-40%] w-[139%] max-w-none"
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-col">
-                    <p className="font-semibold text-[13px] text-[#243644]">DCMS</p>
+                    <p className="font-semibold text-[13px] text-[#243644]">{branding.systemName}</p>
                     <p className="text-[10px] font-medium text-[#738193]">Mie Gacoan</p>
                   </div>
                 </div>
@@ -230,7 +282,7 @@ export default function LoginPage() {
                 {/* Welcome */}
                 <div className="flex flex-col gap-[10px]">
                   <p className="text-[16px] font-medium text-[#243644] leading-[24px]">
-                    Welcome to <span className="font-semibold text-[#00B3D8]">DCMS</span>
+                    Welcome to <span className="font-semibold" style={{ color: branding.secondaryColor }}>{branding.systemName}</span>
                   </p>
                   <h2 className="text-[24px] font-medium text-[#243644] leading-[24px]">Sign in</h2>
                 </div>
@@ -257,7 +309,8 @@ export default function LoginPage() {
                               <Input
                                 type="email"
                                 placeholder="Email"
-                                className="h-[40px] border-0 border-b border-[#00b3d8] rounded-none px-3 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                className="h-[40px] border-0 border-b rounded-none px-3 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                style={{ borderBottomColor: branding.secondaryColor }}
                                 disabled={isLoading}
                                 {...field}
                               />
@@ -280,14 +333,16 @@ export default function LoginPage() {
                                 <Input
                                   type={showPassword ? 'text' : 'password'}
                                   placeholder="Password"
-                                  className="h-[40px] border-0 border-b border-[#00b3d8] rounded-none px-3 pr-10 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                  className="h-[40px] border-0 border-b rounded-none px-3 pr-10 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                  style={{ borderBottomColor: branding.secondaryColor }}
                                   disabled={isLoading}
                                   {...field}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => setShowPassword(!showPassword)}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#00b3d8] hover:text-[#00a0c0] transition-colors"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                                  style={{ color: branding.secondaryColor }}
                                 >
                                   {showPassword ? (
                                     <EyeOff className="h-5 w-5" />
@@ -311,7 +366,11 @@ export default function LoginPage() {
                           <FormItem className="flex items-center gap-[5px] space-y-0">
                             <FormControl>
                               <Checkbox
-                                className="h-6 w-6 border-[#00b3d8] data-[state=checked]:bg-[#4DB1D4] data-[state=checked]:border-[#4DB1D4]"
+                                className="h-6 w-6 data-[state=checked]:text-white"
+                                style={{
+                                  borderColor: branding.secondaryColor,
+                                  backgroundColor: field.value ? branding.primaryColor : 'transparent',
+                                }}
                                 checked={field.value}
                                 onCheckedChange={field.onChange}
                               />
@@ -322,14 +381,19 @@ export default function LoginPage() {
                           </FormItem>
                         )}
                       />
-                      <a href="/forgot-password" className="text-[12px] font-medium text-[#00B3D8] leading-[24px] hover:underline">
+                      <a
+                        href="/forgot-password"
+                        className="text-[12px] font-medium leading-[24px] hover:underline"
+                        style={{ color: branding.secondaryColor }}
+                      >
                         Forgot password?
                       </a>
                     </div>
 
                     <Button
                       type="submit"
-                      className="w-full h-[44px] bg-[#4DB1D4] hover:bg-[#3da0c3] text-white font-semibold text-[14px] rounded-[8px] shadow-[0px_2px_4px_0px_rgba(16,24,40,0.04)]"
+                      className="w-full h-[44px] text-white font-semibold text-[14px] rounded-[8px] shadow-[0px_2px_4px_0px_rgba(16,24,40,0.04)] hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: branding.primaryColor }}
                       disabled={isLoading}
                     >
                       {isLoading ? (
@@ -364,11 +428,11 @@ export default function LoginPage() {
               Sign in to
             </h1>
             <h2 className="text-[16px] sm:text-[20px] font-medium text-white">
-              Document Control Management System
+              {branding.systemName}
             </h2>
           </div>
           <p className="text-[13px] sm:text-[14px] text-white leading-normal text-justify hidden sm:block">
-            Document Control Management System (DCMS) is a centralized platform that standardizes the creation, distribution, revision, and archiving of documents across departments. It ensures version accuracy, approval transparency, and easy tracking, helping organizations maintain compliance and operational efficiency.
+            {branding.systemDescription}
           </p>
         </div>
 
@@ -380,15 +444,17 @@ export default function LoginPage() {
               <div className="flex flex-col gap-[30px] sm:gap-[40px] w-full">
                 {/* Logo */}
                 <div className="flex gap-[10px] items-center">
-                  <div className="w-[43px] h-[31px] relative overflow-hidden">
-                    <img
-                      src="/gacoan-logo.png"
-                      alt="Gacoan Logo"
-                      className="absolute h-[193%] left-[-20%] top-[-40%] w-[139%] max-w-none"
-                    />
-                  </div>
+                  {branding.logoUrl && (
+                    <div className="w-[43px] h-[31px] relative overflow-hidden">
+                      <img
+                        src={branding.logoUrl}
+                        alt={`${branding.systemName} Logo`}
+                        className="absolute h-[193%] left-[-20%] top-[-40%] w-[139%] max-w-none"
+                      />
+                    </div>
+                  )}
                   <div className="flex flex-col">
-                    <p className="font-semibold text-[13px] text-[#243644]">DCMS</p>
+                    <p className="font-semibold text-[13px] text-[#243644]">{branding.systemName}</p>
                     <p className="text-[10px] font-medium text-[#738193]">Mie Gacoan</p>
                   </div>
                 </div>
@@ -396,7 +462,7 @@ export default function LoginPage() {
                 {/* Welcome */}
                 <div className="flex flex-col gap-[10px]">
                   <p className="text-[16px] font-medium text-[#243644] leading-[24px]">
-                    Welcome to <span className="font-semibold text-[#00B3D8]">DCMS</span>
+                    Welcome to <span className="font-semibold" style={{ color: branding.secondaryColor }}>{branding.systemName}</span>
                   </p>
                   <h2 className="text-[24px] font-medium text-[#243644] leading-[24px]">Sign in</h2>
                 </div>
@@ -423,7 +489,8 @@ export default function LoginPage() {
                               <Input
                                 type="email"
                                 placeholder="Email"
-                                className="h-[40px] border-0 border-b border-[#00b3d8] rounded-none px-3 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                className="h-[40px] border-0 border-b rounded-none px-3 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                style={{ borderBottomColor: branding.secondaryColor }}
                                 disabled={isLoading}
                                 {...field}
                               />
@@ -446,14 +513,16 @@ export default function LoginPage() {
                                 <Input
                                   type={showPassword ? 'text' : 'password'}
                                   placeholder="Password"
-                                  className="h-[40px] border-0 border-b border-[#00b3d8] rounded-none px-3 pr-10 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                  className="h-[40px] border-0 border-b rounded-none px-3 pr-10 text-[14px] placeholder:text-[rgba(189,206,223,0.53)] focus-visible:ring-0 transition-colors"
+                                  style={{ borderBottomColor: branding.secondaryColor }}
                                   disabled={isLoading}
                                   {...field}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => setShowPassword(!showPassword)}
-                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#00b3d8] hover:text-[#00a0c0] transition-colors"
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+                                  style={{ color: branding.secondaryColor }}
                                 >
                                   {showPassword ? (
                                     <EyeOff className="h-5 w-5" />
@@ -477,7 +546,11 @@ export default function LoginPage() {
                           <FormItem className="flex items-center gap-[5px] space-y-0">
                             <FormControl>
                               <Checkbox
-                                className="h-6 w-6 border-[#00b3d8] data-[state=checked]:bg-[#4DB1D4] data-[state=checked]:border-[#4DB1D4]"
+                                className="h-6 w-6 data-[state=checked]:text-white"
+                                style={{
+                                  borderColor: branding.secondaryColor,
+                                  backgroundColor: field.value ? branding.primaryColor : 'transparent',
+                                }}
                                 checked={field.value}
                                 onCheckedChange={field.onChange}
                               />
@@ -488,14 +561,19 @@ export default function LoginPage() {
                           </FormItem>
                         )}
                       />
-                      <a href="/forgot-password" className="text-[12px] font-medium text-[#00B3D8] leading-[24px] hover:underline">
+                      <a
+                        href="/forgot-password"
+                        className="text-[12px] font-medium leading-[24px] hover:underline"
+                        style={{ color: branding.secondaryColor }}
+                      >
                         Forgot password?
                       </a>
                     </div>
 
                     <Button
                       type="submit"
-                      className="w-full h-[42px] sm:h-[44px] bg-[#4DB1D4] hover:bg-[#3da0c3] text-white font-semibold text-[14px] rounded-[8px] shadow-[0px_2px_4px_0px_rgba(16,24,40,0.04)] mt-[15px]"
+                      className="w-full h-[42px] sm:h-[44px] text-white font-semibold text-[14px] rounded-[8px] shadow-[0px_2px_4px_0px_rgba(16,24,40,0.04)] mt-[15px] hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: branding.primaryColor }}
                       disabled={isLoading}
                     >
                       {isLoading ? (

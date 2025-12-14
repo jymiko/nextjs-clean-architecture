@@ -5,3 +5,4 @@ export * from "./IDivisionRepository";
 export * from "./IPositionRepository";
 export * from "./IPermissionRepository";
 export * from "./IDocumentRepository";
+export * from "./ISystemSettingRepository";

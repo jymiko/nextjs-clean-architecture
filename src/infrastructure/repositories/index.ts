@@ -6,3 +6,4 @@ export * from "./PrismaDivisionRepository";
 export * from "./PrismaPositionRepository";
 export * from "./PrismaPermissionRepository";
 export * from "./PrismaDocumentRepository";
+export * from "./PrismaSystemSettingRepository";
