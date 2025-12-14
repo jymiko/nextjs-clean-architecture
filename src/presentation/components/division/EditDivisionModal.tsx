@@ -45,6 +45,11 @@ interface EditDivisionModalProps {
   division: Division | null;
 }
 
+interface FormErrors {
+  code?: string;
+  name?: string;
+}
+
 export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDivisionModalProps) {
   const [formData, setFormData] = useState<Division>({
     id: "",
@@ -53,6 +58,7 @@ export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDiv
     headOfDivisionId: "",
     isActive: true,
   });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -86,11 +92,30 @@ export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDiv
     }
   };
 
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.code.trim()) {
+      newErrors.code = "Division code is required";
+    }
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Division name is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = () => {
+    if (!validateForm()) {
+      return;
+    }
     onSave(formData);
   };
 
   const handleClose = () => {
+    setErrors({});
     onClose();
   };
 
@@ -109,25 +134,41 @@ export function EditDivisionModal({ isOpen, onClose, onSave, division }: EditDiv
           {/* Division Code */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Division Code
+              Division Code <span className="text-red-500">*</span>
             </Label>
             <Input
               value={formData.code}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+              onChange={(e) => {
+                setFormData({ ...formData, code: e.target.value });
+                if (errors.code) setErrors({ ...errors, code: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none ${
+                errors.code ? "border-red-500" : "border-[#4db1d4]"
+              }`}
             />
+            {errors.code && (
+              <p className="text-xs text-red-500 mt-1">{errors.code}</p>
+            )}
           </div>
 
           {/* Division Name */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Division Name
+              Division Name <span className="text-red-500">*</span>
             </Label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none ${
+                errors.name ? "border-red-500" : "border-slate-400"
+              }`}
             />
+            {errors.name && (
+              <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+            )}
           </div>
 
           {/* Head Of Division */}

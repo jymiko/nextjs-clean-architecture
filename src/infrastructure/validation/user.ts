@@ -96,13 +96,16 @@ export const verifyResetTokenSchema = z.object({
   token: z.string().min(1, 'Token is required'),
 });
 
-// Schema for user profile update (self-update) - only name and email allowed
+// Schema for user profile update (self-update)
 export const updateProfileSchema = z.object({
   name: z.string()
     .min(3, 'Name must be at least 3 characters')
     .max(100, 'Name must not exceed 100 characters')
     .optional(),
-  email: z.string().email('Invalid email format').optional(),
+  departmentId: z.string().cuid('Invalid department ID').nullable().optional(),
+  positionId: z.string().cuid('Invalid position ID').nullable().optional(),
+  role: z.enum(['ADMIN', 'USER']).optional(),
+  isActive: z.boolean().optional(),
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
 });

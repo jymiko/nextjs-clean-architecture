@@ -43,6 +43,16 @@ const roles = [
   { id: "2", name: "User" },
 ];
 
+interface FormErrors {
+  displayId?: string;
+  name?: string;
+  email?: string;
+  departmentId?: string;
+  positionId?: string;
+  roleId?: string;
+  status?: string;
+}
+
 export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
   const [formData, setFormData] = useState<UserFormData>({
     id: "",
@@ -54,6 +64,7 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
     roleId: "",
     status: "",
   });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [departments, setDepartments] = useState<Department[]>([]);
   const [positions, setPositions] = useState<Division[]>([]);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
@@ -90,7 +101,35 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
     }
   };
 
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Full name is required";
+    }
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!formData.roleId) {
+      newErrors.roleId = "Role is required";
+    }
+
+    if (!formData.status) {
+      newErrors.status = "Status is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = () => {
+    if (!validateForm()) {
+      return;
+    }
     onSubmit(formData);
     handleClose();
   };
@@ -106,6 +145,7 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
       roleId: "",
       status: "",
     });
+    setErrors({});
     onClose();
   };
 
@@ -135,28 +175,44 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
           {/* Full Name */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-[#1a1a1a]">
-              Full Name
+              Full Name <span className="text-red-500">*</span>
             </label>
             <Input
               placeholder="Input full name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:border-[#4db1d4]"
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 ${
+                errors.name ? "border-red-500" : "border-[#4db1d4]"
+              }`}
             />
+            {errors.name && (
+              <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+            )}
           </div>
 
           {/* Email */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-[#1a1a1a]">
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <Input
               type="email"
               placeholder="Input email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:border-[#4db1d4]"
+              onChange={(e) => {
+                setFormData({ ...formData, email: e.target.value });
+                if (errors.email) setErrors({ ...errors, email: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 ${
+                errors.email ? "border-red-500" : "border-[#4db1d4]"
+              }`}
             />
+            {errors.email && (
+              <p className="text-xs text-red-500 mt-1">{errors.email}</p>
+            )}
           </div>
 
           {/* Department */}
@@ -208,13 +264,18 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
           {/* Role */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-[#1a1a1a]">
-              Role
+              Role <span className="text-red-500">*</span>
             </label>
             <Select
               value={formData.roleId}
-              onValueChange={(value) => setFormData({ ...formData, roleId: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, roleId: value });
+                if (errors.roleId) setErrors({ ...errors, roleId: undefined });
+              }}
             >
-              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0">
+              <SelectTrigger className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm focus:ring-0 ${
+                errors.roleId ? "border-red-500" : "border-[#4db1d4]"
+              }`}>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -225,18 +286,26 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
                 ))}
               </SelectContent>
             </Select>
+            {errors.roleId && (
+              <p className="text-xs text-red-500 mt-1">{errors.roleId}</p>
+            )}
           </div>
 
           {/* Status */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-[#1a1a1a]">
-              Status
+              Status <span className="text-red-500">*</span>
             </label>
             <Select
               value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, status: value });
+                if (errors.status) setErrors({ ...errors, status: undefined });
+              }}
             >
-              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0">
+              <SelectTrigger className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm focus:ring-0 ${
+                errors.status ? "border-red-500" : "border-[#4db1d4]"
+              }`}>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -244,6 +313,9 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
+            {errors.status && (
+              <p className="text-xs text-red-500 mt-1">{errors.status}</p>
+            )}
           </div>
         </div>
 

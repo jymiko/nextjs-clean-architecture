@@ -4,6 +4,8 @@ import { handleError } from '@/infrastructure/errors';
 import { withAuth } from '@/infrastructure/middleware';
 import { updateProfileSchema } from '@/infrastructure/validation';
 import { ZodError, ZodIssue } from 'zod';
+import { prisma } from '@/infrastructure/database';
+import { UserRole, UpdateUserDTO } from '@/domain/entities/User';
 
 /**
  * GET /api/auth/profile
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * PUT /api/auth/profile
- * Update current user profile (name, phone, avatar)
+ * Update current user profile (name, departmentId, positionId, role, isActive)
  */
 export async function PUT(request: NextRequest) {
   try {
@@ -71,10 +73,45 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // Validate departmentId if provided
+    if (validatedData.departmentId) {
+      const department = await prisma.department.findUnique({
+        where: { id: validatedData.departmentId }
+      });
+      if (!department) {
+        return NextResponse.json(
+          { error: 'Department not found' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Validate positionId if provided
+    if (validatedData.positionId) {
+      const position = await prisma.position.findUnique({
+        where: { id: validatedData.positionId }
+      });
+      if (!position) {
+        return NextResponse.json(
+          { error: 'Position not found' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Prepare update data with proper types
+    const updateData: UpdateUserDTO = {
+      ...(validatedData.name && { name: validatedData.name }),
+      ...(validatedData.departmentId !== undefined && { departmentId: validatedData.departmentId }),
+      ...(validatedData.positionId !== undefined && { positionId: validatedData.positionId }),
+      ...(validatedData.role && { role: validatedData.role as UserRole }),
+      ...(validatedData.isActive !== undefined && { isActive: validatedData.isActive }),
+    };
+
     // Update user profile
     const updatedUser = await userRepository.update(
       authenticatedRequest.user.userId,
-      validatedData
+      updateData
     );
 
     if (!updatedUser) {

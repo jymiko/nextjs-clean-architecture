@@ -69,6 +69,7 @@ export default function DivisionPage() {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [selectedDivision, setSelectedDivision] = useState<Division | null>(null);
   const [successMessage, setSuccessMessage] = useState({ title: "", message: "" });
+  const [errorMessage, setErrorMessage] = useState({ title: "", message: "" });
 
   // Fetch divisions
   useEffect(() => {
@@ -92,6 +93,11 @@ export default function DivisionPage() {
       setTotalCount(data.pagination?.total || 0);
     } catch (error) {
       console.error("Error fetching divisions:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to load division data. Please try again.";
+      setErrorMessage({
+        title: "Failed to Load Data!",
+        message: errorMsg,
+      });
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
@@ -138,6 +144,11 @@ export default function DivisionPage() {
       fetchDivisions();
     } catch (error) {
       console.error("Error adding division:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to add division. Please check your input and try again.";
+      setErrorMessage({
+        title: "Failed to Add Division!",
+        message: errorMsg,
+      });
       setIsAddModalOpen(false);
       setIsErrorModalOpen(true);
     }
@@ -174,6 +185,11 @@ export default function DivisionPage() {
       fetchDivisions();
     } catch (error) {
       console.error("Error updating division:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to update division. Please check your input and try again.";
+      setErrorMessage({
+        title: "Failed to Update Division!",
+        message: errorMsg,
+      });
       setIsEditModalOpen(false);
       setIsErrorModalOpen(true);
     }
@@ -204,6 +220,11 @@ export default function DivisionPage() {
       fetchDivisions();
     } catch (error) {
       console.error("Error deleting division:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to delete division. Please try again.";
+      setErrorMessage({
+        title: "Failed to Delete Division!",
+        message: errorMsg,
+      });
       setIsDeleteModalOpen(false);
       setIsErrorModalOpen(true);
       setSelectedDivision(null);
@@ -463,6 +484,8 @@ export default function DivisionPage() {
       <ErrorModal
         isOpen={isErrorModalOpen}
         onClose={() => setIsErrorModalOpen(false)}
+        title={errorMessage.title}
+        message={errorMessage.message}
       />
     </div>
   );

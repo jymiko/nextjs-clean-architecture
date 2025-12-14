@@ -46,6 +46,11 @@ interface EditPositionModalProps {
   position: Position | null;
 }
 
+interface FormErrors {
+  code?: string;
+  name?: string;
+}
+
 export function EditPositionModal({ isOpen, onClose, onSave, position }: EditPositionModalProps) {
   const [formData, setFormData] = useState<Position>({
     id: "",
@@ -54,6 +59,7 @@ export function EditPositionModal({ isOpen, onClose, onSave, position }: EditPos
     departmentId: "",
     isActive: true,
   });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -87,11 +93,30 @@ export function EditPositionModal({ isOpen, onClose, onSave, position }: EditPos
     }
   };
 
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.code.trim()) {
+      newErrors.code = "Position code is required";
+    }
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Position name is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = () => {
+    if (!validateForm()) {
+      return;
+    }
     onSave(formData);
   };
 
   const handleClose = () => {
+    setErrors({});
     onClose();
   };
 
@@ -110,25 +135,41 @@ export function EditPositionModal({ isOpen, onClose, onSave, position }: EditPos
           {/* Position Code */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Position Code
+              Position Code <span className="text-red-500">*</span>
             </Label>
             <Input
               value={formData.code}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+              onChange={(e) => {
+                setFormData({ ...formData, code: e.target.value.toUpperCase() });
+                if (errors.code) setErrors({ ...errors, code: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none ${
+                errors.code ? "border-red-500" : "border-[#4db1d4]"
+              }`}
             />
+            {errors.code && (
+              <p className="text-xs text-red-500 mt-1">{errors.code}</p>
+            )}
           </div>
 
           {/* Position Name */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Position Name
+              Position Name <span className="text-red-500">*</span>
             </Label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm text-[#243644] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none ${
+                errors.name ? "border-red-500" : "border-slate-400"
+              }`}
             />
+            {errors.name && (
+              <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+            )}
           </div>
 
           {/* Department */}

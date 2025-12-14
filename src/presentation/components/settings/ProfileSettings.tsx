@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { User, Camera, Pencil, Trash2 } from "lucide-react";
+import { User, Camera, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,19 +12,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SignaturePad } from "./SignaturePad";
+import { SignaturePad } from "@/presentation/components/document-submission/SignaturePad";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { toast } from "sonner";
+
+interface Division {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface Department {
+  id: string;
+  code: string;
+  name: string;
+  divisionId?: string;
+}
+
+interface Position {
+  id: string;
+  code: string;
+  name: string;
+  departmentId?: string;
+}
 
 export function ProfileSettings() {
-  const { user, isLoading } = useCurrentUser();
+  const { user, isLoading, refetch } = useCurrentUser();
 
   const [formData, setFormData] = useState({
     userId: "",
     fullName: "",
     email: "",
-    division: "",
-    department: "",
-    position: "",
+    divisionId: "",
+    departmentId: "",
+    positionId: "",
     status: "Active",
     role: "",
     currentPassword: "",
@@ -32,55 +53,361 @@ export function ProfileSettings() {
     confirmPassword: "",
   });
 
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
-  const [isSignaturePadOpen, setIsSignaturePadOpen] = useState(false);
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [filteredDepartments, setFilteredDepartments] = useState<Department[]>([]);
+  const [filteredPositions, setFilteredPositions] = useState<Position[]>([]);
+
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string>("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingSignature, setIsSavingSignature] = useState(false);
+  const [passwordErrors, setPasswordErrors] = useState<{
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch divisions, departments, and positions
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [divisionsRes, departmentsRes, positionsRes] = await Promise.all([
+          fetch('/api/divisions?limit=100&isActive=true'),
+          fetch('/api/departments?limit=100&isActive=true'),
+          fetch('/api/positions?limit=100&isActive=true'),
+        ]);
+
+        if (divisionsRes.ok) {
+          const data = await divisionsRes.json();
+          setDivisions(data.data || []);
+        }
+
+        if (departmentsRes.ok) {
+          const data = await departmentsRes.json();
+          setDepartments(data.data || []);
+        }
+
+        if (positionsRes.ok) {
+          const data = await positionsRes.json();
+          setPositions(data.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Update form data when user data is loaded
   useEffect(() => {
     if (user) {
+      // Find the department to get divisionId
+      const userDepartment = departments.find(d => d.id === user.departmentId);
+
       setFormData(prev => ({
         ...prev,
         userId: user.employeeId || user.id,
         fullName: user.name,
         email: user.email,
-        department: user.department?.name || "",
-        position: user.position?.name || "",
+        divisionId: userDepartment?.divisionId || "",
+        departmentId: user.departmentId || "",
+        positionId: user.positionId || "",
         status: user.isActive ? "Active" : "Inactive",
         role: user.role,
       }));
-      if (user.signature) {
-        setSignatureDataUrl(user.signature);
-      }
+      setSignatureDataUrl(user.signature || "");
     }
-  }, [user]);
+  }, [user, departments]);
+
+  // Filter departments when division changes
+  useEffect(() => {
+    if (formData.divisionId) {
+      const filtered = departments.filter(d => d.divisionId === formData.divisionId);
+      setFilteredDepartments(filtered);
+
+      // If current department is not in filtered list, clear it
+      if (!filtered.find(d => d.id === formData.departmentId)) {
+        setFormData(prev => ({ ...prev, departmentId: "", positionId: "" }));
+      }
+    } else {
+      setFilteredDepartments(departments);
+    }
+  }, [formData.divisionId, departments, formData.departmentId]);
+
+  // Filter positions when department changes
+  useEffect(() => {
+    if (formData.departmentId) {
+      const filtered = positions.filter(p => p.departmentId === formData.departmentId);
+      setFilteredPositions(filtered);
+
+      // If current position is not in filtered list, clear it
+      if (!filtered.find(p => p.id === formData.positionId)) {
+        setFormData(prev => ({ ...prev, positionId: "" }));
+      }
+    } else {
+      setFilteredPositions(positions);
+    }
+  }, [formData.departmentId, positions, formData.positionId]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSignatureSave = (dataUrl: string) => {
+  const handleSignatureChange = useCallback((dataUrl: string) => {
     setSignatureDataUrl(dataUrl);
-  };
+  }, []);
+
+  const handleSaveSignature = useCallback(async () => {
+    if (!signatureDataUrl) {
+      toast.error('Please draw your signature first');
+      return;
+    }
+
+    setIsSavingSignature(true);
+    try {
+      const response = await fetch('/api/auth/profile/signature', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signature: signatureDataUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save signature');
+      }
+
+      toast.success('Signature saved successfully');
+      refetch();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save signature');
+    } finally {
+      setIsSavingSignature(false);
+    }
+  }, [signatureDataUrl, refetch]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setSignatureDataUrl(reader.result as string);
+      reader.onloadend = async () => {
+        const dataUrl = reader.result as string;
+        setSignatureDataUrl(dataUrl);
+
+        // Auto-save signature
+        setIsSavingSignature(true);
+        try {
+          const response = await fetch('/api/auth/profile/signature', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ signature: dataUrl }),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to save signature');
+          }
+
+          toast.success('Signature uploaded successfully');
+          refetch();
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : 'Failed to upload signature');
+        } finally {
+          setIsSavingSignature(false);
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleDeleteSignature = () => {
-    setSignatureDataUrl(null);
+  const handleSaveProfile = async () => {
+    setIsSavingProfile(true);
+    try {
+      const updateData: Record<string, unknown> = {};
+
+      // Only include changed profile fields
+      if (formData.fullName !== user?.name) {
+        updateData.name = formData.fullName;
+      }
+      if (formData.departmentId !== (user?.departmentId || "")) {
+        updateData.departmentId = formData.departmentId || null;
+      }
+      if (formData.positionId !== (user?.positionId || "")) {
+        updateData.positionId = formData.positionId || null;
+      }
+      if (formData.role !== user?.role) {
+        updateData.role = formData.role;
+      }
+      if ((formData.status === "Active") !== user?.isActive) {
+        updateData.isActive = formData.status === "Active";
+      }
+
+      // If no profile changes, skip profile update
+      if (Object.keys(updateData).length > 0) {
+        const response = await fetch('/api/auth/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update profile');
+        }
+
+        toast.success('Profile updated successfully');
+        refetch();
+      } else {
+        toast.info('No changes to save');
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
+
+  const validatePasswordForm = (): boolean => {
+    const errors: {
+      currentPassword?: string;
+      newPassword?: string;
+      confirmPassword?: string;
+    } = {};
+
+    if (!formData.currentPassword) {
+      errors.currentPassword = "Current password is required";
+    }
+
+    if (!formData.newPassword) {
+      errors.newPassword = "New password is required";
+    } else if (formData.newPassword.length < 6) {
+      errors.newPassword = "New password must be at least 6 characters";
+    }
+
+    if (!formData.confirmPassword) {
+      errors.confirmPassword = "Please confirm your new password";
+    } else if (formData.newPassword !== formData.confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+    }
+
+    setPasswordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSavePassword = async () => {
+    if (!validatePasswordForm()) {
+      return;
+    }
+
+    setIsSavingPassword(true);
+    try {
+      const response = await fetch('/api/auth/profile/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+          confirmPassword: formData.confirmPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        // Handle validation errors with field-level details
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const fieldErrors: {
+            currentPassword?: string;
+            newPassword?: string;
+            confirmPassword?: string;
+          } = {};
+
+          errorData.details.forEach((detail: { field: string; message: string }) => {
+            if (detail.field === 'currentPassword') {
+              fieldErrors.currentPassword = detail.message;
+            } else if (detail.field === 'newPassword') {
+              fieldErrors.newPassword = detail.message;
+            } else if (detail.field === 'confirmPassword') {
+              fieldErrors.confirmPassword = detail.message;
+            }
+          });
+
+          if (Object.keys(fieldErrors).length > 0) {
+            setPasswordErrors(fieldErrors);
+            // Show first error message in toast
+            const firstError = errorData.details[0];
+            toast.error(firstError.message);
+            return;
+          }
+        }
+
+        // Handle simple error messages (without details array)
+        const errorMessage = errorData.error || 'Failed to change password';
+
+        // Map known error messages to specific fields
+        if (errorMessage.toLowerCase().includes('current password')) {
+          setPasswordErrors({ currentPassword: errorMessage });
+        }
+
+        toast.error(errorMessage);
+        return;
+      }
+
+      toast.success('Password changed successfully');
+
+      // Clear password fields and errors
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      }));
+      setPasswordErrors({});
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to change password');
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  const handleCancel = () => {
+    // Reset form to original user data
+    if (user) {
+      const userDepartment = departments.find(d => d.id === user.departmentId);
+      setFormData({
+        userId: user.employeeId || user.id,
+        fullName: user.name,
+        email: user.email,
+        divisionId: userDepartment?.divisionId || "",
+        departmentId: user.departmentId || "",
+        positionId: user.positionId || "",
+        status: user.isActive ? "Active" : "Inactive",
+        role: user.role,
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    }
+  };
+
+  // Check if there are profile changes
+  const hasProfileChanges = user && (
+    formData.fullName !== user.name ||
+    formData.departmentId !== (user.departmentId || "") ||
+    formData.positionId !== (user.positionId || "") ||
+    formData.role !== user.role ||
+    (formData.status === "Active") !== user.isActive
+  );
+
+  // Check if password fields are filled
+  const hasPasswordInput = formData.currentPassword || formData.newPassword || formData.confirmPassword;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 lg:p-6 space-y-6">
@@ -147,17 +474,18 @@ export function ProfileSettings() {
         <div className="flex flex-col gap-1">
           <label className="text-sm text-neutral-950">Division</label>
           <Select
-            value={formData.division}
-            onValueChange={(value) => handleInputChange("division", value)}
+            value={formData.divisionId}
+            onValueChange={(value) => handleInputChange("divisionId", value)}
           >
             <SelectTrigger className="h-9 bg-[#f6faff] border-transparent rounded-lg">
               <SelectValue placeholder="Select division" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Information Technology">Information Technology</SelectItem>
-              <SelectItem value="Human Resources">Human Resources</SelectItem>
-              <SelectItem value="Finance">Finance</SelectItem>
-              <SelectItem value="Operations">Operations</SelectItem>
+              {divisions.map((division) => (
+                <SelectItem key={division.id} value={division.id}>
+                  {division.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -166,16 +494,18 @@ export function ProfileSettings() {
         <div className="flex flex-col gap-1">
           <label className="text-sm text-neutral-950">Department</label>
           <Select
-            value={formData.department}
-            onValueChange={(value) => handleInputChange("department", value)}
+            value={formData.departmentId}
+            onValueChange={(value) => handleInputChange("departmentId", value)}
           >
             <SelectTrigger className="h-9 bg-[#f6faff] border-transparent rounded-lg">
               <SelectValue placeholder="Select department" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Digital Transformation">Digital Transformation</SelectItem>
-              <SelectItem value="Software Development">Software Development</SelectItem>
-              <SelectItem value="Infrastructure">Infrastructure</SelectItem>
+              {filteredDepartments.map((department) => (
+                <SelectItem key={department.id} value={department.id}>
+                  {department.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -184,17 +514,18 @@ export function ProfileSettings() {
         <div className="flex flex-col gap-1">
           <label className="text-sm text-neutral-950">Position</label>
           <Select
-            value={formData.position}
-            onValueChange={(value) => handleInputChange("position", value)}
+            value={formData.positionId}
+            onValueChange={(value) => handleInputChange("positionId", value)}
           >
             <SelectTrigger className="h-9 bg-[#f6faff] border-transparent rounded-lg">
               <SelectValue placeholder="Select position" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Staff">Staff</SelectItem>
-              <SelectItem value="Supervisor">Supervisor</SelectItem>
-              <SelectItem value="Manager">Manager</SelectItem>
-              <SelectItem value="Director">Director</SelectItem>
+              {filteredPositions.map((position) => (
+                <SelectItem key={position.id} value={position.id}>
+                  {position.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -210,9 +541,8 @@ export function ProfileSettings() {
               <SelectValue placeholder="Select role" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Admin">Admin</SelectItem>
-              <SelectItem value="User">User</SelectItem>
-              <SelectItem value="Viewer">Viewer</SelectItem>
+              <SelectItem value="ADMIN">Admin</SelectItem>
+              <SelectItem value="USER">User</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -235,6 +565,27 @@ export function ProfileSettings() {
         </div>
       </div>
 
+      {/* Action Buttons for Profile */}
+      {hasProfileChanges && (
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            className="h-9 px-6 border-[#f24822] text-[#f24822] hover:bg-[#f24822]/10 rounded-lg"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveProfile}
+            disabled={isSavingProfile}
+            className="h-9 px-6 bg-[#4db1d4] hover:bg-[#3da0bf] text-white rounded-lg"
+          >
+            {isSavingProfile && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Save Changes
+          </Button>
+        </div>
+      )}
+
       {/* Change Password Section */}
       <div className="pt-4 border-t border-gray-200 space-y-4">
         <h4 className="text-base font-normal text-[#101828]">Change Password</h4>
@@ -245,10 +596,20 @@ export function ProfileSettings() {
             <Input
               type="password"
               value={formData.currentPassword}
-              onChange={(e) => handleInputChange("currentPassword", e.target.value)}
-              className="h-9 bg-[#f6faff] border-transparent rounded-lg"
+              onChange={(e) => {
+                handleInputChange("currentPassword", e.target.value);
+                if (passwordErrors.currentPassword) {
+                  setPasswordErrors(prev => ({ ...prev, currentPassword: undefined }));
+                }
+              }}
+              className={`h-9 bg-[#f6faff] rounded-lg ${
+                passwordErrors.currentPassword ? "border-red-500" : "border-transparent"
+              }`}
               placeholder="Enter current password"
             />
+            {passwordErrors.currentPassword && (
+              <p className="text-xs text-red-500 mt-1">{passwordErrors.currentPassword}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -258,10 +619,20 @@ export function ProfileSettings() {
               <Input
                 type="password"
                 value={formData.newPassword}
-                onChange={(e) => handleInputChange("newPassword", e.target.value)}
-                className="h-9 bg-[#f6faff] border-transparent rounded-lg"
+                onChange={(e) => {
+                  handleInputChange("newPassword", e.target.value);
+                  if (passwordErrors.newPassword) {
+                    setPasswordErrors(prev => ({ ...prev, newPassword: undefined }));
+                  }
+                }}
+                className={`h-9 bg-[#f6faff] rounded-lg ${
+                  passwordErrors.newPassword ? "border-red-500" : "border-transparent"
+                }`}
                 placeholder="Enter new password"
               />
+              {passwordErrors.newPassword && (
+                <p className="text-xs text-red-500 mt-1">{passwordErrors.newPassword}</p>
+              )}
             </div>
 
             {/* Confirm New Password */}
@@ -270,26 +641,52 @@ export function ProfileSettings() {
               <Input
                 type="password"
                 value={formData.confirmPassword}
-                onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                className="h-9 bg-[#f6faff] border-transparent rounded-lg"
+                onChange={(e) => {
+                  handleInputChange("confirmPassword", e.target.value);
+                  if (passwordErrors.confirmPassword) {
+                    setPasswordErrors(prev => ({ ...prev, confirmPassword: undefined }));
+                  }
+                }}
+                className={`h-9 bg-[#f6faff] rounded-lg ${
+                  passwordErrors.confirmPassword ? "border-red-500" : "border-transparent"
+                }`}
                 placeholder="Confirm new password"
               />
+              {passwordErrors.confirmPassword && (
+                <p className="text-xs text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-3">
-          <Button
-            variant="outline"
-            className="h-9 px-6 border-[#f24822] text-[#f24822] hover:bg-[#f24822]/10 rounded-lg"
-          >
-            Cancel
-          </Button>
-          <Button className="h-9 px-6 bg-[#4db1d4] hover:bg-[#3da0bf] text-white rounded-lg">
-            Save Changes
-          </Button>
-        </div>
+        {/* Action Buttons for Password */}
+        {hasPasswordInput && (
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFormData(prev => ({
+                  ...prev,
+                  currentPassword: "",
+                  newPassword: "",
+                  confirmPassword: "",
+                }));
+                setPasswordErrors({});
+              }}
+              className="h-9 px-6 border-[#f24822] text-[#f24822] hover:bg-[#f24822]/10 rounded-lg"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSavePassword}
+              disabled={isSavingPassword}
+              className="h-9 px-6 bg-[#4db1d4] hover:bg-[#3da0bf] text-white rounded-lg"
+            >
+              {isSavingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Changes
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Signature Section */}
@@ -298,33 +695,11 @@ export function ProfileSettings() {
         <div className="space-y-4">
           <label className="text-sm text-neutral-950">Your Signature</label>
 
-          {signatureDataUrl ? (
-            <div className="relative bg-white border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center justify-center h-[180px]">
-                <Image
-                  src={signatureDataUrl}
-                  alt="Your signature"
-                  width={300}
-                  height={150}
-                  className="max-h-[150px] w-auto object-contain"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={handleDeleteSignature}
-                className="absolute top-2 right-2 text-red-500 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-          ) : (
-            <div className="bg-[#f3f3f5] border border-transparent rounded-lg h-[200px] flex flex-col items-center justify-center text-[#8a8f9d] text-sm">
-              <p>No signature added yet</p>
-              <p>Upload or draw your signature below</p>
-            </div>
-          )}
+          {/* Inline Signature Pad */}
+          <SignaturePad
+            value={signatureDataUrl}
+            onChange={handleSignatureChange}
+          />
 
           {/* Hidden file input for upload */}
           <input
@@ -335,35 +710,30 @@ export function ProfileSettings() {
             className="hidden"
           />
 
-          {/* Signature Action Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3">
             <Button
               type="button"
               variant="outline"
               onClick={handleUploadClick}
-              className="h-11 border-[#00b3d8] text-[#4db1d4] hover:bg-[#4db1d4]/10 rounded-lg flex items-center justify-center gap-2"
+              disabled={isSavingSignature}
+              className="h-9 px-6 border-[#00b3d8] text-[#4db1d4] hover:bg-[#4db1d4]/10 rounded-lg flex items-center gap-2"
             >
-              <Camera className="size-5" />
-              <span>Upload Signature</span>
+              <Camera className="size-4" />
+              <span>Upload</span>
             </Button>
             <Button
               type="button"
-              onClick={() => setIsSignaturePadOpen(true)}
-              className="h-11 bg-[#4db1d4] hover:bg-[#3da0bf] text-white rounded-lg flex items-center justify-center gap-2"
+              onClick={handleSaveSignature}
+              disabled={isSavingSignature || !signatureDataUrl}
+              className="h-9 px-6 bg-[#4db1d4] hover:bg-[#3da0bf] text-white rounded-lg"
             >
-              <Pencil className="size-5" />
-              <span>Draw Signature</span>
+              {isSavingSignature && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save Signature
             </Button>
           </div>
         </div>
       </div>
-
-      {/* Signature Pad Dialog */}
-      <SignaturePad
-        open={isSignaturePadOpen}
-        onClose={() => setIsSignaturePadOpen(false)}
-        onSave={handleSignatureSave}
-      />
     </div>
   );
 }

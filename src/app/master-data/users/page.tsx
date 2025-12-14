@@ -63,6 +63,7 @@ export default function UsersPage() {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [successMessage, setSuccessMessage] = useState({ title: "", message: "" });
+  const [errorMessage, setErrorMessage] = useState({ title: "", message: "" });
 
   // Fetch users
   useEffect(() => {
@@ -112,6 +113,11 @@ export default function UsersPage() {
       setTotalCount(data.pagination?.total || 0);
     } catch (error) {
       console.error("Error fetching users:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to load users data";
+      setErrorMessage({
+        title: "Failed to Load Data!",
+        message: errorMsg,
+      });
       setIsErrorModalOpen(true);
     } finally {
       setLoading(false);
@@ -161,6 +167,11 @@ export default function UsersPage() {
       fetchUsers();
     } catch (error) {
       console.error("Error adding user:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to add user. Please check your input and try again.";
+      setErrorMessage({
+        title: "Failed to Add User!",
+        message: errorMsg,
+      });
       setIsErrorModalOpen(true);
     }
   };
@@ -187,6 +198,11 @@ export default function UsersPage() {
       fetchUsers();
     } catch (error) {
       console.error("Error updating user:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to update user. Please check your input and try again.";
+      setErrorMessage({
+        title: "Failed to Update User!",
+        message: errorMsg,
+      });
       setIsErrorModalOpen(true);
     }
   };
@@ -206,6 +222,11 @@ export default function UsersPage() {
       fetchUsers();
     } catch (error) {
       console.error("Error deleting user:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to delete user. Please try again.";
+      setErrorMessage({
+        title: "Failed to Delete User!",
+        message: errorMsg,
+      });
       setIsDeleteModalOpen(false);
       setIsErrorModalOpen(true);
     }
@@ -492,6 +513,8 @@ export default function UsersPage() {
       <ErrorModal
         isOpen={isErrorModalOpen}
         onClose={() => setIsErrorModalOpen(false)}
+        title={errorMessage.title}
+        message={errorMessage.message}
       />
     </div>
   );

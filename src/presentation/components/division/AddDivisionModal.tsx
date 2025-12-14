@@ -37,6 +37,11 @@ interface AddDivisionModalProps {
   }) => void;
 }
 
+interface FormErrors {
+  code?: string;
+  name?: string;
+}
+
 export function AddDivisionModal({ isOpen, onClose, onSave }: AddDivisionModalProps) {
   const [formData, setFormData] = useState({
     code: "",
@@ -44,6 +49,7 @@ export function AddDivisionModal({ isOpen, onClose, onSave }: AddDivisionModalPr
     headOfDivisionId: "",
     isActive: true,
   });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -65,7 +71,25 @@ export function AddDivisionModal({ isOpen, onClose, onSave }: AddDivisionModalPr
     }
   };
 
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.code.trim()) {
+      newErrors.code = "Division code is required";
+    }
+
+    if (!formData.name.trim()) {
+      newErrors.name = "Division name is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = () => {
+    if (!validateForm()) {
+      return;
+    }
     onSave({
       code: formData.code,
       name: formData.name,
@@ -77,6 +101,7 @@ export function AddDivisionModal({ isOpen, onClose, onSave }: AddDivisionModalPr
 
   const handleClose = () => {
     setFormData({ code: "", name: "", headOfDivisionId: "", isActive: true });
+    setErrors({});
     onClose();
   };
 
@@ -93,27 +118,43 @@ export function AddDivisionModal({ isOpen, onClose, onSave }: AddDivisionModalPr
           {/* Division Code */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Division Code
+              Division Code <span className="text-red-500">*</span>
             </Label>
             <Input
               placeholder="Division Code"
               value={formData.code}
-              onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+              onChange={(e) => {
+                setFormData({ ...formData, code: e.target.value });
+                if (errors.code) setErrors({ ...errors, code: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none ${
+                errors.code ? "border-red-500" : "border-[#4db1d4]"
+              }`}
             />
+            {errors.code && (
+              <p className="text-xs text-red-500 mt-1">{errors.code}</p>
+            )}
           </div>
 
           {/* Division Name */}
           <div className="space-y-2">
             <Label className="text-xs font-normal text-slate-700">
-              Division Name
+              Division Name <span className="text-red-500">*</span>
             </Label>
             <Input
               placeholder="Division Name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="h-10 bg-[#f6faff] border-0 border-b border-slate-400 rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none"
+              onChange={(e) => {
+                setFormData({ ...formData, name: e.target.value });
+                if (errors.name) setErrors({ ...errors, name: undefined });
+              }}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 focus-visible:ring-offset-0 focus:outline-none ${
+                errors.name ? "border-red-500" : "border-slate-400"
+              }`}
             />
+            {errors.name && (
+              <p className="text-xs text-red-500 mt-1">{errors.name}</p>
+            )}
           </div>
 
           {/* Head Of Division */}

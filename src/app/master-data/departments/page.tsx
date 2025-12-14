@@ -98,9 +98,10 @@ export default function DepartmentPage() {
       setTotalPages(data.totalPages);
     } catch (error) {
       console.error('Error fetching departments:', error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to load department data. Please try again.";
       setErrorMessage({
-        title: "Error",
-        message: "Failed to fetch departments. Please try again.",
+        title: "Failed to Load Data!",
+        message: errorMsg,
       });
       setIsErrorModalOpen(true);
     } finally {
@@ -163,8 +164,8 @@ export default function DepartmentPage() {
       console.error('Error creating department:', error);
       setIsAddModalOpen(false);
       setErrorMessage({
-        title: "Error",
-        message: error instanceof Error ? error.message : "Failed to create department. Please try again.",
+        title: "Failed to Add Department!",
+        message: error instanceof Error ? error.message : "Failed to create department. Please check your input and try again.",
       });
       setIsErrorModalOpen(true);
     }
@@ -180,9 +181,10 @@ export default function DepartmentPage() {
       setIsViewModalOpen(true);
     } catch (error) {
       console.error('Error fetching department:', error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to fetch department details. Please try again.";
       setErrorMessage({
-        title: "Error",
-        message: "Failed to fetch department details. Please try again.",
+        title: "Failed to Load Details!",
+        message: errorMsg,
       });
       setIsErrorModalOpen(true);
     }
@@ -227,8 +229,8 @@ export default function DepartmentPage() {
       console.error('Error updating department:', error);
       setIsEditModalOpen(false);
       setErrorMessage({
-        title: "Error",
-        message: error instanceof Error ? error.message : "Failed to update department. Please try again.",
+        title: "Failed to Update Department!",
+        message: error instanceof Error ? error.message : "Failed to update department. Please check your input and try again.",
       });
       setIsErrorModalOpen(true);
     }
@@ -264,7 +266,7 @@ export default function DepartmentPage() {
       console.error('Error deleting department:', error);
       setIsDeleteModalOpen(false);
       setErrorMessage({
-        title: "Error",
+        title: "Failed to Delete Department!",
         message: error instanceof Error ? error.message : "Failed to delete department. Please try again.",
       });
       setIsErrorModalOpen(true);
