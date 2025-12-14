@@ -612,6 +612,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return categories.map(cat => ({
       id: cat.id,
       name: cat.name,
+      code: cat.code,
       description: cat.description || undefined,
       isActive: cat.isActive,
       createdAt: cat.createdAt,
@@ -641,10 +642,112 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return {
       id: category.id,
       name: category.name,
+      code: category.code,
       description: category.description || undefined,
       isActive: category.isActive,
       createdAt: category.createdAt,
       updatedAt: category.updatedAt,
     };
+  }
+
+  async getCategoryById(id: string): Promise<DocumentCategory | null> {
+    const category = await prisma.documentCategory.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { documents: true },
+        },
+      },
+    });
+
+    if (!category) {
+      return null;
+    }
+
+    return {
+      id: category.id,
+      name: category.name,
+      code: category.code,
+      description: category.description || undefined,
+      isActive: category.isActive,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+      _count: {
+        documents: category._count.documents,
+        children: 0,
+      },
+    };
+  }
+
+  async updateCategory(id: string, data: { name?: string; code?: string; description?: string | null; prefix?: string | null; isActive?: boolean }): Promise<DocumentCategory> {
+    // Check if category exists
+    const existingCategory = await prisma.documentCategory.findUnique({
+      where: { id },
+    });
+
+    if (!existingCategory) {
+      throw new NotFoundError('Category not found');
+    }
+
+    // Check for duplicate name or code if they are being updated
+    if (data.name || data.code) {
+      const duplicateCheck = await prisma.documentCategory.findFirst({
+        where: {
+          AND: [
+            { id: { not: id } },
+            {
+              OR: [
+                data.code ? { code: data.code } : {},
+                data.name ? { name: data.name } : {},
+              ].filter(obj => Object.keys(obj).length > 0),
+            },
+          ],
+        },
+      });
+
+      if (duplicateCheck) {
+        throw new ConflictError('Category with this code or name already exists');
+      }
+    }
+
+    const category = await prisma.documentCategory.update({
+      where: { id },
+      data,
+    });
+
+    return {
+      id: category.id,
+      name: category.name,
+      code: category.code,
+      description: category.description || undefined,
+      isActive: category.isActive,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    };
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    // Check if category exists
+    const existingCategory = await prisma.documentCategory.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { documents: true },
+        },
+      },
+    });
+
+    if (!existingCategory) {
+      throw new NotFoundError('Category not found');
+    }
+
+    // Check if category has documents
+    if (existingCategory._count.documents > 0) {
+      throw new ConflictError('Cannot delete category with existing documents. Please move or delete the documents first.');
+    }
+
+    await prisma.documentCategory.delete({
+      where: { id },
+    });
   }
 }

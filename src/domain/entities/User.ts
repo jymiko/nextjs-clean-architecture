@@ -1,5 +1,6 @@
 // User role enum matching Prisma schema
 export enum UserRole {
+  SUPERADMIN = 'SUPERADMIN',
   ADMIN = 'ADMIN',
   USER = 'USER',
 }

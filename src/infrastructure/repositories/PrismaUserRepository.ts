@@ -370,6 +370,7 @@ export class PrismaUserRepository implements IUserRepository {
     const tokenPair = await generateTokenPair({
       userId: user.id,
       email: user.email,
+      role: user.role,
     });
 
     // Return user without password
@@ -379,7 +380,7 @@ export class PrismaUserRepository implements IUserRepository {
       user: userWithoutPassword,
       accessToken: tokenPair.accessToken,
       refreshToken: tokenPair.refreshToken,
-      expiresIn: 900, // 15 minutes in seconds
+      expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
       tokenType: 'Bearer',
     };
   }

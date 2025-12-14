@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { LastAccount } from '@/types/last-accounts';
 
 const STORAGE_KEY = 'dcms-last-accounts';
+export const REMEMBER_ME_SESSION_KEY = 'dcms-remember-me-session';
+
+interface RememberMeSession {
+  email: string;
+  name: string;
+  avatar?: string;
+  rememberMe: boolean;
+}
 
 export function useLastAccounts() {
   const [accounts, setAccounts] = useState<LastAccount[]>([]);
@@ -63,10 +71,35 @@ export function useLastAccounts() {
     localStorage.removeItem(STORAGE_KEY);
   };
 
+  // Save account from session storage (called on logout if Remember Me was checked)
+  const saveAccountFromSession = () => {
+    const sessionData = sessionStorage.getItem(REMEMBER_ME_SESSION_KEY);
+    if (sessionData) {
+      try {
+        const data: RememberMeSession = JSON.parse(sessionData);
+        if (data.rememberMe) {
+          saveAccount(data.email, data.name, data.avatar);
+        }
+      } catch (error) {
+        console.error('Error parsing remember me session:', error);
+      } finally {
+        // Always clear the session data after logout
+        sessionStorage.removeItem(REMEMBER_ME_SESSION_KEY);
+      }
+    }
+  };
+
+  // Clear session data without saving (for cases where we need to clear session)
+  const clearSession = () => {
+    sessionStorage.removeItem(REMEMBER_ME_SESSION_KEY);
+  };
+
   return {
     accounts,
     saveAccount,
     removeAccount,
     clearAccounts,
+    saveAccountFromSession,
+    clearSession,
   };
 }

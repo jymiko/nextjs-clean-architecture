@@ -31,15 +31,27 @@ async function postHandler(request: NextRequest) {
       throw new UnauthorizedError('Invalid or expired refresh token');
     }
 
-    return NextResponse.json({
+    // Create response with new tokens
+    const response = NextResponse.json({
       success: true,
       data: {
         accessToken: tokenPair.accessToken,
         refreshToken: tokenPair.refreshToken,
         tokenType: 'Bearer',
-        expiresIn: 900, // 15 minutes in seconds
+        expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds (matches JWT expiry)
       },
     });
+
+    // Update auth-token cookie with new access token
+    response.cookies.set('auth-token', tokenPair.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

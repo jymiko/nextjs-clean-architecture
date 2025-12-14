@@ -8,9 +8,7 @@ export const createPositionSchema = z.object({
   name: z.string()
     .min(3, 'Position name must be at least 3 characters')
     .max(100, 'Position name must not exceed 100 characters'),
-  description: z.string().max(500, 'Description must not exceed 500 characters').optional(),
   departmentId: z.string().cuid('Invalid department ID').optional(),
-  level: z.number().int().min(1, 'Level must be at least 1').max(10, 'Level must not exceed 10').default(1),
   isActive: z.boolean().default(true),
 });
 
@@ -24,9 +22,7 @@ export const updatePositionSchema = z.object({
     .min(3, 'Position name must be at least 3 characters')
     .max(100, 'Position name must not exceed 100 characters')
     .optional(),
-  description: z.string().max(500, 'Description must not exceed 500 characters').nullable().optional(),
   departmentId: z.string().cuid('Invalid department ID').nullable().optional(),
-  level: z.number().int().min(1, 'Level must be at least 1').max(10, 'Level must not exceed 10').optional(),
   isActive: z.boolean().optional(),
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
@@ -38,7 +34,7 @@ export const positionQuerySchema = z.object({
   search: z.string().optional(),
   departmentId: z.string().cuid('Invalid department ID').optional(),
   isActive: z.enum(['true', 'false']).transform(val => val === 'true').optional(),
-  sortBy: z.enum(['name', 'code', 'level', 'createdAt', 'updatedAt']).default('createdAt'),
+  sortBy: z.enum(['name', 'code', 'createdAt', 'updatedAt']).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
 

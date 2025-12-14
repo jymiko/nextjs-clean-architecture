@@ -72,7 +72,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(authResponse);
+    // Create response with auth token in cookie
+    const response = NextResponse.json(authResponse);
+    
+    // Set auth token in HTTP-only cookie for security
+    response.cookies.set('auth-token', authResponse.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(

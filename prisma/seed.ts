@@ -118,6 +118,65 @@ async function main() {
     }
   }
 
+  // Create document categories if they don't exist
+  const documentCategories = [
+    {
+      code: 'SOP',
+      name: 'Standard Operating Procedure',
+      description: 'Standard operating procedure documents',
+      prefix: 'SOP'
+    },
+    {
+      code: 'WI',
+      name: 'Work Instruction',
+      description: 'Work instruction documents',
+      prefix: 'WI'
+    },
+    {
+      code: 'SPEC',
+      name: 'Specification',
+      description: 'Specification documents',
+      prefix: 'SPEC'
+    },
+    {
+      code: 'FORM',
+      name: 'Form',
+      description: 'Form documents',
+      prefix: 'FORM'
+    },
+    {
+      code: 'POL',
+      name: 'Policy',
+      description: 'Policy documents',
+      prefix: 'POL'
+    },
+    {
+      code: 'MAN',
+      name: 'Manual',
+      description: 'Manual documents',
+      prefix: 'MAN'
+    },
+    {
+      code: 'STD',
+      name: 'Standard',
+      description: 'Standard documents',
+      prefix: 'STD'
+    }
+  ];
+
+  for (const category of documentCategories) {
+    const existingCategory = await prisma.documentCategory.findUnique({
+      where: { code: category.code }
+    });
+
+    if (!existingCategory) {
+      await prisma.documentCategory.create({
+        data: category
+      });
+      console.log(`✅ Created document category: ${category.name}`);
+    }
+  }
+
   console.log('\n🎉 Seeding completed successfully!');
   console.log('\n📝 Super Admin Login Details:');
   console.log('   Email:', superAdminEmail);

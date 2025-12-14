@@ -14,10 +14,8 @@ export class PrismaPositionRepository implements IPositionRepository {
     id: string;
     code: string;
     name: string;
-    description: string | null;
     departmentId: string | null;
     department?: { id: string; code: string; name: string } | null;
-    level: number;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -27,10 +25,8 @@ export class PrismaPositionRepository implements IPositionRepository {
       id: data.id,
       code: data.code,
       name: data.name,
-      description: data.description,
       departmentId: data.departmentId,
       department: data.department || null,
-      level: data.level,
       isActive: data.isActive,
       totalEmployees: data._count?.users || 0,
       createdAt: data.createdAt,
@@ -57,7 +53,6 @@ export class PrismaPositionRepository implements IPositionRepository {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { code: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -143,7 +138,7 @@ export class PrismaPositionRepository implements IPositionRepository {
           select: { users: true },
         },
       },
-      orderBy: { level: 'asc' },
+      orderBy: { name: 'asc' },
     });
 
     return positions.map((pos) => this.mapToPosition(pos));
@@ -170,9 +165,7 @@ export class PrismaPositionRepository implements IPositionRepository {
       data: {
         code: data.code,
         name: data.name,
-        description: data.description,
         departmentId: data.departmentId,
-        level: data.level ?? 1,
         isActive: data.isActive ?? true,
       },
       include: {
@@ -217,9 +210,7 @@ export class PrismaPositionRepository implements IPositionRepository {
       data: {
         code: data.code,
         name: data.name,
-        description: data.description,
         departmentId: data.departmentId,
-        level: data.level,
         isActive: data.isActive,
       },
       include: {

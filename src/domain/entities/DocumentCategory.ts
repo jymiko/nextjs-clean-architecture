@@ -2,6 +2,7 @@
 export interface DocumentCategory {
   id: string;
   name: string;
+  code: string;
   description?: string;
   parentId?: string;
   isActive: boolean;
@@ -18,6 +19,7 @@ export interface DocumentCategory {
 // Input for creating a document category
 export interface CreateDocumentCategoryInput {
   name: string;
+  code: string;
   description?: string;
   parentId?: string;
 }

@@ -3,6 +3,12 @@ export interface Department {
   code: string;
   name: string;
   description?: string | null;
+  divisionId?: string | null;
+  division?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
   headOfDepartmentId?: string | null;
   headOfDepartment?: {
     id: string;
@@ -19,6 +25,7 @@ export interface CreateDepartmentDTO {
   code: string;
   name: string;
   description?: string;
+  divisionId?: string;
   headOfDepartmentId?: string;
   isActive?: boolean;
 }
@@ -27,6 +34,7 @@ export interface UpdateDepartmentDTO {
   code?: string;
   name?: string;
   description?: string | null;
+  divisionId?: string | null;
   headOfDepartmentId?: string | null;
   isActive?: boolean;
 }

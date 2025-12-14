@@ -14,12 +14,30 @@ datasource db {
 // AUTHENTICATION & USER MANAGEMENT
 // ============================================================================
 
+// Divisions master data (highest level organizational unit)
+model Division {
+  id                 String       @id @default(cuid())
+  code               String       @unique
+  name               String       @unique
+  description        String?
+  headOfDivisionId   String?
+  isActive           Boolean      @default(true)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  departments        Department[]
+
+  @@index([headOfDivisionId])
+  @@map("divisions")
+}
+
 // Departments master data (normalized)
 model Department {
   id                   String                 @id @default(cuid())
   code                 String                 @unique
   name                 String                 @unique
   description          String?
+  division             Division?              @relation(fields: [divisionId], references: [id])
+  divisionId           String?
   headOfDepartmentId   String?
   isActive             Boolean                @default(true)
   createdAt            DateTime               @default(now())
@@ -27,7 +45,9 @@ model Department {
   users                User[]
   positions            Position[]
   workflowSteps        ApprovalWorkflowStep[] @relation("DepartmentApprover")
+  documentDestinations Document[]             @relation("DocumentDestination")
 
+  @@index([divisionId])
   @@index([headOfDepartmentId])
   @@map("departments")
 }
@@ -39,8 +59,6 @@ model Position {
   name          String
   department    Department?            @relation(fields: [departmentId], references: [id])
   departmentId  String?
-  level         Int                    @default(1) // Hierarchy level
-  description   String?
   isActive      Boolean                @default(true)
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
@@ -118,6 +136,7 @@ model UserPreference {
 
 // User role enum (simplified)
 enum UserRole {
+  SUPERADMIN
   ADMIN
   USER
 }
@@ -321,46 +340,69 @@ enum WorkflowStepType {
 
 // Main documents table
 model Document {
-  id                 String                 @id @default(cuid())
-  documentNumber     String                 @unique // e.g., "WI-DT-001-003.pdf"
-  title              String
-  description        String?
-  category           DocumentCategory       @relation(fields: [categoryId], references: [id])
-  categoryId         String
-  version            String                 @default("1.0")
-  revisionNumber     Int                    @default(0)
-  status             DocumentStatus         @default(DRAFT)
-  approvalStatus     ApprovalStatus         @default(PENDING)
-  fileUrl            String // Main document file path
-  fileName           String
-  fileSize           Int // in bytes
-  mimeType           String
-  tags               String[] // DEPRECATED: Will migrate to DocumentTag table
-  expiryDate         DateTime?
-  effectiveDate      DateTime?
-  isObsolete         Boolean                @default(false)
-  obsoleteReason     String?
-  obsoleteDate       DateTime?
+  id                          String                 @id @default(cuid())
+  documentNumber              String                 @unique // e.g., "WI-DT-001-003.pdf"
+  title                       String
+  description                 String?
+  category                    DocumentCategory       @relation(fields: [categoryId], references: [id])
+  categoryId                  String
+  version                     String                 @default("1.0")
+  revisionNumber              Int                    @default(0)
+  status                      DocumentStatus         @default(DRAFT)
+  approvalStatus              ApprovalStatus         @default(PENDING)
+  fileUrl                     String // Main document file path
+  fileName                    String
+  fileSize                    Int // in bytes
+  mimeType                    String
+  tags                        String[] // DEPRECATED: Will migrate to DocumentTag table
+  expiryDate                  DateTime?
+  effectiveDate               DateTime?
+  isObsolete                  Boolean                @default(false)
+  obsoleteReason              String?
+  obsoleteDate                DateTime?
+  // Document submission fields (Step 1)
+  destinationDepartment       Department?            @relation("DocumentDestination", fields: [destinationDepartmentId], references: [id])
+  destinationDepartmentId     String?
+  estimatedDistributionDate   DateTime?
+
+  // Document submission fields (Step 2 - Detail Document)
+  scope                       String?                @db.Text
+  responsibleDocument         String?                @db.Text
+  termsAndAbbreviations       String?                @db.Text
+  warning                     String?                @db.Text
+  relatedDocumentsText        String?                @db.Text
+
+  // Document submission fields (Step 3 - Procedure Document)
+  procedureContent            String?                @db.Text
+
+  // Document submission fields (Step 4 - Signature/Approval Info)
+  reviewerName                String?
+  reviewerPosition            String?
+  approverName                String?
+  approverPosition            String?
+  acknowledgerName            String?
+  acknowledgerPosition        String?
+
   // Ownership & tracking
-  createdBy          User                   @relation("DocumentCreator", fields: [createdById], references: [id])
-  createdById        String
-  owner              User                   @relation("DocumentOwner", fields: [ownerId], references: [id])
-  ownerId            String
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
+  createdBy                   User                   @relation("DocumentCreator", fields: [createdById], references: [id])
+  createdById                 String
+  owner                       User                   @relation("DocumentOwner", fields: [ownerId], references: [id])
+  ownerId                     String
+  createdAt                   DateTime               @default(now())
+  updatedAt                   DateTime               @updatedAt
   // Relations
-  approvals          DocumentApproval[]
-  distributions      DocumentDistribution[]
-  revisions          DocumentRevision[]
-  requests           DocumentRequest[]
-  comments           DocumentComment[]
-  attachments        DocumentAttachment[]
-  relatedDocuments   DocumentRelation[]     @relation("DocumentSource")
-  relatedToDocuments DocumentRelation[]     @relation("DocumentTarget")
-  qrCodes            DocumentQRCode[]
-  fileMetadata       DocumentFileMetadata?
-  documentTags       DocumentTag[] // NEW: Normalized tags
-  versions           DocumentVersion[] // PHASE 2: Version management
+  approvals                   DocumentApproval[]
+  distributions               DocumentDistribution[]
+  revisions                   DocumentRevision[]
+  requests                    DocumentRequest[]
+  comments                    DocumentComment[]
+  attachments                 DocumentAttachment[]
+  relatedDocuments            DocumentRelation[]     @relation("DocumentSource")
+  relatedToDocuments          DocumentRelation[]     @relation("DocumentTarget")
+  qrCodes                     DocumentQRCode[]
+  fileMetadata                DocumentFileMetadata?
+  documentTags                DocumentTag[] // NEW: Normalized tags
+  versions                    DocumentVersion[] // PHASE 2: Version management
 
   @@index([status])
   @@index([approvalStatus])
@@ -370,6 +412,7 @@ model Document {
   @@index([ownerId])
   @@index([createdById])
   @@index([documentNumber])
+  @@index([destinationDepartmentId])
   @@map("documents")
 }
 

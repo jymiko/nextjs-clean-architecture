@@ -26,7 +26,7 @@ export const createUserAdminSchema = z.object({
   password: z.string()
     .min(6, 'Password must be at least 6 characters')
     .optional(),
-  role: z.enum(['ADMIN', 'USER']).optional(),
+  role: z.enum(['SUPERADMIN', 'ADMIN', 'USER']).optional(),
   departmentId: z.string().cuid('Invalid department ID').optional(),
   positionId: z.string().cuid('Invalid position ID').optional(),
   isActive: z.boolean().default(true),
@@ -47,7 +47,7 @@ export const updateUserAdminSchema = z.object({
   password: z.string()
     .min(6, 'Password must be at least 6 characters')
     .optional(),
-  role: z.enum(['ADMIN', 'USER']).nullable().optional(),
+  role: z.enum(['SUPERADMIN', 'ADMIN', 'USER']).nullable().optional(),
   departmentId: z.string().cuid('Invalid department ID').nullable().optional(),
   positionId: z.string().cuid('Invalid position ID').nullable().optional(),
   signature: z.string()
@@ -63,7 +63,7 @@ export const userQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(10),
   search: z.string().optional(),
-  role: z.enum(['ADMIN', 'USER']).optional(),
+  role: z.enum(['SUPERADMIN', 'ADMIN', 'USER']).optional(),
   departmentId: z.string().cuid('Invalid department ID').optional(),
   positionId: z.string().cuid('Invalid position ID').optional(),
   isActive: z.enum(['true', 'false']).transform(val => val === 'true').optional(),
@@ -96,13 +96,16 @@ export const verifyResetTokenSchema = z.object({
   token: z.string().min(1, 'Token is required'),
 });
 
-// Schema for user profile update (self-update) - only name and email allowed
+// Schema for user profile update (self-update)
 export const updateProfileSchema = z.object({
   name: z.string()
     .min(3, 'Name must be at least 3 characters')
     .max(100, 'Name must not exceed 100 characters')
     .optional(),
-  email: z.string().email('Invalid email format').optional(),
+  departmentId: z.string().cuid('Invalid department ID').nullable().optional(),
+  positionId: z.string().cuid('Invalid position ID').nullable().optional(),
+  role: z.enum(['SUPERADMIN', 'ADMIN', 'USER']).optional(),
+  isActive: z.boolean().optional(),
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
 });

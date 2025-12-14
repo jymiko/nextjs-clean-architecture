@@ -3,30 +3,66 @@ import { verifyToken } from '../auth';
 import { UnauthorizedError } from '../errors';
 import { getUserFriendlyMessage } from '../errors/user-friendly-messages';
 
-export interface AuthenticatedRequest extends NextRequest {
-  user?: {
-    userId: string;
-    email: string;
-    role?: string;
-  };
+export interface UserPayload {
+  userId: string;
+  email: string;
+  role?: string;
 }
 
+export interface AuthenticatedRequest extends NextRequest {
+  user?: UserPayload;
+}
+
+// Store user data in a WeakMap since NextRequest is immutable
+const requestUserMap = new WeakMap<NextRequest, UserPayload>();
+
+export const getRequestUser = (request: NextRequest): UserPayload | undefined => {
+  return requestUserMap.get(request);
+};
+
 export const withAuth = async (request: NextRequest): Promise<AuthenticatedRequest> => {
+  // Try to get token from Authorization header first, then from cookie
+  let token: string | undefined;
+  let tokenSource: string = 'none';
   const authHeader = request.headers.get('authorization');
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+    tokenSource = 'header';
+  } else {
+    token = request.cookies.get('auth-token')?.value;
+    tokenSource = token ? 'cookie' : 'none';
+  }
+
+  console.log('[withAuth] Token source:', tokenSource, '| Token exists:', !!token);
+
+  if (!token) {
+    console.log('[withAuth] No token - throwing UnauthorizedError');
     throw new UnauthorizedError('No token provided');
   }
 
-  const token = authHeader.substring(7);
   const payload = await verifyToken(token);
+  console.log('[withAuth] Payload:', payload);
 
   if (!payload) {
+    console.log('[withAuth] Invalid payload - throwing UnauthorizedError');
     throw new UnauthorizedError('Invalid or expired token');
   }
 
-  // Add user info to request
-  (request as any).user = payload;
+  // Store user info in WeakMap since NextRequest is immutable
+  const userPayload: UserPayload = {
+    userId: payload.userId,
+    email: payload.email,
+    role: payload.role,
+  };
+  requestUserMap.set(request, userPayload);
+
+  // Also try to set on request object as fallback
+  try {
+    (request as any).user = userPayload;
+  } catch {
+    // Ignore if request is frozen
+  }
 
   return request as AuthenticatedRequest;
 };
@@ -42,11 +78,14 @@ export function withAuthHandler(
   options: {
     requireAuth?: boolean;
     allowedRoles?: string[];
-  } = { requireAuth: true }
+  } = {}
 ) {
+  // Merge with defaults - requireAuth defaults to true
+  const { requireAuth = true, allowedRoles } = options;
+
   return async (request: NextRequest, context?: any) => {
     // Skip authentication if not required
-    if (!options.requireAuth) {
+    if (!requireAuth) {
       return handler(request, context);
     }
 
@@ -54,10 +93,24 @@ export function withAuthHandler(
       // Apply authentication middleware
       const authenticatedRequest = await withAuth(request);
 
+      // Get user from WeakMap (more reliable than property on request)
+      const user = getRequestUser(request) || authenticatedRequest.user;
+
+      if (!user) {
+        console.log('[withAuthHandler] User not found after auth');
+        return NextResponse.json(
+          { error: getUserFriendlyMessage('Unauthorized') || 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      // Ensure user is set on the request
+      (authenticatedRequest as any).user = user;
+
       // Check role-based access if roles are specified
-      if (options.allowedRoles && options.allowedRoles.length > 0) {
-        const userRole = authenticatedRequest.user?.role;
-        if (!userRole || !options.allowedRoles.includes(userRole)) {
+      if (allowedRoles && allowedRoles.length > 0) {
+        const userRole = user.role;
+        if (!userRole || !allowedRoles.includes(userRole)) {
           const friendlyMessage = getUserFriendlyMessage('Access denied');
           return NextResponse.json(
             { error: friendlyMessage || 'Access denied' },

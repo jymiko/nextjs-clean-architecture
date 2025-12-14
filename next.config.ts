@@ -162,8 +162,12 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // Turbopack configuration (empty to silence the warning)
-  turbopack: {},
+  // Turbopack configuration
+  turbopack: {
+    resolveAlias: {
+      canvas: { browser: '' },
+    },
+  },
 
   // Enable standalone output for Docker
   output: 'standalone',
