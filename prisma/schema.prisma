@@ -136,6 +136,7 @@ model UserPreference {
 
 // User role enum (simplified)
 enum UserRole {
+  SUPERADMIN
   ADMIN
   USER
 }

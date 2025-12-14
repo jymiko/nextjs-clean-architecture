@@ -77,7 +77,7 @@ export const PUT = withAuthHandler(async (request: NextRequest, { params }: Rout
 
     return handleError(error, request);
   }
-}, { allowedRoles: ['ADMIN'] });
+}, { allowedRoles: ['SUPERADMIN', 'ADMIN'] });
 
 export const DELETE = withAuthHandler(async (request: NextRequest, { params }: RouteParams) => {
   try {
@@ -96,4 +96,4 @@ export const DELETE = withAuthHandler(async (request: NextRequest, { params }: R
   } catch (error) {
     return handleError(error, request);
   }
-}, { allowedRoles: ['ADMIN'] });
+}, { allowedRoles: ['SUPERADMIN', 'ADMIN'] });

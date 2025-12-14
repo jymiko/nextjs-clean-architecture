@@ -1,24 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { DashboardHeader } from "@/presentation/components/dashboard";
 import { User, Bell, Settings as SettingsIcon } from "lucide-react";
 import { ProfileSettings } from "@/presentation/components/settings/ProfileSettings";
 import { NotificationSettings } from "@/presentation/components/settings/NotificationSettings";
 import { SystemSettings } from "@/presentation/components/settings/SystemSettings";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { UserRole } from "@/domain/entities/User";
 
 type TabType = "profile" | "notifications" | "system";
+
+interface Tab {
+  id: TabType;
+  label: string;
+  icon: typeof User;
+  roles?: UserRole[];
+}
 
 export default function SettingsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>("profile");
+  const { user } = useCurrentUser();
 
-  const tabs = [
-    { id: "profile" as TabType, label: "Profile", icon: User },
-    { id: "notifications" as TabType, label: "Notifications", icon: Bell },
-    { id: "system" as TabType, label: "System", icon: SettingsIcon },
+  const allTabs: Tab[] = [
+    { id: "profile", label: "Profile", icon: User },
+    { id: "notifications", label: "Notifications", icon: Bell },
+    { id: "system", label: "System", icon: SettingsIcon, roles: [UserRole.SUPERADMIN] },
   ];
+
+  const tabs = useMemo(() => {
+    return allTabs.filter((tab) => {
+      if (!tab.roles) return true;
+      return user?.role && tab.roles.includes(user.role as UserRole);
+    });
+  }, [user?.role]);
 
   return (
     <div className="min-h-screen bg-[#f9fbff] relative">

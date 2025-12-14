@@ -64,7 +64,7 @@ export interface UserWithPermissions {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'USER';
+  role: 'SUPERADMIN' | 'ADMIN' | 'USER';
   permissions: Permission[];
 }
 
