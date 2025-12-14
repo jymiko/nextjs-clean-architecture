@@ -218,9 +218,9 @@ export function ViewDocumentModal({
       : []);
 
     return (
-      <div className="flex flex-col lg:flex-row gap-4 h-[70vh]">
+      <div className="flex flex-col lg:flex-row gap-4 lg:h-[70vh]">
         {/* Left Side - Document Information */}
-        <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden flex flex-col">
+        <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden flex flex-col order-2 lg:order-1">
           {/* Header */}
           <div className="bg-[#E9F5FE] px-6 py-4 flex items-center gap-3">
             <FileText className="h-5 w-5 text-[#4DB1D4]" />
@@ -384,7 +384,7 @@ export function ViewDocumentModal({
         </div>
 
         {/* Right Side - PDF Viewer */}
-        <div className="flex-1 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[400px]">
+        <div className="flex-1 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[400px] order-1 lg:order-2">
           {document.pdfUrl ? (
             <PDFViewer file={document.pdfUrl} showDownload={false} />
           ) : (
@@ -402,7 +402,7 @@ export function ViewDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[90vw] lg:max-w-[1200px] w-[95vw] max-h-[90vh] overflow-hidden p-6">
+      <DialogContent className="sm:max-w-[90vw] lg:max-w-[1200px] w-[95vw] max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader className="sr-only">
           <DialogTitle>View Document</DialogTitle>
         </DialogHeader>

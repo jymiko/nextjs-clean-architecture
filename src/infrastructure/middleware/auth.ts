@@ -13,6 +13,20 @@ export interface AuthenticatedRequest extends NextRequest {
   user?: UserPayload;
 }
 
+/**
+ * Base route context type for Next.js App Router handlers
+ */
+export interface RouteContext<T = Record<string, string>> {
+  params: Promise<T>;
+}
+
+/**
+ * Extended request type with user property for internal use
+ */
+interface RequestWithUser extends NextRequest {
+  user?: UserPayload;
+}
+
 // Store user data in a WeakMap since NextRequest is immutable
 const requestUserMap = new WeakMap<NextRequest, UserPayload>();
 
@@ -59,7 +73,7 @@ export const withAuth = async (request: NextRequest): Promise<AuthenticatedReque
 
   // Also try to set on request object as fallback
   try {
-    (request as any).user = userPayload;
+    (request as RequestWithUser).user = userPayload;
   } catch {
     // Ignore if request is frozen
   }
@@ -68,22 +82,36 @@ export const withAuth = async (request: NextRequest): Promise<AuthenticatedReque
 };
 
 /**
+ * Type for API route handler functions
+ * Generic type T represents the params shape (e.g., { id: string })
+ */
+export type ApiHandler<T = Record<string, string>> = (
+  request: NextRequest,
+  context: RouteContext<T>
+) => Promise<NextResponse>;
+
+/**
+ * Options for withAuthHandler
+ */
+export interface AuthHandlerOptions {
+  requireAuth?: boolean;
+  allowedRoles?: string[];
+}
+
+/**
  * Higher-order function to wrap API handlers with authentication
  * @param handler - The API handler function to protect
  * @param options - Configuration options
  * @returns Protected API handler
  */
-export function withAuthHandler(
-  handler: (request: NextRequest, context?: any) => Promise<NextResponse>,
-  options: {
-    requireAuth?: boolean;
-    allowedRoles?: string[];
-  } = {}
-) {
+export function withAuthHandler<T = Record<string, string>>(
+  handler: ApiHandler<T>,
+  options: AuthHandlerOptions = {}
+): ApiHandler<T> {
   // Merge with defaults - requireAuth defaults to true
   const { requireAuth = true, allowedRoles } = options;
 
-  return async (request: NextRequest, context?: any) => {
+  return async (request: NextRequest, context: RouteContext<T>): Promise<NextResponse> => {
     // Skip authentication if not required
     if (!requireAuth) {
       return handler(request, context);
@@ -105,12 +133,17 @@ export function withAuthHandler(
       }
 
       // Ensure user is set on the request
-      (authenticatedRequest as any).user = user;
+      (authenticatedRequest as RequestWithUser).user = user;
 
       // Check role-based access if roles are specified
+      // SUPERADMIN always has full access - bypass role check
       if (allowedRoles && allowedRoles.length > 0) {
         const userRole = user.role;
-        if (!userRole || !allowedRoles.includes(userRole)) {
+
+        // SUPERADMIN bypasses all role restrictions
+        if (userRole === 'SUPERADMIN') {
+          // Allow access - skip role check
+        } else if (!userRole || !allowedRoles.includes(userRole)) {
           const friendlyMessage = getUserFriendlyMessage('Access denied');
           return NextResponse.json(
             { error: friendlyMessage || 'Access denied' },
