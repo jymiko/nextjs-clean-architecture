@@ -162,7 +162,7 @@ export function MultiSelect({
                     </span>
                     {option.disabled && (
                       <span className="text-xs text-muted-foreground">
-                        (Disabled)
+                        (Sudah dipilih)
                       </span>
                     )}
                   </div>

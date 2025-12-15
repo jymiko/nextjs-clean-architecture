@@ -213,27 +213,33 @@ export function EditDocumentModal({
     return strippedText.split(/\s+/).length;
   };
 
-  // Memoize user options for each field
+  // Memoize user options for each field with disabled state for users already selected in other fields
   const reviewerOptions = useMemo(() => {
+    const disabledIds = new Set([...formData.approverIds, ...formData.acknowledgedIds]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+      disabled: disabledIds.has(user.id),
     }));
-  }, [users]);
+  }, [users, formData.approverIds, formData.acknowledgedIds]);
 
   const approverOptions = useMemo(() => {
+    const disabledIds = new Set([...formData.reviewerIds, ...formData.acknowledgedIds]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+      disabled: disabledIds.has(user.id),
     }));
-  }, [users]);
+  }, [users, formData.reviewerIds, formData.acknowledgedIds]);
 
   const acknowledgedOptions = useMemo(() => {
+    const disabledIds = new Set([...formData.reviewerIds, ...formData.approverIds]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+      disabled: disabledIds.has(user.id),
     }));
-  }, [users]);
+  }, [users, formData.reviewerIds, formData.approverIds]);
 
   // Handle multi-select change
   const handleMultiSelectChange = (

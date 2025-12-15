@@ -293,27 +293,33 @@ export function AddDocumentModal({
   };
 
   
-  // Memoize user options for each field
+  // Memoize user options for each field with disabled state for users already selected in other fields
   const reviewerOptions = useMemo(() => {
+    const disabledIds = new Set([...formData.approverIds, ...formData.acknowledgedIds]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+      disabled: disabledIds.has(user.id),
     }));
-  }, [users]);
+  }, [users, formData.approverIds, formData.acknowledgedIds]);
 
   const approverOptions = useMemo(() => {
+    const disabledIds = new Set([...formData.reviewerIds, ...formData.acknowledgedIds]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+      disabled: disabledIds.has(user.id),
     }));
-  }, [users]);
+  }, [users, formData.reviewerIds, formData.acknowledgedIds]);
 
   const acknowledgedOptions = useMemo(() => {
+    const disabledIds = new Set([...formData.reviewerIds, ...formData.approverIds]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+      disabled: disabledIds.has(user.id),
     }));
-  }, [users]);
+  }, [users, formData.reviewerIds, formData.approverIds]);
 
   // Handle multi-select change
   const handleMultiSelectChange = (
@@ -559,14 +565,15 @@ export function AddDocumentModal({
 
   // Step 5: Document Preview
   const renderStep5 = () => (
-    <div className="space-y-4">
-      <Label className="text-[#323238] text-sm font-bold">Preview Your Document</Label>
-      <div className="border border-[#E1E2E3] rounded-lg overflow-hidden bg-gray-100" style={{ height: '60vh' }}>
+    <div className="space-y-4 h-full flex flex-col">
+      <Label className="text-[#323238] text-sm font-bold flex-shrink-0">Preview Your Document</Label>
+      <div className="border border-[#E1E2E3] rounded-lg overflow-hidden bg-gray-100 flex-1 min-h-0">
         {pdfUrl ? (
           <iframe
-            src={pdfUrl}
+            src={`${pdfUrl}#toolbar=1&navpanes=0&scrollbar=1&view=FitH`}
             className="w-full h-full border-0"
             title="PDF Preview"
+            style={{ minHeight: '500px' }}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -577,7 +584,7 @@ export function AddDocumentModal({
           </div>
         )}
       </div>
-      <p className="text-sm text-[#8D8D99]">
+      <p className="text-sm text-[#8D8D99] flex-shrink-0">
         Review your document before submitting. Click "Confirm & Upload" to save the document to the database.
       </p>
     </div>
@@ -624,7 +631,7 @@ export function AddDocumentModal({
           </div>
 
           {/* Form Content */}
-          <div className="py-4 flex-1 overflow-y-auto">
+          <div className={`py-4 flex-1 overflow-y-auto ${currentStep === 4 ? 'flex flex-col' : ''}`}>
             {renderStepContent()}
           </div>
 

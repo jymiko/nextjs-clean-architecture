@@ -191,14 +191,17 @@ export default function DocumentSubmissionPage() {
   };
 
   const handleDeleteDocumentConfirm = async () => {
+    if (!selectedDocument?.id) return;
+
     setIsDeletingDocument(true);
     try {
-      console.log("Deleting document:", selectedDocument?.id);
-      // TODO: API call to delete document
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await apiClient.delete(`/api/documents/${selectedDocument.id}`);
       setDeleteDocumentModalOpen(false);
       setSelectedDocument(null);
-      // TODO: Refresh document list
+      fetchDocuments(); // Refresh the list
+    } catch (error: any) {
+      console.error("Failed to delete document:", error);
+      alert(error.message || "Failed to delete document");
     } finally {
       setIsDeletingDocument(false);
     }

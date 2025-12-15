@@ -7,7 +7,7 @@ import { withAuthHandler } from '@/infrastructure/middleware/auth';
 const rateLimiter = createRateLimitMiddleware();
 
 // Mock branding data
-let brandingData = {
+const brandingData = {
   systemName: 'Gacoan DCMS',
   systemDescription: 'A Document Control Management System built with Next.js',
   logo: null,

@@ -82,6 +82,12 @@ export function RichTextEditor({
   const [linkUrl, setLinkUrl] = useState("");
   const [linkText, setLinkText] = useState("");
 
+  // Table modal state
+  const [showTableModal, setShowTableModal] = useState(false);
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
+  const [tableWithHeader, setTableWithHeader] = useState(true);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -201,12 +207,20 @@ export function RichTextEditor({
     setLinkText('');
   };
 
-  const insertTable = () => {
+  const openTableModal = () => {
+    setTableRows(3);
+    setTableCols(3);
+    setTableWithHeader(true);
+    setShowTableModal(true);
+  };
+
+  const handleInsertTable = () => {
     editor
       .chain()
       .focus()
-      .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+      .insertTable({ rows: tableRows, cols: tableCols, withHeaderRow: tableWithHeader })
       .run();
+    setShowTableModal(false);
   };
 
   return (
@@ -327,7 +341,7 @@ export function RichTextEditor({
         </MenuButton>
 
         {/* Table */}
-        <MenuButton onClick={insertTable} title="Insert Table">
+        <MenuButton onClick={openTableModal} title="Insert Table">
           <TableIcon className="w-4 h-4" />
         </MenuButton>
       </div>
@@ -425,6 +439,117 @@ export function RichTextEditor({
                 className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
               >
                 Save Link
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Table Modal */}
+      <Dialog open={showTableModal} onOpenChange={setShowTableModal}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-[#384654] flex items-center gap-2">
+              <TableIcon className="h-5 w-5 text-[#4DB1D4]" />
+              Insert Table
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Rows Input */}
+            <div className="space-y-2">
+              <Label htmlFor="table-rows" className="text-[#323238] text-sm font-bold">
+                Number of Rows
+              </Label>
+              <Input
+                id="table-rows"
+                type="number"
+                min={1}
+                max={20}
+                value={tableRows}
+                onChange={(e) => setTableRows(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))}
+                className="h-12 border-[#E1E1E6] rounded-sm"
+              />
+            </div>
+
+            {/* Columns Input */}
+            <div className="space-y-2">
+              <Label htmlFor="table-cols" className="text-[#323238] text-sm font-bold">
+                Number of Columns
+              </Label>
+              <Input
+                id="table-cols"
+                type="number"
+                min={1}
+                max={10}
+                value={tableCols}
+                onChange={(e) => setTableCols(Math.min(10, Math.max(1, parseInt(e.target.value) || 1)))}
+                className="h-12 border-[#E1E1E6] rounded-sm"
+              />
+            </div>
+
+            {/* Header Row Checkbox */}
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="table-header"
+                checked={tableWithHeader}
+                onChange={(e) => setTableWithHeader(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-[#4DB1D4] focus:ring-[#4DB1D4]"
+              />
+              <Label htmlFor="table-header" className="text-[#323238] text-sm">
+                Include header row
+              </Label>
+            </div>
+
+            {/* Preview */}
+            <div className="border border-[#E1E1E6] rounded-sm p-3 bg-gray-50">
+              <p className="text-xs text-[#8D8D99] mb-2">Preview:</p>
+              <div className="overflow-auto max-h-32">
+                <table className="border-collapse text-xs w-full">
+                  {tableWithHeader && (
+                    <thead>
+                      <tr>
+                        {Array.from({ length: tableCols }).map((_, i) => (
+                          <th key={i} className="border border-gray-300 bg-gray-200 p-1 text-center">
+                            Col {i + 1}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                  )}
+                  <tbody>
+                    {Array.from({ length: tableWithHeader ? tableRows - 1 : tableRows }).map((_, rowIdx) => (
+                      <tr key={rowIdx}>
+                        {Array.from({ length: tableCols }).map((_, colIdx) => (
+                          <td key={colIdx} className="border border-gray-300 p-1 text-center">
+                            -
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowTableModal(false)}
+                className="border-[#E1E2E3] text-[#384654]"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleInsertTable}
+                className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+              >
+                Insert Table
               </Button>
             </div>
           </DialogFooter>
