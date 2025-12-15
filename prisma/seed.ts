@@ -95,12 +95,12 @@ async function main() {
   const finDept = await prisma.department.findUnique({ where: { code: 'FIN' } });
 
   const positions = [
-    { code: 'IT-MGR', name: 'IT Manager', departmentId: itDept?.id, level: 3 },
-    { code: 'IT-DEV', name: 'IT Developer', departmentId: itDept?.id, level: 2 },
-    { code: 'HR-MGR', name: 'HR Manager', departmentId: hrDept?.id, level: 3 },
-    { code: 'HR-STF', name: 'HR Staff', departmentId: hrDept?.id, level: 1 },
-    { code: 'FIN-MGR', name: 'Finance Manager', departmentId: finDept?.id, level: 3 },
-    { code: 'FIN-STF', name: 'Finance Staff', departmentId: finDept?.id, level: 1 }
+    { code: 'IT-MGR', name: 'IT Manager', departmentId: itDept?.id },
+    { code: 'IT-DEV', name: 'IT Developer', departmentId: itDept?.id },
+    { code: 'HR-MGR', name: 'HR Manager', departmentId: hrDept?.id },
+    { code: 'HR-STF', name: 'HR Staff', departmentId: hrDept?.id },
+    { code: 'FIN-MGR', name: 'Finance Manager', departmentId: finDept?.id },
+    { code: 'FIN-STF', name: 'Finance Staff', departmentId: finDept?.id }
   ];
 
   for (const pos of positions) {

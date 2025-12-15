@@ -9,7 +9,10 @@ export const createDivisionSchema = z.object({
     .min(3, 'Division name must be at least 3 characters')
     .max(100, 'Division name must not exceed 100 characters'),
   description: z.string().max(500, 'Description must not exceed 500 characters').optional(),
-  headOfDivisionId: z.string().cuid('Invalid head of division ID').optional(),
+  headOfDivisionId: z.preprocess(
+    (val) => (val === "" ? undefined : val),
+    z.string().cuid('Invalid head of division ID').optional()
+  ),
   isActive: z.boolean().default(true),
 });
 
@@ -24,7 +27,10 @@ export const updateDivisionSchema = z.object({
     .max(100, 'Division name must not exceed 100 characters')
     .optional(),
   description: z.string().max(500, 'Description must not exceed 500 characters').nullable().optional(),
-  headOfDivisionId: z.string().cuid('Invalid head of division ID').nullable().optional(),
+  headOfDivisionId: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z.string().cuid('Invalid head of division ID').nullable().optional()
+  ),
   isActive: z.boolean().optional(),
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',

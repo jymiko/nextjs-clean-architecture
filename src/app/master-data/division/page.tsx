@@ -90,7 +90,7 @@ export default function DivisionPage() {
 
       const data = await response.json();
       setDivisions(data.data || []);
-      setTotalCount(data.pagination?.total || 0);
+      setTotalCount(data.total || 0);
     } catch (error) {
       console.error("Error fetching divisions:", error);
       const errorMsg = error instanceof Error ? error.message : "Failed to load division data. Please try again.";
@@ -391,11 +391,10 @@ export default function DivisionPage() {
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={`${
-                            division.isActive
+                          className={`${division.isActive
                               ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
                               : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
-                          }`}
+                            }`}
                         >
                           {division.isActive ? "Active" : "Inactive"}
                         </Badge>
