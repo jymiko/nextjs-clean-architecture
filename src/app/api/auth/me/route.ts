@@ -50,6 +50,12 @@ import { container } from "@/infrastructure/di/container";
  */
 export async function GET(request: NextRequest) {
   try {
+    // Check if authentication came from header (not cookie)
+    const authHeader = request.headers.get('authorization');
+    const existingCookie = request.cookies.get('auth-token')?.value;
+    const authenticatedViaHeader = authHeader && authHeader.startsWith('Bearer ') && !existingCookie;
+    const tokenFromHeader = authenticatedViaHeader ? authHeader.substring(7) : null;
+
     // Authenticate user
     const authenticatedRequest = await withAuth(request);
 
@@ -76,7 +82,21 @@ export async function GET(request: NextRequest) {
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;
 
-    return NextResponse.json({ user: userWithoutPassword });
+    const response = NextResponse.json({ user: userWithoutPassword });
+
+    // If authenticated via header but cookie is missing, sync the cookie
+    // This fixes the infinite loop when localStorage has tokens but cookie is cleared
+    if (authenticatedViaHeader && tokenFromHeader) {
+      response.cookies.set('auth-token', tokenFromHeader, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60, // 7 days
+        path: '/',
+      });
+    }
+
+    return response;
   } catch (error) {
     return handleError(error, request);
   }
