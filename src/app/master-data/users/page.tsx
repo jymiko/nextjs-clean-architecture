@@ -34,10 +34,12 @@ interface User {
   displayId: string;   // Employee ID for display
   name: string;
   email: string;
-  departmentId: string;
-  departmentName?: string;
   positionId: string;
   positionName?: string;
+  divisionId: string;
+  divisionName?: string;
+  departmentId: string;
+  departmentName?: string;
   roleId: string;
   roleName?: string;
   status: string;
@@ -88,10 +90,12 @@ export default function UsersPage() {
         name: string;
         email: string;
         role?: string;
-        departmentId?: string;
-        department?: { id: string; name: string };
         positionId?: string;
         position?: { id: string; name: string };
+        divisionId?: string;
+        division?: { id: string; name: string };
+        departmentId?: string;
+        department?: { id: string; name: string };
         isActive: boolean;
         lastLogin?: string;
       }) => ({
@@ -99,10 +103,12 @@ export default function UsersPage() {
         displayId: user.employeeId || user.id,    // Employee ID for display
         name: user.name,
         email: user.email,
-        departmentId: user.departmentId || "",
-        departmentName: user.department?.name || "-",
         positionId: user.positionId || "",
         positionName: user.position?.name || "-",
+        divisionId: user.divisionId || "",
+        divisionName: user.division?.name || "-",
+        departmentId: user.departmentId || "",
+        departmentName: user.department?.name || "-",
         roleId: user.role === "ADMIN" ? "1" : "2",
         roleName: user.role || "-",
         status: user.isActive ? "active" : "inactive",
@@ -110,7 +116,7 @@ export default function UsersPage() {
       }));
 
       setUsers(transformedUsers);
-      setTotalCount(data.pagination?.total || 0);
+      setTotalCount(data.total || 0);
     } catch (error) {
       console.error("Error fetching users:", error);
       const errorMsg = error instanceof Error ? error.message : "Failed to load users data";
@@ -128,7 +134,7 @@ export default function UsersPage() {
   const totalUsers = totalCount;
   const activeUsers = users.filter((u) => u.status === "active").length;
   const inactiveUsers = users.filter((u) => u.status === "inactive").length;
-  
+
   // Pagination
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
@@ -151,8 +157,9 @@ export default function UsersPage() {
         employeeId: data.displayId || undefined, // displayId is the Employee ID
         name: data.name,
         email: data.email,
-        departmentId: data.departmentId || undefined,
         positionId: data.positionId || undefined,
+        divisionId: data.divisionId || undefined,
+        departmentId: data.departmentId || undefined,
         role: data.roleId === "1" ? "ADMIN" : data.roleId === "2" ? "USER" : undefined,
         isActive: data.status === "active",
       };
@@ -182,8 +189,9 @@ export default function UsersPage() {
       const apiData = {
         name: data.name,
         email: data.email,
-        departmentId: data.departmentId || null,
         positionId: data.positionId || null,
+        divisionId: data.divisionId || null,
+        departmentId: data.departmentId || null,
         role: data.roleId === "1" ? "ADMIN" : data.roleId === "2" ? "USER" : undefined,
         isActive: data.status === "active",
       };
@@ -406,11 +414,10 @@ export default function UsersPage() {
                       <TableCell>
                         <Badge
                           variant="secondary"
-                          className={`${
-                            user.status === "active"
-                              ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
-                              : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
-                          }`}
+                          className={`${user.status === "active"
+                            ? "bg-[#dbffe0] text-[#0e9211] hover:bg-[#dbffe0]"
+                            : "bg-[#fff4d4] text-[#c08f2c] hover:bg-[#fff4d4]"
+                            }`}
                         >
                           {user.status === "active" ? "Active" : "Inactive"}
                         </Badge>
@@ -484,15 +491,16 @@ export default function UsersPage() {
         user={
           selectedUser
             ? {
-                id: selectedUser.id,              // Database ID for API
-                displayId: selectedUser.displayId, // Employee ID for display
-                name: selectedUser.name,
-                email: selectedUser.email,
-                departmentId: selectedUser.departmentId,
-                positionId: selectedUser.positionId,
-                roleId: selectedUser.roleId,
-                status: selectedUser.status,
-              }
+              id: selectedUser.id,              // Database ID for API
+              displayId: selectedUser.displayId, // Employee ID for display
+              name: selectedUser.name,
+              email: selectedUser.email,
+              positionId: selectedUser.positionId,
+              divisionId: selectedUser.divisionId,
+              departmentId: selectedUser.departmentId,
+              roleId: selectedUser.roleId,
+              status: selectedUser.status,
+            }
             : null
         }
       />

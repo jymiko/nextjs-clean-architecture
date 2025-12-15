@@ -32,8 +32,9 @@ export interface UserFormData {
   displayId: string;    // Employee ID for display
   name: string;
   email: string;
-  departmentId: string;
   positionId: string;
+  divisionId: string;
+  departmentId: string;
   roleId: string;
   status: string;
 }
@@ -59,21 +60,25 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
     displayId: "",
     name: "",
     email: "",
-    departmentId: "",
     positionId: "",
+    divisionId: "",
+    departmentId: "",
     roleId: "",
     status: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [divisions, setDivisions] = useState<Division[]>([]);
   const [positions, setPositions] = useState<Division[]>([]);
   const [isLoadingDepartments, setIsLoadingDepartments] = useState(false);
+  const [isLoadingDivisions, setIsLoadingDivisions] = useState(false);
   const [isLoadingPositions, setIsLoadingPositions] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      fetchDepartments();
       fetchPositions();
+      fetchDivisions();
+      fetchDepartments();
     }
   }, [isOpen]);
 
@@ -92,12 +97,24 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
   const fetchPositions = async () => {
     setIsLoadingPositions(true);
     try {
-      const response = await apiClient.get<DivisionListResponse>('/api/divisions?limit=100&isActive=true');
+      const response = await apiClient.get<DivisionListResponse>('/api/positions?limit=100&isActive=true');
       setPositions(response.data);
     } catch (error) {
       console.error('Failed to fetch positions:', error);
     } finally {
       setIsLoadingPositions(false);
+    }
+  };
+
+  const fetchDivisions = async () => {
+    setIsLoadingDivisions(true);
+    try {
+      const response = await apiClient.get<DivisionListResponse>('/api/divisions?limit=100&isActive=true');
+      setDivisions(response.data);
+    } catch (error) {
+      console.error('Failed to fetch divisions:', error);
+    } finally {
+      setIsLoadingDivisions(false);
     }
   };
 
@@ -140,8 +157,9 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
       displayId: "",
       name: "",
       email: "",
-      departmentId: "",
       positionId: "",
+      divisionId: "",
+      departmentId: "",
       roleId: "",
       status: "",
     });
@@ -184,9 +202,8 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
                 setFormData({ ...formData, name: e.target.value });
                 if (errors.name) setErrors({ ...errors, name: undefined });
               }}
-              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 ${
-                errors.name ? "border-red-500" : "border-[#4db1d4]"
-              }`}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 ${errors.name ? "border-red-500" : "border-[#4db1d4]"
+                }`}
             />
             {errors.name && (
               <p className="text-xs text-red-500 mt-1">{errors.name}</p>
@@ -206,36 +223,12 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
                 setFormData({ ...formData, email: e.target.value });
                 if (errors.email) setErrors({ ...errors, email: undefined });
               }}
-              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 ${
-                errors.email ? "border-red-500" : "border-[#4db1d4]"
-              }`}
+              className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm placeholder:text-[#8a8f9d] focus-visible:ring-0 ${errors.email ? "border-red-500" : "border-[#4db1d4]"
+                }`}
             />
             {errors.email && (
               <p className="text-xs text-red-500 mt-1">{errors.email}</p>
             )}
-          </div>
-
-          {/* Department */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-[#1a1a1a]">
-              Department
-            </label>
-            <Select
-              value={formData.departmentId}
-              onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
-              disabled={isLoadingDepartments}
-            >
-              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0">
-                <SelectValue placeholder={isLoadingDepartments ? "Loading..." : "Select department"} />
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {departments.map((dept) => (
-                  <SelectItem key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Position */}
@@ -261,6 +254,52 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
             </Select>
           </div>
 
+          {/* Division */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[#1a1a1a]">
+              Division
+            </label>
+            <Select
+              value={formData.divisionId}
+              onValueChange={(value) => setFormData({ ...formData, divisionId: value })}
+              disabled={isLoadingDivisions}
+            >
+              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0">
+                <SelectValue placeholder={isLoadingDivisions ? "Loading..." : "Select division"} />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                {divisions.map((div) => (
+                  <SelectItem key={div.id} value={div.id}>
+                    {div.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Department */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-[#1a1a1a]">
+              Department
+            </label>
+            <Select
+              value={formData.departmentId}
+              onValueChange={(value) => setFormData({ ...formData, departmentId: value })}
+              disabled={isLoadingDepartments}
+            >
+              <SelectTrigger className="h-10 bg-[#f6faff] border-0 border-b border-[#4db1d4] rounded-none text-sm focus:ring-0">
+                <SelectValue placeholder={isLoadingDepartments ? "Loading..." : "Select department"} />
+              </SelectTrigger>
+              <SelectContent className="bg-white">
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Role */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-[#1a1a1a]">
@@ -273,9 +312,8 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
                 if (errors.roleId) setErrors({ ...errors, roleId: undefined });
               }}
             >
-              <SelectTrigger className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm focus:ring-0 ${
-                errors.roleId ? "border-red-500" : "border-[#4db1d4]"
-              }`}>
+              <SelectTrigger className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm focus:ring-0 ${errors.roleId ? "border-red-500" : "border-[#4db1d4]"
+                }`}>
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent className="bg-white">
@@ -303,9 +341,8 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
                 if (errors.status) setErrors({ ...errors, status: undefined });
               }}
             >
-              <SelectTrigger className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm focus:ring-0 ${
-                errors.status ? "border-red-500" : "border-[#4db1d4]"
-              }`}>
+              <SelectTrigger className={`h-10 bg-[#f6faff] border-0 border-b rounded-none text-sm focus:ring-0 ${errors.status ? "border-red-500" : "border-[#4db1d4]"
+                }`}>
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent className="bg-white">
