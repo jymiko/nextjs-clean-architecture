@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import {
   DashboardHeader,
@@ -16,9 +17,33 @@ import {
   NewSubmissionsIcon,
 } from "@/presentation/components/dashboard/StatIcons";
 import { AlertsReminders } from "@/presentation/components/AlertReminder";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 export default function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const router = useRouter();
+  const { user, isLoading } = useCurrentUser();
+  
+  useEffect(() => {
+    // Only redirect if loading is done and no user found
+    if (!isLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, isLoading, router]);
+  
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#f9fbff] flex items-center justify-center">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+  
+  // Don't render if no user (will redirect)
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-[#f9fbff] relative">

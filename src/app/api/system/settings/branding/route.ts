@@ -6,7 +6,12 @@ import { createRateLimitMiddleware } from '@/infrastructure/middleware';
 import { withAuthHandler, getRequestUser } from '@/infrastructure/middleware/auth';
 import { updateBrandingSchema } from '@/infrastructure/validation';
 
-const rateLimiter = createRateLimitMiddleware();
+// More lenient rate limit for public branding endpoint
+const rateLimiter = createRateLimitMiddleware({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 30, // 30 requests per 5 minutes (enough for normal usage)
+  message: 'Too many requests to branding endpoint, please try again later.',
+});
 
 /**
  * GET /api/system/settings/branding

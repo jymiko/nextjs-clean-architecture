@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@/domain/entities/User';
 
 type CurrentUser = Omit<User, 'password'>;
@@ -16,8 +16,15 @@ export function useCurrentUser(): UseCurrentUserResult {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasFetched = useRef(false);
 
   const fetchCurrentUser = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (hasFetched.current) {
+      return;
+    }
+    
+    hasFetched.current = true;
     setIsLoading(true);
     setError(null);
 
@@ -29,6 +36,7 @@ export function useCurrentUser(): UseCurrentUserResult {
       if (!response.ok) {
         if (response.status === 401) {
           setUser(null);
+          setIsLoading(false);
           return;
         }
         throw new Error('Failed to fetch user');
@@ -52,6 +60,9 @@ export function useCurrentUser(): UseCurrentUserResult {
     user,
     isLoading,
     error,
-    refetch: fetchCurrentUser,
+    refetch: () => {
+      hasFetched.current = false;
+      return fetchCurrentUser();
+    },
   };
 }
