@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { StepWizardCompact, type Step } from "./StepWizard";
 import { RichTextEditor } from "./RichTextEditor";
 import { SignaturePad } from "./SignaturePad";
@@ -62,9 +63,9 @@ const initialFormData: DocumentFormData = {
   estimatedDistributionDate: "",
   purpose: "",
   scope: "",
-  reviewerId: "",
-  approverId: "",
-  acknowledgedId: "",
+  reviewerIds: [],
+  approverIds: [],
+  acknowledgedIds: [],
   responsibleDocument: "",
   termsAndAbbreviations: "",
   warning: "",
@@ -142,6 +143,11 @@ export function EditDocumentModal({
       const response = await apiClient.get(`/api/documents/${documentId}`);
       const doc = response;
 
+      // Get all approvals for each level
+      const reviewerIds = doc.approvals?.filter((a: any) => a.level === 1).map((a: any) => a.approverId) || [];
+      const approverIds = doc.approvals?.filter((a: any) => a.level === 2).map((a: any) => a.approverId) || [];
+      const acknowledgedIds = doc.approvals?.filter((a: any) => a.level === 3).map((a: any) => a.approverId) || [];
+
       // Map document data to form data
       setFormData({
         departmentId: doc.createdBy?.departmentId || "",
@@ -155,9 +161,9 @@ export function EditDocumentModal({
           : "",
         purpose: doc.description || "",
         scope: doc.scope || "",
-        reviewerId: doc.approvals?.find((a: any) => a.level === 1)?.approverId || "",
-        approverId: doc.approvals?.find((a: any) => a.level === 2)?.approverId || "",
-        acknowledgedId: doc.approvals?.find((a: any) => a.level === 3)?.approverId || "",
+        reviewerIds,
+        approverIds,
+        acknowledgedIds,
         responsibleDocument: doc.responsibleDocument || "",
         termsAndAbbreviations: doc.termsAndAbbreviations || "",
         warning: doc.warning || "",
@@ -205,6 +211,47 @@ export function EditDocumentModal({
     const strippedText = text.replace(/<[^>]*>/g, "").trim();
     if (!strippedText) return 0;
     return strippedText.split(/\s+/).length;
+  };
+
+  // Memoize user options for each field
+  const reviewerOptions = useMemo(() => {
+    return users.map((user) => ({
+      value: user.id,
+      label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+    }));
+  }, [users]);
+
+  const approverOptions = useMemo(() => {
+    return users.map((user) => ({
+      value: user.id,
+      label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+    }));
+  }, [users]);
+
+  const acknowledgedOptions = useMemo(() => {
+    return users.map((user) => ({
+      value: user.id,
+      label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+    }));
+  }, [users]);
+
+  // Handle multi-select change
+  const handleMultiSelectChange = (
+    fieldName: 'reviewerIds' | 'approverIds' | 'acknowledgedIds',
+    selectedIds: string[]
+  ) => {
+    const newFormData = { ...formData };
+
+    // Update the current field
+    if (fieldName === 'reviewerIds') {
+      newFormData.reviewerIds = selectedIds;
+    } else if (fieldName === 'approverIds') {
+      newFormData.approverIds = selectedIds;
+    } else {
+      newFormData.acknowledgedIds = selectedIds;
+    }
+
+    setFormData(newFormData);
   };
 
   // Step 1: Document Information
@@ -328,61 +375,34 @@ export function EditDocumentModal({
       {/* Reviewer */}
       <div className="space-y-1">
         <Label className="text-[#323238] text-sm font-bold">Reviewer</Label>
-        <Select
-          value={formData.reviewerId}
-          onValueChange={(value) => updateFormData("reviewerId", value)}
-        >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
-            <SelectValue placeholder="Reviewer" />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.name} {user.position ? `- ${user.position.name}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={reviewerOptions}
+          selected={formData.reviewerIds}
+          onChange={(selectedIds) => handleMultiSelectChange('reviewerIds', selectedIds)}
+          placeholder="Select reviewers..."
+        />
       </div>
 
       {/* Approver */}
       <div className="space-y-1">
         <Label className="text-[#323238] text-sm font-bold">Approver</Label>
-        <Select
-          value={formData.approverId}
-          onValueChange={(value) => updateFormData("approverId", value)}
-        >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
-            <SelectValue placeholder="Approver" />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.name} {user.position ? `- ${user.position.name}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={approverOptions}
+          selected={formData.approverIds}
+          onChange={(selectedIds) => handleMultiSelectChange('approverIds', selectedIds)}
+          placeholder="Select approvers..."
+        />
       </div>
 
       {/* Acknowledged */}
       <div className="space-y-1">
         <Label className="text-[#323238] text-sm font-bold">Acknowledged</Label>
-        <Select
-          value={formData.acknowledgedId}
-          onValueChange={(value) => updateFormData("acknowledgedId", value)}
-        >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
-            <SelectValue placeholder="Acknowledged" />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.name} {user.position ? `- ${user.position.name}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={acknowledgedOptions}
+          selected={formData.acknowledgedIds}
+          onChange={(selectedIds) => handleMultiSelectChange('acknowledgedIds', selectedIds)}
+          placeholder="Select acknowledged users..."
+        />
       </div>
 
       {/* Responsible Document */}

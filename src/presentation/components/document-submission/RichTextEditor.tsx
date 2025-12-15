@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -25,6 +26,16 @@ import {
   Link as LinkIcon,
   Table as TableIcon,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface RichTextEditorProps {
   value?: string;
@@ -67,11 +78,28 @@ export function RichTextEditor({
   placeholder = "Write something...",
   className,
 }: RichTextEditorProps) {
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkText, setLinkText] = useState("");
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: {
           levels: [1, 2, 3],
+        },
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        blockquote: {
+          HTMLAttributes: {
+            class: 'border-l-4 border-gray-300 pl-4 italic',
+          },
         },
       }),
       Underline,
@@ -80,13 +108,27 @@ export function RichTextEditor({
       }),
       Link.configure({
         openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-600 underline cursor-pointer',
+        },
       }),
       Table.configure({
         resizable: true,
+        HTMLAttributes: {
+          class: 'border-collapse table-auto w-full',
+        },
       }),
       TableRow,
-      TableHeader,
-      TableCell,
+      TableHeader.configure({
+        HTMLAttributes: {
+          class: 'border border-gray-300 bg-gray-100 font-bold p-2',
+        },
+      }),
+      TableCell.configure({
+        HTMLAttributes: {
+          class: 'border border-gray-300 p-2',
+        },
+      }),
       CharacterCount,
     ],
     content: value,
@@ -94,7 +136,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm max-w-none focus:outline-none min-h-[350px] px-4 py-3",
+          "prose prose-sm max-w-none focus:outline-none min-h-[350px] px-4 py-3 [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4 [&_a]:text-blue-600 [&_a]:underline [&_table]:border-collapse [&_table]:w-full [&_table]:my-4 [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-100 [&_th]:p-2 [&_th]:font-bold [&_td]:border [&_td]:border-gray-300 [&_td]:p-2",
       },
     },
     onUpdate: ({ editor }) => {
@@ -108,11 +150,55 @@ export function RichTextEditor({
 
   const wordCount = editor.storage.characterCount.words();
 
-  const addLink = () => {
-    const url = window.prompt("Enter URL");
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
+  const openLinkModal = () => {
+    const previousUrl = editor.getAttributes('link').href;
+    const { from, to } = editor.state.selection;
+    const text = editor.state.doc.textBetween(from, to, '');
+
+    setLinkUrl(previousUrl || 'https://');
+    setLinkText(text || '');
+    setShowLinkModal(true);
+  };
+
+  const handleSaveLink = () => {
+    if (!linkUrl) {
+      setShowLinkModal(false);
+      return;
     }
+
+    // Validate URL format
+    let validUrl = linkUrl;
+    if (!linkUrl.startsWith('http://') && !linkUrl.startsWith('https://')) {
+      validUrl = 'https://' + linkUrl;
+    }
+
+    // If there's text to wrap
+    if (linkText && editor.state.selection.empty) {
+      editor
+        .chain()
+        .focus()
+        .insertContent(`<a href="${validUrl}">${linkText}</a>`)
+        .run();
+    } else {
+      // Update existing selection
+      editor
+        .chain()
+        .focus()
+        .extendMarkRange('link')
+        .setLink({ href: validUrl })
+        .run();
+    }
+
+    setShowLinkModal(false);
+    setLinkUrl('');
+    setLinkText('');
+  };
+
+  const handleRemoveLink = () => {
+    editor.chain().focus().unsetLink().run();
+    setShowLinkModal(false);
+    setLinkUrl('');
+    setLinkText('');
   };
 
   const insertTable = () => {
@@ -233,7 +319,7 @@ export function RichTextEditor({
 
         {/* Link */}
         <MenuButton
-          onClick={addLink}
+          onClick={openLinkModal}
           isActive={editor.isActive("link")}
           title="Add Link"
         >
@@ -253,6 +339,97 @@ export function RichTextEditor({
       <div className="flex items-center justify-between px-4 py-2 border-t border-[#E5E7EB] bg-[rgba(249,250,251,0.5)] rounded-b-lg">
         <span className="text-sm text-[#6A7282]">Word count: {wordCount}</span>
       </div>
+
+      {/* Link Modal */}
+      <Dialog open={showLinkModal} onOpenChange={setShowLinkModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-[#384654] flex items-center gap-2">
+              <LinkIcon className="h-5 w-5 text-[#4DB1D4]" />
+              {editor.getAttributes('link').href ? 'Edit Link' : 'Insert Link'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* URL Input */}
+            <div className="space-y-2">
+              <Label htmlFor="link-url" className="text-[#323238] text-sm font-bold">
+                URL
+              </Label>
+              <Input
+                id="link-url"
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="h-12 border-[#E1E1E6] rounded-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveLink();
+                  }
+                }}
+              />
+            </div>
+
+            {/* Text Input (optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="link-text" className="text-[#323238] text-sm font-bold">
+                Link Text <span className="text-[#8D8D99] font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="link-text"
+                type="text"
+                value={linkText}
+                onChange={(e) => setLinkText(e.target.value)}
+                placeholder="Click here"
+                className="h-12 border-[#E1E1E6] rounded-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSaveLink();
+                  }
+                }}
+              />
+              <p className="text-xs text-[#8D8D99]">
+                Leave empty to use selected text
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex items-center justify-between sm:justify-between">
+            <div>
+              {editor.getAttributes('link').href && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRemoveLink}
+                  className="border-[#F24822] text-[#F24822] hover:bg-[#FFD6CD]"
+                >
+                  Remove Link
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowLinkModal(false)}
+                className="border-[#E1E2E3] text-[#384654]"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSaveLink}
+                className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+              >
+                Save Link
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

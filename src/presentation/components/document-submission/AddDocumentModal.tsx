@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,12 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { StepWizardCompact, type Step } from "./StepWizard";
 import { RichTextEditor } from "./RichTextEditor";
 import { SignaturePad } from "./SignaturePad";
 import { ArrowLeft, Plus, Calendar } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { generateDocumentPdf, generatePdfFileName } from "@/lib/pdf/generateSOPPdf";
 
 interface Department {
   id: string;
@@ -49,6 +51,7 @@ const formSteps: Step[] = [
   { id: "detail-document", label: "Detail Document" },
   { id: "procedure-document", label: "Procedure Document" },
   { id: "signature-document", label: "Signature Document" },
+  { id: "document-preview", label: "Document Preview" },
 ];
 
 export interface DocumentFormData {
@@ -64,9 +67,9 @@ export interface DocumentFormData {
   // Step 2: Detail Document
   purpose: string;
   scope: string;
-  reviewerId: string;
-  approverId: string;
-  acknowledgedId: string;
+  reviewerIds: string[];
+  approverIds: string[];
+  acknowledgedIds: string[];
   responsibleDocument: string;
   termsAndAbbreviations: string;
   warning: string;
@@ -89,9 +92,9 @@ const initialFormData: DocumentFormData = {
   estimatedDistributionDate: "",
   purpose: "",
   scope: "",
-  reviewerId: "",
-  approverId: "",
-  acknowledgedId: "",
+  reviewerIds: [],
+  approverIds: [],
+  acknowledgedIds: [],
   responsibleDocument: "",
   termsAndAbbreviations: "",
   warning: "",
@@ -119,11 +122,23 @@ export function AddDocumentModal({
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<DocumentFormData>(initialFormData);
 
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(initialFormData);
+    }
+  }, [isOpen]);
+
   // Data for dropdowns
   const [departments, setDepartments] = useState<Department[]>([]);
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
+
+  // PDF Preview state
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfFileName, setPdfFileName] = useState("");
+  const [pdfUrl, setPdfUrl] = useState<string>("");
 
   // Fetch data when modal opens
   useEffect(() => {
@@ -157,6 +172,15 @@ export function AddDocumentModal({
       }
     }
   }, [formData.documentTypeId, formData.departmentId, documentCategories, departments]);
+
+  // Create PDF URL when blob is available
+  useEffect(() => {
+    if (pdfBlob) {
+      const url = URL.createObjectURL(pdfBlob);
+      setPdfUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+  }, [pdfBlob]);
 
   const fetchData = async () => {
     setIsLoadingData(true);
@@ -198,13 +222,66 @@ export function AddDocumentModal({
     handleClose();
   };
 
-  const handleSubmit = () => {
-    onSubmit(formData);
+  const handleGeneratePdf = async () => {
+    try {
+      // Get additional data for PDF
+      const documentType = documentCategories.find(c => c.id === formData.documentTypeId);
+      const destinationDept = departments.find(d => d.id === formData.destinationDepartmentId);
+      const reviewers = formData.reviewerIds.map(id => users.find(u => u.id === id)?.name).filter((name): name is string => Boolean(name));
+      const approvers = formData.approverIds.map(id => users.find(u => u.id === id)?.name).filter((name): name is string => Boolean(name));
+      const acknowledgeds = formData.acknowledgedIds.map(id => users.find(u => u.id === id)?.name).filter((name): name is string => Boolean(name));
+
+      // Generate PDF blob
+      const blob = await generateDocumentPdf(formData, {
+        documentTypeName: documentType?.name || "",
+        destinationDepartmentName: destinationDept?.name || "",
+        reviewerNames: reviewers,
+        approverNames: approvers,
+        acknowledgedNames: acknowledgeds,
+      });
+
+      // Set PDF data
+      setPdfBlob(blob);
+      setPdfFileName(generatePdfFileName(formData.documentCode));
+
+      // Move to preview step
+      setCurrentStep(4);
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    }
+  };
+
+  const handleFinalSubmit = async () => {
+    try {
+      if (!pdfBlob) {
+        alert("Please generate PDF first");
+        return;
+      }
+
+      // TODO: Upload PDF to S3
+      // const pdfUrl = await uploadPdfToS3(pdfBlob, pdfFileName);
+
+      // For now, just submit with blob (you'll need to implement S3 upload)
+      console.log("PDF ready for upload:", pdfFileName);
+
+      // Submit form data (add pdfUrl to formData when S3 is implemented)
+      onSubmit(formData);
+
+      // Close modal
+      handleClose();
+    } catch (error) {
+      console.error("Failed to submit document:", error);
+      alert("Failed to submit document. Please try again.");
+    }
   };
 
   const handleClose = () => {
     setCurrentStep(0);
     setFormData(initialFormData);
+    setPdfBlob(null);
+    setPdfFileName("");
+    setPdfUrl("");
     onClose();
   };
 
@@ -213,6 +290,48 @@ export function AddDocumentModal({
     const strippedText = text.replace(/<[^>]*>/g, "").trim();
     if (!strippedText) return 0;
     return strippedText.split(/\s+/).length;
+  };
+
+  
+  // Memoize user options for each field
+  const reviewerOptions = useMemo(() => {
+    return users.map((user) => ({
+      value: user.id,
+      label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+    }));
+  }, [users]);
+
+  const approverOptions = useMemo(() => {
+    return users.map((user) => ({
+      value: user.id,
+      label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+    }));
+  }, [users]);
+
+  const acknowledgedOptions = useMemo(() => {
+    return users.map((user) => ({
+      value: user.id,
+      label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
+    }));
+  }, [users]);
+
+  // Handle multi-select change
+  const handleMultiSelectChange = (
+    fieldName: 'reviewerIds' | 'approverIds' | 'acknowledgedIds',
+    selectedIds: string[]
+  ) => {
+    const newFormData = { ...formData };
+
+    // Update the current field
+    if (fieldName === 'reviewerIds') {
+      newFormData.reviewerIds = selectedIds;
+    } else if (fieldName === 'approverIds') {
+      newFormData.approverIds = selectedIds;
+    } else {
+      newFormData.acknowledgedIds = selectedIds;
+    }
+
+    setFormData(newFormData);
   };
 
   // Step 1: Document Information
@@ -336,61 +455,34 @@ export function AddDocumentModal({
       {/* Reviewer */}
       <div className="space-y-1">
         <Label className="text-[#323238] text-sm font-bold">Reviewer</Label>
-        <Select
-          value={formData.reviewerId}
-          onValueChange={(value) => updateFormData("reviewerId", value)}
-        >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
-            <SelectValue placeholder="Reviewer" />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.name} {user.position ? `- ${user.position.name}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={reviewerOptions}
+          selected={formData.reviewerIds}
+          onChange={(selectedIds) => handleMultiSelectChange('reviewerIds', selectedIds)}
+          placeholder="Select reviewers..."
+        />
       </div>
 
       {/* Approver */}
       <div className="space-y-1">
         <Label className="text-[#323238] text-sm font-bold">Approver</Label>
-        <Select
-          value={formData.approverId}
-          onValueChange={(value) => updateFormData("approverId", value)}
-        >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
-            <SelectValue placeholder="Approver" />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.name} {user.position ? `- ${user.position.name}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={approverOptions}
+          selected={formData.approverIds}
+          onChange={(selectedIds) => handleMultiSelectChange('approverIds', selectedIds)}
+          placeholder="Select approvers..."
+        />
       </div>
 
       {/* Acknowledged */}
       <div className="space-y-1">
         <Label className="text-[#323238] text-sm font-bold">Acknowledged</Label>
-        <Select
-          value={formData.acknowledgedId}
-          onValueChange={(value) => updateFormData("acknowledgedId", value)}
-        >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
-            <SelectValue placeholder="Acknowledged" />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map((user) => (
-              <SelectItem key={user.id} value={user.id}>
-                {user.name} {user.position ? `- ${user.position.name}` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <MultiSelect
+          options={acknowledgedOptions}
+          selected={formData.acknowledgedIds}
+          onChange={(selectedIds) => handleMultiSelectChange('acknowledgedIds', selectedIds)}
+          placeholder="Select acknowledged users..."
+        />
       </div>
 
       {/* Responsible Document */}
@@ -465,6 +557,32 @@ export function AddDocumentModal({
     </div>
   );
 
+  // Step 5: Document Preview
+  const renderStep5 = () => (
+    <div className="space-y-4">
+      <Label className="text-[#323238] text-sm font-bold">Preview Your Document</Label>
+      <div className="border border-[#E1E2E3] rounded-lg overflow-hidden bg-gray-100" style={{ height: '60vh' }}>
+        {pdfUrl ? (
+          <iframe
+            src={pdfUrl}
+            className="w-full h-full border-0"
+            title="PDF Preview"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4DB1D4] mx-auto mb-4"></div>
+              <p className="text-[#8D8D99]">Loading PDF Preview...</p>
+            </div>
+          </div>
+        )}
+      </div>
+      <p className="text-sm text-[#8D8D99]">
+        Review your document before submitting. Click "Confirm & Upload" to save the document to the database.
+      </p>
+    </div>
+  );
+
   const renderStepContent = () => {
     switch (currentStep) {
       case 0:
@@ -475,6 +593,8 @@ export function AddDocumentModal({
         return renderStep3();
       case 3:
         return renderStep4();
+      case 4:
+        return renderStep5();
       default:
         return null;
     }
@@ -484,73 +604,95 @@ export function AddDocumentModal({
   const isFirstStep = currentStep === 0;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-[#384654]">
-            <Plus className="h-5 w-5 text-[#4DB1D4]" />
-            Add New Document
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-[80vw] w-[80vw] h-[100vh] max-h-[100vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-[#384654]">
+              <Plus className="h-5 w-5 text-[#4DB1D4]" />
+              Add New Document
+            </DialogTitle>
+          </DialogHeader>
 
-        {/* Step Wizard */}
-        <div className="border border-[#E1E2E3] rounded-lg p-5 mb-4">
-          <StepWizardCompact
-            steps={formSteps}
-            currentStep={currentStep}
-            onStepClick={(step) => setCurrentStep(step)}
-          />
-        </div>
-
-        {/* Form Content */}
-        <div className="py-4 max-h-[50vh] overflow-y-auto">
-          {renderStepContent()}
-        </div>
-
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between pt-6 border-t border-[#E1E2E3]">
-          <div>
-            {!isFirstStep && (
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                className="border-[#E1E2E3] text-[#384654]"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Previous
-              </Button>
-            )}
+          {/* Step Wizard */}
+          <div className="border border-[#E1E2E3] rounded-lg p-5 mb-4 flex-shrink-0">
+            <StepWizardCompact
+              steps={formSteps}
+              currentStep={currentStep}
+              onStepClick={(step) => setCurrentStep(step)}
+            />
           </div>
 
-          <div className="flex items-center gap-2">
-            {isLastStep ? (
-              <Button
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
-              >
-                {isLoading ? "Generating..." : "Generate"}
-              </Button>
-            ) : (
-              <>
+          {/* Form Content */}
+          <div className="py-4 flex-1 overflow-y-auto">
+            {renderStepContent()}
+          </div>
+
+          {/* Navigation Buttons */}
+          <div className="flex items-center justify-between pt-6 border-t border-[#E1E2E3]">
+            <div>
+              {!isFirstStep && (
                 <Button
                   variant="outline"
-                  onClick={handleClose}
-                  className="border-[#F24822] text-[#F24822] hover:bg-[#FFD6CD]"
+                  onClick={handlePrevious}
+                  className="border-[#E1E2E3] text-[#384654]"
                 >
-                  Close
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Previous
                 </Button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {currentStep === 3 ? (
+                // Step 4: Show Generate button
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="border-[#F24822] text-[#F24822] hover:bg-[#FFD6CD]"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleGeneratePdf}
+                    disabled={isLoading}
+                    className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+                  >
+                    {isLoading ? "Generating..." : "Generate"}
+                  </Button>
+                </>
+              ) : isLastStep ? (
+                // Step 5: Show Confirm & Upload button
                 <Button
-                  onClick={handleNext}
+                  onClick={handleFinalSubmit}
+                  disabled={isLoading || !pdfBlob}
                   className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
                 >
-                  Next
+                  {isLoading ? "Uploading..." : "Confirm & Upload"}
                 </Button>
-              </>
-            )}
+              ) : (
+                // Other steps: Show Next button
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="border-[#F24822] text-[#F24822] hover:bg-[#FFD6CD]"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleNext}
+                    className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+                  >
+                    Next
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
