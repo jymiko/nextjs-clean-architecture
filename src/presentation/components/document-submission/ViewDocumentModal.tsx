@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DocumentStatusBadge, DocumentStatus } from "../reports/DocumentStatusBadge";
-import { PDFViewer } from "../document-management/PDFViewer";
 import {
   FileText,
   FileCode,
@@ -27,6 +26,9 @@ import {
 } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { generateDocumentPdf } from "@/lib/pdf/generateSOPPdf";
+import { DocumentFormData } from "@/presentation/components/document-submission";
+import { PDFViewer } from "@/presentation/components/document-management/PDFViewer";
 
 export interface ViewDocumentData {
   id: string;
@@ -125,12 +127,75 @@ export function ViewDocumentModal({
   const [document, setDocument] = useState<ViewDocumentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string>("");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     if (isOpen && documentId) {
       fetchDocument();
     }
   }, [isOpen, documentId]);
+
+  // Generate PDF when document is loaded
+  useEffect(() => {
+    if (document && !document.pdfUrl) {
+      generatePdfFromDocument();
+    }
+  }, [document]);
+
+  // Cleanup PDF URL on unmount
+  useEffect(() => {
+    return () => {
+      if (generatedPdfUrl) {
+        URL.revokeObjectURL(generatedPdfUrl);
+      }
+    };
+  }, [generatedPdfUrl]);
+
+  const generatePdfFromDocument = async () => {
+    if (!document) return;
+
+    setIsGeneratingPdf(true);
+    try {
+      // Convert document data to DocumentFormData format
+      const formData: DocumentFormData = {
+        documentTypeId: "",
+        documentCode: document.documentNumber || "",
+        documentTitle: document.title || "",
+        departmentId: "",
+        departmentName: document.departmentName || "",
+        destinationDepartmentId: "",
+        estimatedDistributionDate: document.estimatedDistributionDate || "",
+        purpose: document.description || "",
+        scope: document.scope || "",
+        reviewerIds: [],
+        approverIds: [],
+        acknowledgedIds: [],
+        responsibleDocument: document.responsibleDocument || "",
+        termsAndAbbreviations: document.termsAndAbbreviations || "",
+        warning: document.warning || "",
+        relatedDocuments: document.relatedDocumentsText || "",
+        procedureContent: document.procedureContent || "",
+        signature: document.signature || "",
+      };
+
+      const additionalData = {
+        documentTypeName: document.categoryName || "Document",
+        destinationDepartmentName: document.destinationDepartmentName || "",
+        reviewerName: document.reviewerName,
+        approverName: document.approverName,
+        acknowledgedName: document.acknowledgerName,
+      };
+
+      const blob = await generateDocumentPdf(formData, additionalData);
+      const url = URL.createObjectURL(blob);
+      setGeneratedPdfUrl(url);
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   const fetchDocument = async () => {
     if (!documentId) return;
@@ -151,6 +216,10 @@ export function ViewDocumentModal({
   const handleClose = () => {
     setDocument(null);
     setError(null);
+    if (generatedPdfUrl) {
+      URL.revokeObjectURL(generatedPdfUrl);
+      setGeneratedPdfUrl("");
+    }
     onClose();
   };
 
@@ -385,8 +454,19 @@ export function ViewDocumentModal({
 
         {/* Right Side - PDF Viewer */}
         <div className="flex-1 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[400px] order-1 lg:order-2">
-          {document.pdfUrl ? (
-            <PDFViewer file={document.pdfUrl} showDownload={false} />
+          {document.pdfUrl || generatedPdfUrl ? (
+            <PDFViewer
+              file={document.pdfUrl || generatedPdfUrl}
+              className="h-full"
+              showZoomControls={true}
+            />
+          ) : isGeneratingPdf ? (
+            <div className="flex items-center justify-center h-full bg-[#525659]">
+              <div className="text-center text-white">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                <p className="text-sm opacity-75">Generating PDF preview...</p>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center justify-center h-full bg-[#525659]">
               <div className="text-center text-white">

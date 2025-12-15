@@ -86,6 +86,28 @@ export interface Document {
   isObsolete: boolean;
   obsoleteReason?: string | null;
   obsoleteDate?: Date | null;
+  // Destination department
+  destinationDepartmentId?: string | null;
+  destinationDepartment?: {
+    id: string;
+    name: string;
+    code?: string;
+  } | null;
+  estimatedDistributionDate?: Date | null;
+  // Document content fields
+  scope?: string | null;
+  responsibleDocument?: string | null;
+  termsAndAbbreviations?: string | null;
+  warning?: string | null;
+  relatedDocumentsText?: string | null;
+  procedureContent?: string | null;
+  // Signature/approval info
+  reviewerName?: string | null;
+  reviewerPosition?: string | null;
+  approverName?: string | null;
+  approverPosition?: string | null;
+  acknowledgerName?: string | null;
+  acknowledgerPosition?: string | null;
   createdById: string;
   createdBy: {
     id: string;

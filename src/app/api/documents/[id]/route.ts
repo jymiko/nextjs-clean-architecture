@@ -34,7 +34,17 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(document);
+    // Map fields for frontend compatibility
+    const response = {
+      ...document,
+      pdfUrl: document.fileUrl, // Map fileUrl to pdfUrl for PDF viewer
+      categoryName: document.category?.name,
+      departmentName: document.destinationDepartment?.name,
+      destinationDepartmentName: document.destinationDepartment?.name,
+      createdByName: document.createdBy?.name,
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     return handleError(error, request);
   }

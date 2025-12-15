@@ -125,6 +125,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
       where: { id },
       include: {
         category: true,
+        destinationDepartment: true,
         createdBy: {
           select: { id: true, name: true, email: true, employeeId: true, avatar: true },
         },

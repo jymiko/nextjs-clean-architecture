@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { Download, FileText, Loader2, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 
 interface PDFViewerProps {
@@ -11,9 +11,14 @@ interface PDFViewerProps {
   className?: string;
   /** Tampilkan tombol download (default: false) */
   showDownload?: boolean;
+  /** Tampilkan zoom controls (default: true) */
+  showZoomControls?: boolean;
 }
 
-export function PDFViewer({ file, className = "", showDownload = false }: PDFViewerProps) {
+const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+const DEFAULT_SCALE = 1.5;
+
+export function PDFViewer({ file, className = "", showDownload = false, showZoomControls = true }: PDFViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
@@ -21,6 +26,7 @@ export function PDFViewer({ file, className = "", showDownload = false }: PDFVie
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pdfjsLib, setPdfjsLib] = useState<typeof import("pdfjs-dist") | null>(null);
+  const [scale, setScale] = useState(DEFAULT_SCALE);
 
   // Load pdfjs-dist dynamically
   useEffect(() => {
@@ -76,7 +82,7 @@ export function PDFViewer({ file, className = "", showDownload = false }: PDFVie
 
         if (!context) continue;
 
-        const viewport = page.getViewport({ scale: 1.5 });
+        const viewport = page.getViewport({ scale });
 
         canvas.height = viewport.height;
         canvas.width = viewport.width;
@@ -92,13 +98,44 @@ export function PDFViewer({ file, className = "", showDownload = false }: PDFVie
         console.error(`Failed to render page ${pageNum}:`, err);
       }
     }
-  }, [pdfDoc]);
+  }, [pdfDoc, scale]);
 
   useEffect(() => {
     if (pdfDoc && totalPages > 0) {
       renderAllPages();
     }
-  }, [pdfDoc, totalPages, renderAllPages]);
+  }, [pdfDoc, totalPages, renderAllPages, scale]);
+
+  // Zoom controls
+  const handleZoomIn = () => {
+    const currentIndex = ZOOM_LEVELS.findIndex(level => level >= scale);
+    if (currentIndex < ZOOM_LEVELS.length - 1) {
+      setScale(ZOOM_LEVELS[currentIndex + 1]);
+    }
+  };
+
+  const handleZoomOut = () => {
+    const currentIndex = ZOOM_LEVELS.findIndex(level => level >= scale);
+    if (currentIndex > 0) {
+      setScale(ZOOM_LEVELS[currentIndex - 1]);
+    }
+  };
+
+  const handleFitToWidth = useCallback(async () => {
+    if (!pdfDoc || !containerRef.current) return;
+
+    try {
+      const page = await pdfDoc.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      const containerWidth = containerRef.current.clientWidth - 64; // Subtract padding
+      const newScale = containerWidth / viewport.width;
+      setScale(Math.min(Math.max(newScale, ZOOM_LEVELS[0]), ZOOM_LEVELS[ZOOM_LEVELS.length - 1]));
+    } catch (err) {
+      console.error("Failed to calculate fit width:", err);
+    }
+  }, [pdfDoc]);
+
+  const zoomPercentage = Math.round(scale * 100);
 
   const downloadPdf = () => {
     if (file) {
@@ -126,6 +163,49 @@ export function PDFViewer({ file, className = "", showDownload = false }: PDFVie
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
+      {/* Zoom Controls - Top */}
+      {showZoomControls && !isLoading && !error && (
+        <div className="flex items-center justify-center gap-2 px-4 py-2 bg-[#38383d] border-b border-[#2a2a2e] shrink-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomOut}
+            disabled={scale <= ZOOM_LEVELS[0]}
+            className="h-8 w-8 p-0 text-white hover:bg-[#4a4a4f] disabled:opacity-50"
+            title="Zoom Out"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+
+          <span className="text-white text-sm min-w-[60px] text-center font-medium">
+            {zoomPercentage}%
+          </span>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomIn}
+            disabled={scale >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+            className="h-8 w-8 p-0 text-white hover:bg-[#4a4a4f] disabled:opacity-50"
+            title="Zoom In"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+
+          <div className="w-px h-5 bg-[#5a5a5f] mx-2" />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleFitToWidth}
+            className="h-8 w-8 p-0 text-white hover:bg-[#4a4a4f]"
+            title="Fit to Width"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
       {/* PDF Viewer - Scrollable */}
       <div
         ref={containerRef}
