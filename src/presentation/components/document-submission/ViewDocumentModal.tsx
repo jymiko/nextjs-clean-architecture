@@ -29,6 +29,31 @@ import { cn } from "@/lib/utils";
 import { generateDocumentPdf } from "@/lib/pdf/generateSOPPdf";
 import { DocumentFormData } from "@/presentation/components/document-submission";
 import { PDFViewer } from "@/presentation/components/document-management/PDFViewer";
+import { DocumentSignaturePanel } from "./DocumentSignaturePanel";
+import { SignatureSignModal } from "./SignatureSignModal";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { toast } from "sonner";
+
+interface PreparedByData {
+  id?: string;
+  name: string;
+  position: string;
+  signature: string | null;
+  signedAt: Date | string | null;
+}
+
+interface SignatureApprovalData {
+  id: string;
+  level: number;
+  approver: {
+    id: string;
+    name: string;
+    position: string;
+  };
+  signatureImage: string | null;
+  signedAt: Date | string | null;
+  status: string;
+}
 
 export interface ViewDocumentData {
   id: string;
@@ -60,6 +85,9 @@ export interface ViewDocumentData {
   reviewerPosition?: string;
   approverPosition?: string;
   acknowledgers?: { name: string; position: string }[];
+  // Signature panel data
+  preparedBy?: PreparedByData;
+  signatureApprovals?: SignatureApprovalData[];
 }
 
 interface ViewDocumentModalProps {
@@ -129,6 +157,14 @@ export function ViewDocumentModal({
   const [error, setError] = useState<string | null>(null);
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string>("");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Signature modal state
+  const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
+  const [isSigning, setIsSigning] = useState(false);
+
+  // Current user
+  const { user: currentUser } = useCurrentUser();
 
   useEffect(() => {
     if (isOpen && documentId) {
@@ -230,6 +266,37 @@ export function ViewDocumentModal({
     handleClose();
   };
 
+  // Handle opening signature modal
+  const handleOpenSignModal = (approvalId: string) => {
+    setSelectedApprovalId(approvalId);
+    setSignatureModalOpen(true);
+  };
+
+  // Handle signing document
+  const handleSign = async (signatureImage: string) => {
+    if (!documentId || !selectedApprovalId) return;
+
+    setIsSigning(true);
+    try {
+      await apiClient.post(`/api/documents/${documentId}/sign`, {
+        approvalId: selectedApprovalId,
+        signatureImage,
+      });
+
+      toast.success("Document signed successfully");
+      setSignatureModalOpen(false);
+      setSelectedApprovalId(null);
+
+      // Refresh document data
+      await fetchDocument();
+    } catch (err: any) {
+      console.error("Failed to sign document:", err);
+      toast.error(err.message || "Failed to sign document");
+    } finally {
+      setIsSigning(false);
+    }
+  };
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return "-";
     try {
@@ -286,10 +353,19 @@ export function ViewDocumentModal({
       ? [{ name: document.acknowledgerName, position: "" }]
       : []);
 
+    // Build preparedBy from API data, with fallback to createdBy fields
+    const preparedByData: PreparedByData = {
+      id: document.preparedBy?.id,
+      name: document.preparedBy?.name || document.createdByName || "",
+      position: document.preparedBy?.position || document.createdByPosition || "",
+      signature: document.preparedBy?.signature || null,
+      signedAt: document.preparedBy?.signedAt || null,
+    };
+
     return (
-      <div className="flex flex-col lg:flex-row gap-4 lg:h-[70vh]">
+      <div className="flex flex-col lg:flex-row gap-4 lg:max-h-[75vh]">
         {/* Left Side - Document Information */}
-        <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden flex flex-col order-2 lg:order-1">
+        <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden flex flex-col order-2 lg:order-1 lg:max-h-[75vh]">
           {/* Header */}
           <div className="bg-[#E9F5FE] px-6 py-4 flex items-center gap-3">
             <FileText className="h-5 w-5 text-[#4DB1D4]" />
@@ -358,43 +434,47 @@ export function ViewDocumentModal({
             )}
 
             {/* Review By */}
-            {document.reviewerName && (
-              <InfoRow
-                icon={<UserCheck className="h-4 w-4" />}
-                label="Review By"
-                value={
+            <InfoRow
+              icon={<UserCheck className="h-4 w-4" />}
+              label="Review By"
+              value={
+                document.reviewerName ? (
                   <span>
                     {document.reviewerName}
                     {document.reviewerPosition && (
                       <span className="text-[#738193]"> - {document.reviewerPosition}</span>
                     )}
                   </span>
-                }
-              />
-            )}
+                ) : (
+                  "-"
+                )
+              }
+            />
 
             {/* Approved By */}
-            {document.approverName && (
-              <InfoRow
-                icon={<CheckCircle className="h-4 w-4" />}
-                label="Approved By"
-                value={
+            <InfoRow
+              icon={<CheckCircle className="h-4 w-4" />}
+              label="Approved By"
+              value={
+                document.approverName ? (
                   <span>
                     {document.approverName}
                     {document.approverPosition && (
                       <span className="text-[#738193]"> - {document.approverPosition}</span>
                     )}
                   </span>
-                }
-              />
-            )}
+                ) : (
+                  "-"
+                )
+              }
+            />
 
             {/* Acknowledged By */}
-            {acknowledgers.length > 0 && (
-              <InfoRow
-                icon={<Users className="h-4 w-4" />}
-                label="Acknowledged By"
-                value={
+            <InfoRow
+              icon={<Users className="h-4 w-4" />}
+              label="Acknowledged By"
+              value={
+                acknowledgers.length > 0 ? (
                   <div className="space-y-0.5">
                     {acknowledgers.map((person, index) => (
                       <div key={index}>
@@ -405,41 +485,42 @@ export function ViewDocumentModal({
                       </div>
                     ))}
                   </div>
-                }
-              />
-            )}
+                ) : (
+                  "-"
+                )
+              }
+            />
 
             {/* Last Update */}
-            {(document.lastUpdate || document.createdAt) && (
-              <InfoRow
-                icon={<Clock className="h-4 w-4" />}
-                label="Last Update"
-                value={formatDate(document.lastUpdate || document.createdAt)}
-              />
-            )}
+            <InfoRow
+              icon={<Clock className="h-4 w-4" />}
+              label="Last Update"
+              value={formatDate(document.lastUpdate || document.createdAt)}
+            />
 
             {/* Notes */}
-            {document.notes && (
-              <InfoRow
-                icon={<StickyNote className="h-4 w-4" />}
-                label="Notes"
-                value={document.notes}
-                valueClassName="text-[#F24822] italic"
-              />
-            )}
+            <InfoRow
+              icon={<StickyNote className="h-4 w-4" />}
+              label="Notes"
+              value={document.notes || "-"}
+              valueClassName={document.notes ? "text-[#F24822] italic" : undefined}
+            />
           </div>
 
           {/* Review Actions */}
           <div className="px-6 pb-6 pt-2 space-y-3 border-t border-[#E1E2E3]">
-            <h4 className="text-[#384654] font-medium text-sm mb-3">Review Actions</h4>
-
-            <Button
-              className="w-full h-11 bg-[#F24822] hover:bg-[#d93d1b] text-white"
-              onClick={handleEdit}
-            >
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            {onEdit && (
+              <>
+                <h4 className="text-[#384654] font-medium text-sm mb-3">Review Actions</h4>
+                <Button
+                  className="w-full h-11 bg-[#F24822] hover:bg-[#d93d1b] text-white"
+                  onClick={handleEdit}
+                >
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              </>
+            )}
 
             <Button
               variant="outline"
@@ -452,43 +533,68 @@ export function ViewDocumentModal({
           </div>
         </div>
 
-        {/* Right Side - PDF Viewer */}
-        <div className="flex-1 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[400px] order-1 lg:order-2">
-          {document.pdfUrl || generatedPdfUrl ? (
-            <PDFViewer
-              file={document.pdfUrl || generatedPdfUrl}
-              className="h-full"
-              showZoomControls={true}
-            />
-          ) : isGeneratingPdf ? (
-            <div className="flex items-center justify-center h-full bg-[#525659]">
-              <div className="text-center text-white">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-                <p className="text-sm opacity-75">Generating PDF preview...</p>
+        {/* Right Side - PDF Viewer + Signature Panel */}
+        <div className="flex-1 flex flex-col gap-4 order-1 lg:order-2 overflow-auto">
+          {/* PDF Viewer */}
+          <div className="bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[350px] lg:min-h-[400px] lg:max-h-[55vh]">
+            {document.pdfUrl || generatedPdfUrl ? (
+              <PDFViewer
+                file={document.pdfUrl || generatedPdfUrl}
+                className="h-full"
+                showZoomControls={true}
+              />
+            ) : isGeneratingPdf ? (
+              <div className="flex items-center justify-center h-full bg-[#525659]">
+                <div className="text-center text-white">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                  <p className="text-sm opacity-75">Generating PDF preview...</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-[#525659]">
-              <div className="text-center text-white">
-                <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p className="text-sm opacity-75">No document preview available</p>
+            ) : (
+              <div className="flex items-center justify-center h-full bg-[#525659]">
+                <div className="text-center text-white">
+                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-sm opacity-75">No document preview available</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Signature Panel - Always show */}
+          <DocumentSignaturePanel
+            preparedBy={preparedByData}
+            approvals={document.signatureApprovals || []}
+            currentUserId={currentUser?.id}
+            onSign={handleOpenSignModal}
+          />
         </div>
       </div>
     );
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[90vw] lg:max-w-[1200px] w-[95vw] max-h-[90vh] overflow-y-auto p-6">
-        <DialogHeader className="sr-only">
-          <DialogTitle>View Document</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[90vw] lg:max-w-[1200px] w-[95vw] max-h-[90vh] overflow-y-auto p-6">
+          <DialogHeader className="sr-only">
+            <DialogTitle>View Document</DialogTitle>
+          </DialogHeader>
 
-        {renderContent()}
-      </DialogContent>
-    </Dialog>
+          {renderContent()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Signature Modal */}
+      <SignatureSignModal
+        isOpen={signatureModalOpen}
+        onClose={() => {
+          setSignatureModalOpen(false);
+          setSelectedApprovalId(null);
+        }}
+        onSign={handleSign}
+        userSignature={currentUser?.signature}
+        isLoading={isSigning}
+      />
+    </>
   );
 }

@@ -139,73 +139,77 @@ export function DocumentViewerInfoPanel({
         )}
 
         {/* Review By */}
-        {document.reviewBy && (
-          <InfoRow
-            icon={<UserCheck className="h-4 w-4" />}
-            label="Review By"
-            value={
+        <InfoRow
+          icon={<UserCheck className="h-4 w-4" />}
+          label="Review By"
+          value={
+            document.reviewBy ? (
               <span>
                 {document.reviewBy}
                 {document.reviewByPosition && (
                   <span className="text-[#738193]"> - {document.reviewByPosition}</span>
                 )}
               </span>
-            }
-          />
-        )}
+            ) : (
+              "-"
+            )
+          }
+        />
 
         {/* Approved By */}
-        {document.approvedBy && (
-          <InfoRow
-            icon={<CheckCircle className="h-4 w-4" />}
-            label="Approved By"
-            value={
+        <InfoRow
+          icon={<CheckCircle className="h-4 w-4" />}
+          label="Approved By"
+          value={
+            document.approvedBy ? (
               <span>
                 {document.approvedBy}
                 {document.approvedByPosition && (
                   <span className="text-[#738193]"> - {document.approvedByPosition}</span>
                 )}
               </span>
-            }
-          />
-        )}
+            ) : (
+              "-"
+            )
+          }
+        />
 
         {/* Acknowledged By */}
-        {document.acknowledgedBy && document.acknowledgedBy.length > 0 && (
-          <InfoRow
-            icon={<Users className="h-4 w-4" />}
-            label="Acknowledged By"
-            value={
+        <InfoRow
+          icon={<Users className="h-4 w-4" />}
+          label="Acknowledged By"
+          value={
+            document.acknowledgedBy && document.acknowledgedBy.length > 0 ? (
               <div className="space-y-0.5">
                 {document.acknowledgedBy.map((person, index) => (
                   <div key={index}>
                     {person.name}
-                    <span className="text-[#738193]"> - {person.position}</span>
+                    {person.position && (
+                      <span className="text-[#738193]"> - {person.position}</span>
+                    )}
                   </div>
                 ))}
               </div>
-            }
-          />
-        )}
+            ) : (
+              "-"
+            )
+          }
+        />
 
         {/* Last Update */}
-        {document.lastUpdate && (
-          <InfoRow
-            icon={<Clock className="h-4 w-4" />}
-            label="Last Update"
-            value={document.lastUpdate}
-          />
-        )}
+        <InfoRow
+          icon={<Clock className="h-4 w-4" />}
+          label="Last Update"
+          value={document.lastUpdate || "-"}
+        />
 
         {/* Notes */}
-        {document.notes && (
-          <InfoRow
-            icon={<StickyNote className="h-4 w-4" />}
-            label="Notes"
-            value={document.notes}
-            valueClassName="text-[#F24822] italic"
-          />
-        )}
+        <InfoRow
+          icon={<StickyNote className="h-4 w-4" />}
+          label="Notes"
+          value={document.notes || "-"}
+          valueClassName={document.notes ? "text-[#F24822] italic" : undefined}
+        />
       </div>
 
       {/* Review Actions */}

@@ -34,14 +34,103 @@ export async function GET(
       );
     }
 
+    // Extract approval data by level
+    const approvals = (document as any).approvals || [];
+    const reviewerApproval = approvals.find((a: any) => a.level === 1);
+    const approverApproval = approvals.find((a: any) => a.level === 2);
+    const acknowledgerApprovals = approvals.filter((a: any) => a.level === 3);
+
+    // Build destination department display - collect from main destination and acknowledgers' departments
+    const destDept = (document as any).destinationDepartment;
+    const destinationDepartments: string[] = [];
+
+    // Add main destination department
+    if (destDept) {
+      destinationDepartments.push(`${destDept.code} - ${destDept.name}`);
+    }
+
+    // Collect unique departments from acknowledgers
+    acknowledgerApprovals.forEach((a: any) => {
+      const dept = a.approver?.department;
+      if (dept) {
+        const deptDisplay = `${dept.code || ''} - ${dept.name}`.replace(/^- /, '');
+        if (!destinationDepartments.includes(deptDisplay) && deptDisplay !== ' - ') {
+          destinationDepartments.push(deptDisplay);
+        }
+      }
+    });
+
+    // Join departments with comma for frontend parsing
+    const destinationDepartmentDisplay = destinationDepartments.length > 0
+      ? destinationDepartments.join(', ')
+      : undefined;
+
+    // Build acknowledgers array
+    const acknowledgers = acknowledgerApprovals.map((a: any) => ({
+      name: a.approver?.name || '',
+      position: a.approver?.department?.name || a.approver?.position?.name || '',
+    }));
+
+    // Get createdBy position
+    const createdBy = document.createdBy as any;
+    const createdByPosition = createdBy?.department?.name || createdBy?.position?.name;
+
+    // Build preparedBy object for signature panel
+    const preparedBy = {
+      id: createdBy?.id,
+      name: createdBy?.name || '',
+      position: createdByPosition || '',
+      signature: (document as any).preparedBySignature || null,
+      signedAt: (document as any).preparedBySignedAt || null,
+    };
+
+    // Build approvals array for signature panel (reviewers, approvers, and acknowledgers)
+    const signatureApprovals = approvals
+      .filter((a: any) => a.level === 1 || a.level === 2 || a.level === 3)
+      .map((a: any) => ({
+        id: a.id,
+        level: a.level,
+        approver: {
+          id: a.approver?.id,
+          name: a.approver?.name || '',
+          position: a.approver?.department?.name || a.approver?.position?.name || '',
+        },
+        signatureImage: a.signatureImage || null,
+        signedAt: a.signedAt || null,
+        status: a.status,
+      }));
+
     // Map fields for frontend compatibility
     const response = {
       ...document,
       pdfUrl: document.fileUrl, // Map fileUrl to pdfUrl for PDF viewer
       categoryName: document.category?.name,
-      departmentName: document.destinationDepartment?.name,
-      destinationDepartmentName: document.destinationDepartment?.name,
-      createdByName: document.createdBy?.name,
+      departmentName: destDept?.name,
+      destinationDepartmentName: destinationDepartmentDisplay,
+      createdByName: createdBy?.name,
+      createdByPosition: createdByPosition,
+      // Prepared By data for signature panel
+      preparedBy,
+      // Approvals data for signature panel (reviewers + approvers)
+      signatureApprovals,
+      // Reviewer data (level 1)
+      reviewerName: reviewerApproval?.approver?.name || document.reviewerName,
+      reviewerPosition: reviewerApproval?.approver?.department?.name ||
+        reviewerApproval?.approver?.position?.name ||
+        document.reviewerPosition,
+      // Approver data (level 2)
+      approverName: approverApproval?.approver?.name || document.approverName,
+      approverPosition: approverApproval?.approver?.department?.name ||
+        approverApproval?.approver?.position?.name ||
+        document.approverPosition,
+      // Acknowledgers (level 3)
+      acknowledgers: acknowledgers.length > 0 ? acknowledgers : (document.acknowledgerName ? [{
+        name: document.acknowledgerName,
+        position: document.acknowledgerPosition || '',
+      }] : []),
+      // Approved date from first approved approval
+      approvedDate: approvals.find((a: any) => a.status === 'APPROVED')?.approvedAt,
+      lastUpdate: document.updatedAt,
     };
 
     return NextResponse.json(response);

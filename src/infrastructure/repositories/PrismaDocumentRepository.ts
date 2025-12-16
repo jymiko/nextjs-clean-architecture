@@ -127,7 +127,19 @@ export class PrismaDocumentRepository implements IDocumentRepository {
         category: true,
         destinationDepartment: true,
         createdBy: {
-          select: { id: true, name: true, email: true, employeeId: true, avatar: true },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            employeeId: true,
+            avatar: true,
+            position: {
+              select: { name: true },
+            },
+            department: {
+              select: { code: true, name: true },
+            },
+          },
         },
         owner: {
           select: { id: true, name: true, email: true, employeeId: true, avatar: true },
@@ -135,9 +147,21 @@ export class PrismaDocumentRepository implements IDocumentRepository {
         approvals: {
           include: {
             approver: {
-              select: { id: true, name: true, email: true, employeeId: true },
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                employeeId: true,
+                position: {
+                  select: { name: true },
+                },
+                department: {
+                  select: { code: true, name: true },
+                },
+              },
             },
           },
+          orderBy: { level: 'asc' },
         },
         comments: {
           include: {

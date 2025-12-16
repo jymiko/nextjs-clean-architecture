@@ -383,6 +383,10 @@ model Document {
   acknowledgerName            String?
   acknowledgerPosition        String?
 
+  // Document prepared by signature (auto-captured on submission)
+  preparedBySignature         String?                @db.Text  // Creator's signature
+  preparedBySignedAt          DateTime?                        // When document was signed by creator
+
   // Ownership & tracking
   createdBy                   User                   @relation("DocumentCreator", fields: [createdById], references: [id])
   createdById                 String
@@ -448,6 +452,9 @@ model DocumentApproval {
   comments     String?
   approvedAt   DateTime?
   rejectedAt   DateTime?
+  // Signature capture fields
+  signatureImage String?      @db.Text  // Base64 encoded signature when signing
+  signedAt       DateTime?              // Timestamp when signature was captured
   requestedAt  DateTime       @default(now())
   dueDate      DateTime?
   reminderSent Boolean        @default(false)

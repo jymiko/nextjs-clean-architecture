@@ -121,7 +121,7 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
 // Helper function to map document status
 function mapDocumentStatus(status: string, approvalStatus: string): string {
   if (status === "DRAFT") return "draft";
-  if (status === "PENDING_REVIEW" || approvalStatus === "PENDING") return "on_review";
+  if (status === "IN_REVIEW" || status === "PENDING_REVIEW" || approvalStatus === "PENDING") return "on_review";
   if (status === "UNDER_REVIEW") return "on_review";
   if (status === "PENDING_APPROVAL") return "on_approval";
   if (status === "APPROVED") return "approved";
@@ -181,10 +181,10 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
     const body = await request.json();
     const validatedData = documentSubmissionSchema.parse(body);
 
-    // Get user's department
+    // Get user's department and signature
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { department: true },
+      include: { department: true, position: true },
     });
 
     if (!user || !user.departmentId) {
@@ -213,6 +213,10 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
     const nextNumber = existingCount + 1;
     const documentNumber = `${category.code}-${user.department?.code || "DOC"}-${String(nextNumber).padStart(3, "0")}`;
 
+    // Determine the signature to use for "Prepared By"
+    // Use new signature from step 4 if provided, otherwise use existing user signature
+    const preparedBySignature = validatedData.signature || user.signature || null;
+
     // Create document with all submission data
     const document = await prisma.document.create({
       data: {
@@ -222,7 +226,7 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
         categoryId: validatedData.documentTypeId,
         version: "1.0",
         revisionNumber: 0,
-        status: "DRAFT",
+        status: "IN_REVIEW",
         approvalStatus: "PENDING",
         fileUrl: "", // Will be generated later
         fileName: `${documentNumber}.pdf`,
@@ -246,10 +250,14 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
 
         // Step 3: Procedure Document
         procedureContent: validatedData.procedureContent || null,
+
+        // Auto-capture creator's signature as "Prepared By"
+        preparedBySignature: preparedBySignature,
+        preparedBySignedAt: preparedBySignature ? new Date() : null,
       },
     });
 
-    // Update user signature if provided
+    // Update user signature if provided (from signature pad in step 4)
     if (validatedData.signature) {
       await prisma.user.update({
         where: { id: userId },
