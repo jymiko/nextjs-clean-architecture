@@ -19,6 +19,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { responsiveCalendarClassNames, calendarPopoverClassName } from "@/lib/calendar-config";
 
 interface Department {
   id: string;
@@ -149,20 +150,21 @@ export function ReportFilters({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full h-11 justify-between bg-white border-[#e1e2e3] text-base font-normal",
+                  "w-full h-11 justify-between bg-white border-[#e1e2e3] text-base font-normal rounded",
                   filters.dateFrom ? "text-[#384654]" : "text-[#a0aec0]"
                 )}
               >
                 {filters.dateFrom ? format(filters.dateFrom, "dd MMM yyyy") : "Date From"}
-                <Calendar className="h-5 w-5 text-[#a0aec0]" />
+                <Calendar className="h-4 w-4 text-[#D946EF]" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="center" sideOffset={4}>
+            <PopoverContent className={calendarPopoverClassName} align="start">
               <CalendarComponent
                 mode="single"
                 selected={filters.dateFrom}
                 onSelect={(date) => updateFilter("dateFrom", date)}
                 initialFocus
+                classNames={responsiveCalendarClassNames}
               />
             </PopoverContent>
           </Popover>
@@ -173,20 +175,21 @@ export function ReportFilters({
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full h-11 justify-between bg-white border-[#e1e2e3] text-base font-normal",
+                  "w-full h-11 justify-between bg-white border-[#e1e2e3] text-base font-normal rounded",
                   filters.dateTo ? "text-[#384654]" : "text-[#a0aec0]"
                 )}
               >
                 {filters.dateTo ? format(filters.dateTo, "dd MMM yyyy") : "Date To"}
-                <Calendar className="h-5 w-5 text-[#a0aec0]" />
+                <Calendar className="h-4 w-4 text-[#D946EF]" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="center" sideOffset={4}>
+            <PopoverContent className={calendarPopoverClassName} align="start">
               <CalendarComponent
                 mode="single"
                 selected={filters.dateTo}
                 onSelect={(date) => updateFilter("dateTo", date)}
                 initialFocus
+                classNames={responsiveCalendarClassNames}
               />
             </PopoverContent>
           </Popover>

@@ -185,23 +185,24 @@ export default function LoginPage() {
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
-    } catch (err: any) {
-      // Clear any tokens/cookies on login failure
+    } catch (err) {
+      // Clear tokens/cookies on login failure
       tokenManager.clearTokens();
       clearAuthCookies();
-      
+
       let errorMessage = 'Login gagal. Periksa kembali email dan password Anda.';
 
       // Handle specific error cases
-      if (err.message) {
-        if (err.message.includes('Invalid credentials')) {
+      const errMessage = err instanceof Error ? err.message : '';
+      if (errMessage) {
+        if (errMessage.includes('Invalid credentials')) {
           errorMessage = 'Email atau password salah.';
-        } else if (err.message.includes('Validation Error')) {
+        } else if (errMessage.includes('Validation Error')) {
           errorMessage = 'Format input tidak valid.';
-        } else if (err.message.includes('Too many requests')) {
+        } else if (errMessage.includes('Too many requests')) {
           errorMessage = 'Terlalu banyak percobaan login. Coba lagi nanti.';
         } else {
-          errorMessage = err.message;
+          errorMessage = errMessage;
         }
       }
 

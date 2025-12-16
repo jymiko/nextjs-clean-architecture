@@ -22,10 +22,22 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { StepWizardCompact, type Step } from "./StepWizard";
 import { RichTextEditor } from "./RichTextEditor";
 import { SignaturePad } from "./SignaturePad";
-import { ArrowLeft, Pencil, Calendar, X } from "lucide-react";
+import { ArrowLeft, Pencil, Calendar as CalendarIcon, X } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { format } from "date-fns";
+import { compactCalendarClassNames, calendarPopoverCompactClassName } from "@/lib/calendar-config";
 import { apiClient } from "@/lib/api-client";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { DocumentFormData } from "./AddDocumentModal";
+import { DocumentSubmissionInfoPanel } from "./DocumentSubmissionInfoPanel";
+import { DocumentSubmissionSignaturePreview } from "./DocumentSubmissionSignaturePreview";
+import { PDFViewer } from "@/presentation/components/document-management/PDFViewer";
+import { generateDocumentPdf, generatePdfFileName } from "@/lib/pdf/generateSOPPdf";
 
 interface Department {
   id: string;
@@ -46,11 +58,19 @@ interface User {
   position?: { name: string } | null;
 }
 
+interface DocumentApprovalData {
+  id: string;
+  approverId: string;
+  level: number;
+  status: string;
+}
+
 const formSteps: Step[] = [
   { id: "document-info", label: "Document Information" },
   { id: "detail-document", label: "Detail Document" },
   { id: "procedure-document", label: "Procedure Document" },
   { id: "signature-document", label: "Signature Document" },
+  { id: "document-preview", label: "Document Preview" },
 ];
 
 const initialFormData: DocumentFormData = {
@@ -77,7 +97,7 @@ const initialFormData: DocumentFormData = {
 interface EditDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: DocumentFormData) => void;
+  onSubmit: (data: DocumentFormData, status: "DRAFT" | "IN_REVIEW") => void;
   documentId: string | null;
   isLoading?: boolean;
 }
@@ -94,12 +114,19 @@ export function EditDocumentModal({
   const [formData, setFormData] = useState<DocumentFormData>(initialFormData);
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   // Data for dropdowns
   const [departments, setDepartments] = useState<Department[]>([]);
   const [documentCategories, setDocumentCategories] = useState<DocumentCategory[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(false);
+
+  // PDF Preview state
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [pdfFileName, setPdfFileName] = useState("");
+  const [pdfUrl, setPdfUrl] = useState<string>("");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Fetch dropdown data when modal opens
   useEffect(() => {
@@ -144,9 +171,10 @@ export function EditDocumentModal({
       const doc = response;
 
       // Get all approvals for each level
-      const reviewerIds = doc.approvals?.filter((a: any) => a.level === 1).map((a: any) => a.approverId) || [];
-      const approverIds = doc.approvals?.filter((a: any) => a.level === 2).map((a: any) => a.approverId) || [];
-      const acknowledgedIds = doc.approvals?.filter((a: any) => a.level === 3).map((a: any) => a.approverId) || [];
+      const approvals = (doc.approvals || []) as DocumentApprovalData[];
+      const reviewerIds = approvals.filter((a) => a.level === 1).map((a) => a.approverId);
+      const approverIds = approvals.filter((a) => a.level === 2).map((a) => a.approverId);
+      const acknowledgedIds = approvals.filter((a) => a.level === 3).map((a) => a.approverId);
 
       // Map document data to form data
       setFormData({
@@ -171,9 +199,9 @@ export function EditDocumentModal({
         procedureContent: doc.procedureContent || "",
         signature: doc.createdBy?.signature || "",
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to fetch document:", err);
-      setError(err.message || "Failed to load document");
+      setError(err instanceof Error ? err.message : "Failed to load document");
     } finally {
       setIsLoadingDocument(false);
     }
@@ -195,14 +223,98 @@ export function EditDocumentModal({
     }
   };
 
-  const handleSubmit = () => {
-    onSubmit(formData);
+  // Helper function to get user info by ID
+  const getUserInfo = (userId: string): { name: string; position: string } => {
+    const user = users.find((u) => u.id === userId);
+    return {
+      name: user?.name || "",
+      position: user?.position?.name || "",
+    };
+  };
+
+  // Helper function to get department name by ID
+  const getDepartmentName = (deptId: string): string => {
+    const dept = departments.find((d) => d.id === deptId);
+    return dept?.name || "";
+  };
+
+  // Helper function to get document type name by ID
+  const getDocumentTypeName = (typeId: string): string => {
+    const cat = documentCategories.find((c) => c.id === typeId);
+    return cat?.name || "";
+  };
+
+  // Generate PDF and go to preview step
+  const handleGeneratePdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      const additionalData = {
+        documentTypeName: getDocumentTypeName(formData.documentTypeId),
+        destinationDepartmentName: getDepartmentName(formData.destinationDepartmentId),
+        reviewerNames: formData.reviewerIds.map(id => getUserInfo(id).name).filter(Boolean),
+        approverNames: formData.approverIds.map(id => getUserInfo(id).name).filter(Boolean),
+        acknowledgedNames: formData.acknowledgedIds.map(id => getUserInfo(id).name).filter(Boolean),
+      };
+
+      // Generate PDF blob
+      const blob = await generateDocumentPdf(formData, additionalData);
+
+      // Set PDF data
+      setPdfBlob(blob);
+      setPdfFileName(generatePdfFileName(formData.documentCode));
+
+      // Create URL for preview
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+
+      // Move to preview step
+      setCurrentStep(4);
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
+  // Submit with status
+  const handleFinalSubmit = async (status: "DRAFT" | "IN_REVIEW") => {
+    try {
+      if (!pdfBlob) {
+        alert("Please generate PDF first");
+        return;
+      }
+
+      // Submit form data with status
+      onSubmit(formData, status);
+
+      // Close modal
+      handleClose();
+    } catch (error) {
+      console.error("Failed to submit document:", error);
+      alert("Failed to submit document. Please try again.");
+    }
+  };
+
+  const handleClosePreview = () => {
+    // Clean up PDF URL and go back to step 4
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl("");
+      setPdfBlob(null);
+    }
+    setCurrentStep(3);
   };
 
   const handleClose = () => {
     setCurrentStep(0);
     setFormData(initialFormData);
     setError(null);
+    if (pdfUrl) {
+      URL.revokeObjectURL(pdfUrl);
+      setPdfUrl("");
+      setPdfBlob(null);
+    }
     onClose();
   };
 
@@ -339,16 +451,33 @@ export function EditDocumentModal({
         <Label className="text-[#323238] text-sm font-bold">
           Estimated Last Date of Distribution
         </Label>
-        <div className="relative">
-          <Input
-            type="date"
-            value={formData.estimatedDistributionDate}
-            onChange={(e) => updateFormData("estimatedDistributionDate", e.target.value)}
-            placeholder="Estimated Last Date of Distribution"
-            className="h-12 border-[#E1E1E6] rounded-sm pr-10"
-          />
-          <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[#E53888] pointer-events-none" />
-        </div>
+        <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full h-12 justify-between text-left font-normal border-[#E1E1E6] rounded-sm hover:bg-white"
+            >
+              <span className={formData.estimatedDistributionDate ? "text-[#384654]" : "text-[#a0aec0]"}>
+                {formData.estimatedDistributionDate
+                  ? format(new Date(formData.estimatedDistributionDate), "dd / MM / yyyy")
+                  : "dd / mm / yyyy"}
+              </span>
+              <CalendarIcon className="h-5 w-5 text-[#D946EF]" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className={calendarPopoverCompactClassName} align="start">
+            <Calendar
+              mode="single"
+              selected={formData.estimatedDistributionDate ? new Date(formData.estimatedDistributionDate) : undefined}
+              onSelect={(date) => {
+                updateFormData("estimatedDistributionDate", date ? format(date, "yyyy-MM-dd") : "");
+                setDatePickerOpen(false);
+              }}
+              initialFocus
+              classNames={compactCalendarClassNames}
+            />
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );
@@ -483,6 +612,83 @@ export function EditDocumentModal({
     </div>
   );
 
+  // Step 5: Document Preview with Info Panel and Signature Preview
+  const renderStep5 = () => {
+    // Get current date for lastUpdate
+    const now = new Date();
+    const lastUpdate = now.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    // Get destination department names
+    const destinationDept = getDepartmentName(formData.destinationDepartmentId);
+    const departmentOfDestination = destinationDept ? [destinationDept] : [];
+
+    // Get reviewer, approver, acknowledged info (supports multiple)
+    const reviewers = formData.reviewerIds.map((id) => getUserInfo(id)).filter((u) => u.name);
+    const approvers = formData.approverIds.map((id) => getUserInfo(id)).filter((u) => u.name);
+    const acknowledgers = formData.acknowledgedIds.map((id) => getUserInfo(id)).filter((u) => u.name);
+
+    // Get current user info for preparedBy
+    const preparedBy = {
+      name: currentUser?.name || "",
+      position: currentUser?.position?.name || "",
+      signature: formData.signature || null,
+    };
+
+    return (
+      <div className="flex flex-col lg:flex-row gap-4 h-full min-h-[500px]">
+        {/* Left Panel - Document Info */}
+        <div className="w-full lg:w-[380px] shrink-0 overflow-y-auto">
+          <DocumentSubmissionInfoPanel
+            documentCode={formData.documentCode}
+            documentTitle={formData.documentTitle}
+            createdBy={currentUser?.name || ""}
+            createdByPosition={currentUser?.position?.name || ""}
+            departmentOfDestination={departmentOfDestination}
+            reviewers={reviewers}
+            approvers={approvers}
+            acknowledgers={acknowledgers}
+            lastUpdate={lastUpdate}
+            onSubmit={() => handleFinalSubmit("IN_REVIEW")}
+            onDraft={() => handleFinalSubmit("DRAFT")}
+            onClose={handleClosePreview}
+            isSubmitting={isLoading}
+          />
+        </div>
+
+        {/* Right Panel - PDF Preview + Signature Panel */}
+        <div className="flex-1 flex flex-col gap-4 min-w-0 overflow-hidden">
+          {/* PDF Viewer */}
+          <div className="flex-1 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[300px]">
+            {pdfUrl ? (
+              <PDFViewer file={pdfUrl} showDownload={false} />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4DB1D4] mx-auto mb-4"></div>
+                  <p className="text-[#8D8D99]">Loading PDF Preview...</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Signature Preview Panel */}
+          <DocumentSubmissionSignaturePreview
+            preparedBy={preparedBy}
+            reviewers={reviewers}
+            approvers={approvers}
+            acknowledgers={acknowledgers}
+          />
+        </div>
+      </div>
+    );
+  };
+
   const renderStepContent = () => {
     if (isLoadingDocument) {
       return (
@@ -515,6 +721,8 @@ export function EditDocumentModal({
         return renderStep3();
       case 3:
         return renderStep4();
+      case 4:
+        return renderStep5();
       default:
         return null;
     }
@@ -525,7 +733,7 @@ export function EditDocumentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`w-[95vw] max-h-[90vh] overflow-y-auto ${currentStep === 4 ? 'sm:max-w-[90vw] lg:max-w-[1200px]' : 'sm:max-w-[900px]'}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#384654]">
             <Pencil className="h-5 w-5 text-[#4DB1D4]" />
@@ -538,58 +746,81 @@ export function EditDocumentModal({
           <StepWizardCompact
             steps={formSteps}
             currentStep={currentStep}
-            onStepClick={(step) => setCurrentStep(step)}
+            onStepClick={(step) => {
+              // If going back from step 5, clean up PDF
+              if (currentStep === 4 && step < currentStep) {
+                handleClosePreview();
+                if (step < 3) {
+                  setCurrentStep(step);
+                }
+              } else {
+                setCurrentStep(step);
+              }
+            }}
           />
         </div>
 
         {/* Form Content */}
-        <div className="py-4 max-h-[50vh] overflow-y-auto">
+        <div className={`py-4 ${currentStep === 4 ? 'flex flex-col' : 'max-h-[50vh] overflow-y-auto'}`}>
           {renderStepContent()}
         </div>
 
-        {/* Navigation Buttons */}
-        <div className="flex items-center justify-between pt-6 border-t border-[#E1E2E3]">
-          <div>
-            {!isFirstStep && (
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                className="border-[#E1E2E3] text-[#384654]"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Previous
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {isLastStep ? (
-              <Button
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
-              >
-                {isLoading ? "Saving..." : "Save Changes"}
-              </Button>
-            ) : (
-              <>
+        {/* Navigation Buttons - Hidden on Step 5 since actions are in the info panel */}
+        {currentStep !== 4 && (
+          <div className="flex items-center justify-between pt-6 border-t border-[#E1E2E3]">
+            <div>
+              {!isFirstStep && (
                 <Button
                   variant="outline"
-                  onClick={handleClose}
-                  className="border-[#F24822] text-[#F24822] hover:bg-[#FFD6CD]"
+                  onClick={handlePrevious}
+                  className="border-[#E1E2E3] text-[#384654]"
                 >
-                  Close
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Previous
                 </Button>
-                <Button
-                  onClick={handleNext}
-                  className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
-                >
-                  Next
-                </Button>
-              </>
-            )}
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {currentStep === 3 ? (
+                // Step 4: Show Generate button
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="border-[#F24822] text-[#F24822] hover:bg-[#FFD6CD]"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleGeneratePdf}
+                    disabled={isGeneratingPdf || !formData.signature}
+                    className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+                  >
+                    {isGeneratingPdf ? "Generating..." : "Generate"}
+                  </Button>
+                </>
+              ) : (
+                // Other steps: Show Next button
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="border-[#F24822] text-[#F24822] hover:bg-[#FFD6CD]"
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    onClick={handleNext}
+                    className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+                  >
+                    Next
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );

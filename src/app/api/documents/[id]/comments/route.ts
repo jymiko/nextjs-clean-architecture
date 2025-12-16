@@ -4,7 +4,7 @@ import { handleError } from "@/infrastructure/errors";
 import { documentCommentSchema, documentQuerySchema } from "@/infrastructure/validation/document";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
-import { withAuthHandler } from "@/infrastructure/middleware/auth";
+import { withAuthHandler, type AuthenticatedRequest } from "@/infrastructure/middleware/auth";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -69,7 +69,13 @@ export const POST = withAuthHandler(async (
     const validatedData = documentCommentSchema.parse(body);
 
     // Get user from request (should be added by auth middleware)
-    const userId = (request as any).user?.id;
+    const userId = (request as AuthenticatedRequest).user?.userId;
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
 
     const documentRepository = container.cradle.documentRepository;
     const comment = await documentRepository.addComment(id, {

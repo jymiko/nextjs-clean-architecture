@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Department } from '@/domain/entities/Department';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -31,8 +32,8 @@ import { Plus, Edit, Trash2, Search, Building } from 'lucide-react';
 import { tokenManager } from '@/lib/auth/token-manager';
 
 export default function DepartmentsPage() {
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [filteredDepartments, setFilteredDepartments] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [filteredDepartments, setFilteredDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);

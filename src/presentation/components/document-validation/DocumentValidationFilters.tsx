@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Calendar, ChevronDown } from "lucide-react";
+import { Search, Calendar } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,6 +19,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { responsiveCalendarClassNames, calendarPopoverClassName } from "@/lib/calendar-config";
 
 interface Department {
   id: string;
@@ -101,7 +102,6 @@ export function DocumentValidationFilters({
           >
             <SelectTrigger className="w-full h-11 bg-white border-[#e1e2e3] text-sm text-[#384654] rounded">
               <SelectValue placeholder="All Type Documents" />
-              <ChevronDown className="h-5 w-5 opacity-50" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Type Documents</SelectItem>
@@ -120,7 +120,6 @@ export function DocumentValidationFilters({
           >
             <SelectTrigger className="w-full h-11 bg-white border-[#e1e2e3] text-sm text-[#384654] rounded">
               <SelectValue placeholder="All Status Documents" />
-              <ChevronDown className="h-5 w-5 opacity-50" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status Documents</SelectItem>
@@ -137,19 +136,20 @@ export function DocumentValidationFilters({
                 variant="outline"
                 className={cn(
                   "w-full h-11 justify-between bg-white border-[#e1e2e3] text-sm font-normal rounded",
-                  filters.dateFrom ? "text-[#384654]" : "text-[#384654]"
+                  filters.dateFrom ? "text-[#384654]" : "text-[#a0aec0]"
                 )}
               >
                 {filters.dateFrom ? format(filters.dateFrom, "dd MMM yyyy") : "Date From"}
-                <Calendar className="h-4 w-4 text-[#DA318C]" />
+                <Calendar className="h-4 w-4 text-[#D946EF]" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="center" sideOffset={4}>
+            <PopoverContent className={calendarPopoverClassName} align="start">
               <CalendarComponent
                 mode="single"
                 selected={filters.dateFrom}
                 onSelect={(date) => updateFilter("dateFrom", date)}
                 initialFocus
+                classNames={responsiveCalendarClassNames}
               />
             </PopoverContent>
           </Popover>
@@ -161,19 +161,20 @@ export function DocumentValidationFilters({
                 variant="outline"
                 className={cn(
                   "w-full h-11 justify-between bg-white border-[#e1e2e3] text-sm font-normal rounded",
-                  filters.dateTo ? "text-[#384654]" : "text-[#384654]"
+                  filters.dateTo ? "text-[#384654]" : "text-[#a0aec0]"
                 )}
               >
                 {filters.dateTo ? format(filters.dateTo, "dd MMM yyyy") : "Date To"}
-                <Calendar className="h-4 w-4 text-[#DA318C]" />
+                <Calendar className="h-4 w-4 text-[#D946EF]" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="center" sideOffset={4}>
+            <PopoverContent className={calendarPopoverClassName} align="start">
               <CalendarComponent
                 mode="single"
                 selected={filters.dateTo}
                 onSelect={(date) => updateFilter("dateTo", date)}
                 initialFocus
+                classNames={responsiveCalendarClassNames}
               />
             </PopoverContent>
           </Popover>

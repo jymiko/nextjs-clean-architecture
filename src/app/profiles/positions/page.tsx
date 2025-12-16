@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Department } from '@/domain/entities/Department';
+import { Position } from '@/domain/entities/Position';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -31,9 +33,9 @@ import { Plus, Edit, Trash2, Search, Briefcase } from 'lucide-react';
 import { tokenManager } from '@/lib/auth/token-manager';
 
 export default function PositionsPage() {
-  const [positions, setPositions] = useState<any[]>([]);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [filteredPositions, setFilteredPositions] = useState<any[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [filteredPositions, setFilteredPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -174,9 +176,7 @@ export default function PositionsPage() {
             <TableRow>
               <TableHead>Code</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Description</TableHead>
               <TableHead>Department</TableHead>
-              <TableHead>Level</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -185,7 +185,7 @@ export default function PositionsPage() {
           <TableBody>
             {filteredPositions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                   No positions found
                 </TableCell>
               </TableRow>
@@ -194,11 +194,9 @@ export default function PositionsPage() {
                 <TableRow key={position.id}>
                   <TableCell className="font-medium">{position.code}</TableCell>
                   <TableCell>{position.name}</TableCell>
-                  <TableCell>{position.description || '-'}</TableCell>
                   <TableCell>
-                    {departments.find((d: any) => d.id === position.departmentId)?.name || '-'}
+                    {departments.find((d) => d.id === position.departmentId)?.name || '-'}
                   </TableCell>
-                  <TableCell>{position.level || '-'}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                       position.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

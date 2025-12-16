@@ -1,52 +1,32 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { DocumentManagementHeader } from "@/presentation/components/document-management/DocumentManagementHeader";
 import { Pagination } from "@/components/ui/pagination";
 import {
-  DraftDocumentStats,
   DraftDocumentFilters,
   DraftDocumentTable,
   type DraftDocument,
   type DraftFilterState,
 } from "@/presentation/components/request-document";
+import {
+  ViewDocumentModal,
+  EditDocumentModal,
+  DeleteDocumentModal,
+  type DocumentFormData,
+} from "@/presentation/components/document-submission";
+import { apiClient } from "@/lib/api-client";
 
-// Mock data for Draft Documents
-const mockDraftDocuments: DraftDocument[] = [
-  {
-    id: "1",
-    documentCode: "Draft-DT-001-000",
-    documentTitle: "Digitalisasi Arsip Kepegawaian",
-    type: "SOP",
-    createdBy: "Firdiyatus Sholihah",
-    lastEdited: "10 Minutes ago",
-  },
-  {
-    id: "2",
-    documentCode: "Draft-DT-002-000",
-    documentTitle: "Dokumen Operasional",
-    type: "Standart",
-    createdBy: "Fadila Darojatu S.",
-    lastEdited: "2 Hours ago",
-  },
-  {
-    id: "3",
-    documentCode: "Draft-DT-003-000",
-    documentTitle: "Manual Mutu dan Keamanan Pangan",
-    type: "Spesifikasi",
-    createdBy: "Arifah",
-    lastEdited: "Yesterday",
-  },
-  {
-    id: "4",
-    documentCode: "Draft-DT-004-000",
-    documentTitle: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    createdBy: "Firdiyatus Sholihah",
-    lastEdited: "2 Days ago",
-  },
-];
+// Interface for API response
+interface ApiDocument {
+  id: string;
+  code: string;
+  title: string;
+  type: string;
+  createdBy: string;
+  lastEdited: string;
+}
 
 export default function DraftDocumentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -54,7 +34,23 @@ export default function DraftDocumentPage() {
   const [filters, setFilters] = useState<DraftFilterState>({
     documentType: "",
     search: "",
+    dateFrom: "",
+    dateTo: "",
   });
+
+  // Data state
+  const [documents, setDocuments] = useState<DraftDocument[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Modal states
+  const [viewDocumentModalOpen, setViewDocumentModalOpen] = useState(false);
+  const [editDocumentModalOpen, setEditDocumentModalOpen] = useState(false);
+  const [deleteDocumentModalOpen, setDeleteDocumentModalOpen] = useState(false);
+  const [isSubmittingDocument, setIsSubmittingDocument] = useState(false);
+  const [isDeletingDocument, setIsDeletingDocument] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<DraftDocument | null>(null);
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -63,60 +59,48 @@ export default function DraftDocumentPage() {
     setCurrentPage(1);
   };
 
-  // Filter documents based on current filters
-  const filteredDocuments = useMemo(() => {
-    return mockDraftDocuments.filter((doc) => {
-      // Document type filter
-      if (filters.documentType) {
-        const typeMap: Record<string, string> = {
-          sop: "SOP",
-          standart: "Standart",
-          spesifikasi: "Spesifikasi",
-          wi: "WI",
-          policy: "Policy",
-          guideline: "Guideline",
-        };
-        if (doc.type !== typeMap[filters.documentType]) {
-          return false;
-        }
-      }
+  // Fetch documents from API
+  const fetchDocuments = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        status: "DRAFT", // Only fetch draft documents
+      });
 
-      // Search filter (searches in document code and title)
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        if (
-          !doc.documentCode.toLowerCase().includes(searchLower) &&
-          !doc.documentTitle.toLowerCase().includes(searchLower)
-        ) {
-          return false;
-        }
-      }
+      if (filters.search) params.set("search", filters.search);
+      if (filters.documentType) params.set("documentType", filters.documentType);
+      if (filters.dateFrom) params.set("dateFrom", filters.dateFrom);
+      if (filters.dateTo) params.set("dateTo", filters.dateTo);
 
-      return true;
-    });
-  }, [filters]);
+      const response = await apiClient.get(`/api/documents/submission?${params.toString()}`);
 
-  // Calculate stats
-  const stats = useMemo(() => {
-    const total = filteredDocuments.length;
-    // For demo, count drafts edited in the last week as "recent"
-    const recent = filteredDocuments.filter((doc) => {
-      const lastEdited = doc.lastEdited.toLowerCase();
-      return (
-        lastEdited.includes("minute") ||
-        lastEdited.includes("hour") ||
-        lastEdited.includes("yesterday")
-      );
-    }).length;
-    return { total, recent };
-  }, [filteredDocuments]);
+      // Map API response to DraftDocument interface
+      const mappedDocuments: DraftDocument[] = (response.data || []).map((doc: ApiDocument) => ({
+        id: doc.id,
+        documentCode: doc.code,
+        documentTitle: doc.title,
+        type: doc.type,
+        createdBy: doc.createdBy,
+        lastEdited: doc.lastEdited,
+      }));
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
-  const paginatedDocuments = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDocuments, currentPage, itemsPerPage]);
+      setDocuments(mappedDocuments);
+      setTotalPages(response.pagination?.totalPages || 1);
+      setTotalItems(response.pagination?.total || 0);
+    } catch (error) {
+      console.error("Failed to fetch draft documents:", error);
+      setDocuments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, filters, itemsPerPage]);
+
+  // Fetch documents on mount and when filters/page change
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleFilterChange = (newFilters: DraftFilterState) => {
     setFilters(newFilters);
@@ -124,23 +108,69 @@ export default function DraftDocumentPage() {
   };
 
   const handleViewDocument = (document: DraftDocument) => {
-    console.log("View document:", document);
-    // TODO: Implement view document modal or navigation
+    setSelectedDocument(document);
+    setViewDocumentModalOpen(true);
   };
 
   const handleEditDocument = (document: DraftDocument) => {
-    console.log("Edit document:", document);
-    // TODO: Implement edit document modal or navigation
+    setSelectedDocument(document);
+    setEditDocumentModalOpen(true);
   };
 
   const handleDeleteDocument = (document: DraftDocument) => {
-    console.log("Delete document:", document);
-    // TODO: Implement delete confirmation modal
+    setSelectedDocument(document);
+    setDeleteDocumentModalOpen(true);
   };
 
-  const handleAddDocument = () => {
-    console.log("Add new draft document");
-    // TODO: Implement add document modal or navigation
+  const handleEditDocumentSubmit = async (data: DocumentFormData, status: "DRAFT" | "IN_REVIEW") => {
+    if (!selectedDocument?.id) return;
+
+    setIsSubmittingDocument(true);
+    try {
+      await apiClient.put(`/api/documents/${selectedDocument.id}`, {
+        documentTypeId: data.documentTypeId,
+        documentTitle: data.documentTitle,
+        destinationDepartmentId: data.destinationDepartmentId,
+        estimatedDistributionDate: data.estimatedDistributionDate,
+        purpose: data.purpose,
+        scope: data.scope,
+        reviewerIds: data.reviewerIds,
+        approverIds: data.approverIds,
+        acknowledgedIds: data.acknowledgedIds,
+        responsibleDocument: data.responsibleDocument,
+        termsAndAbbreviations: data.termsAndAbbreviations,
+        warning: data.warning,
+        relatedDocuments: data.relatedDocuments,
+        procedureContent: data.procedureContent,
+        signature: data.signature,
+        status: status,
+      });
+      setEditDocumentModalOpen(false);
+      setSelectedDocument(null);
+      fetchDocuments(); // Refresh the list
+    } catch (error) {
+      console.error("Failed to update document:", error);
+      alert("Failed to update document");
+    } finally {
+      setIsSubmittingDocument(false);
+    }
+  };
+
+  const handleDeleteDocumentConfirm = async () => {
+    if (!selectedDocument?.id) return;
+
+    setIsDeletingDocument(true);
+    try {
+      await apiClient.delete(`/api/documents/${selectedDocument.id}`);
+      setDeleteDocumentModalOpen(false);
+      setSelectedDocument(null);
+      fetchDocuments(); // Refresh the list
+    } catch (error) {
+      console.error("Failed to delete document:", error);
+      alert(error instanceof Error ? error.message : "Failed to delete document");
+    } finally {
+      setIsDeletingDocument(false);
+    }
   };
 
   return (
@@ -153,7 +183,7 @@ export default function DraftDocumentPage() {
       />
 
       {/* Main Content */}
-      <div className="lg:ml-[280px] flex flex-col gap-1.5 min-h-screen">
+      <div className="lg:ml-[280px] flex flex-col min-h-screen">
         {/* Header */}
         <DocumentManagementHeader
           onMenuClick={() => setSidebarOpen(true)}
@@ -162,32 +192,26 @@ export default function DraftDocumentPage() {
         />
 
         {/* Content Area */}
-        <div className="flex flex-col gap-1.5 p-4 lg:p-0 lg:px-0">
+        <div className="flex flex-col">
           {/* Filters Section */}
           <DraftDocumentFilters
             filters={filters}
             onFilterChange={handleFilterChange}
-            onAddDocument={handleAddDocument}
-          />
-
-          {/* Stats Section */}
-          <DraftDocumentStats
-            totalDrafts={stats.total}
-            recentDrafts={stats.recent}
           />
 
           {/* Documents Table */}
           <div className="bg-white px-4 py-2">
             <DraftDocumentTable
-              documents={paginatedDocuments}
+              documents={documents}
               onViewDocument={handleViewDocument}
               onEditDocument={handleEditDocument}
               onDeleteDocument={handleDeleteDocument}
+              isLoading={isLoading}
             />
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={filteredDocuments.length}
+              totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
               onItemsPerPageChange={handleItemsPerPageChange}
@@ -197,6 +221,37 @@ export default function DraftDocumentPage() {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <ViewDocumentModal
+        isOpen={viewDocumentModalOpen}
+        onClose={() => {
+          setViewDocumentModalOpen(false);
+          setSelectedDocument(null);
+        }}
+        documentId={selectedDocument?.id || null}
+      />
+
+      <EditDocumentModal
+        isOpen={editDocumentModalOpen}
+        onClose={() => {
+          setEditDocumentModalOpen(false);
+          setSelectedDocument(null);
+        }}
+        onSubmit={handleEditDocumentSubmit}
+        documentId={selectedDocument?.id || null}
+        isLoading={isSubmittingDocument}
+      />
+
+      <DeleteDocumentModal
+        isOpen={deleteDocumentModalOpen}
+        onClose={() => {
+          setDeleteDocumentModalOpen(false);
+          setSelectedDocument(null);
+        }}
+        onConfirm={handleDeleteDocumentConfirm}
+        isLoading={isDeletingDocument}
+      />
     </div>
   );
 }

@@ -85,7 +85,6 @@ tests/
 # Lint-staged
 .lintstagedrc*
 
-# Config files
+# Config files (excluded from production but needed for build)
 jest.config.*
-tailwind.config.*
-tsconfig.json
+# Keep these for build: tailwind.config.*, tsconfig.json, postcss.config.*, next.config.*

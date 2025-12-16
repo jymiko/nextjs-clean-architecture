@@ -99,25 +99,32 @@ export function StepWizardCompact({
 }: StepWizardProps) {
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex items-center">
+      <div className="flex items-center w-full">
         {steps.map((step, index) => {
           const isCompleted = index < currentStep;
           const isCurrent = index === currentStep;
           const isClickable = onStepClick && index <= currentStep;
+          const isLastStep = index === steps.length - 1;
 
           return (
-            <div key={step.id} className="flex items-center">
+            <div
+              key={step.id}
+              className={cn(
+                "flex items-center",
+                !isLastStep && "flex-1"
+              )}
+            >
               {/* Step Indicator */}
               <div
                 className={cn(
-                  "flex items-center gap-2 cursor-default",
+                  "flex items-center gap-2 cursor-default shrink-0",
                   isClickable && "cursor-pointer"
                 )}
                 onClick={() => isClickable && onStepClick?.(index)}
               >
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-colors",
+                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-colors shrink-0",
                     isCompleted && "bg-[#4DB1D4] text-white",
                     isCurrent && "bg-[#4DB1D4] text-white",
                     !isCompleted && !isCurrent && "bg-[#E1E2E3] text-[#738193]"
@@ -131,7 +138,7 @@ export function StepWizardCompact({
                 </div>
                 <span
                   className={cn(
-                    "text-xs font-medium hidden sm:inline",
+                    "text-xs font-medium hidden sm:inline whitespace-nowrap",
                     isCompleted && "text-[#4DB1D4]",
                     isCurrent && "text-[#4DB1D4]",
                     !isCompleted && !isCurrent && "text-[#738193]"
@@ -141,11 +148,11 @@ export function StepWizardCompact({
                 </span>
               </div>
 
-              {/* Connector */}
-              {index < steps.length - 1 && (
+              {/* Connector - fills remaining space */}
+              {!isLastStep && (
                 <div
                   className={cn(
-                    "w-8 sm:w-12 h-[2px] mx-2",
+                    "flex-1 h-[2px] mx-2 min-w-[20px]",
                     index < currentStep ? "bg-[#4DB1D4]" : "bg-[#E1E2E3]"
                   )}
                 />

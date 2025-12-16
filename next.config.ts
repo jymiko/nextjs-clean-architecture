@@ -172,6 +172,12 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
 
+  // Include Prisma client in standalone output
+  outputFileTracingIncludes: {
+    '/api/**/*': ['./node_modules/.prisma/**/*', './node_modules/@prisma/client/**/*'],
+    '/': ['./node_modules/.prisma/**/*', './node_modules/@prisma/client/**/*'],
+  },
+
   // Security headers
   async headers() {
     return [

@@ -241,9 +241,9 @@ export function ViewDocumentModal({
     try {
       const response = await apiClient.get(`/api/documents/${documentId}`);
       setDocument(response);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to fetch document:", err);
-      setError(err.message || "Failed to load document");
+      setError(err instanceof Error ? err.message : "Failed to load document");
     } finally {
       setIsLoading(false);
     }
@@ -289,9 +289,9 @@ export function ViewDocumentModal({
 
       // Refresh document data
       await fetchDocument();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to sign document:", err);
-      toast.error(err.message || "Failed to sign document");
+      toast.error(err instanceof Error ? err.message : "Failed to sign document");
     } finally {
       setIsSigning(false);
     }

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler, getRequestUser, type AuthenticatedRequest } from "@/infrastructure/middleware/auth";
+import { Prisma, DocumentStatus } from "@prisma/client";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -32,11 +33,14 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "";
     const documentType = searchParams.get("documentType") || "";
+    const excludeDraft = searchParams.get("excludeDraft") === "true";
+    const dateFrom = searchParams.get("dateFrom") || "";
+    const dateTo = searchParams.get("dateTo") || "";
 
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {
+    const where: Prisma.DocumentWhereInput = {
       createdById: authUser.userId,
     };
 
@@ -47,14 +51,31 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
       ];
     }
 
-    if (status) {
-      where.status = status.toUpperCase();
+    // Handle status filtering - excludeDraft takes precedence
+    if (excludeDraft) {
+      where.status = { not: "DRAFT" };
+    } else if (status) {
+      where.status = status.toUpperCase() as DocumentStatus;
     }
 
     if (documentType) {
       where.category = {
         code: documentType.toUpperCase(),
       };
+    }
+
+    // Date range filtering
+    if (dateFrom || dateTo) {
+      where.createdAt = {};
+      if (dateFrom) {
+        where.createdAt.gte = new Date(dateFrom);
+      }
+      if (dateTo) {
+        // Set to end of day for dateTo
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDate;
+      }
     }
 
     const [documents, total] = await Promise.all([
@@ -101,6 +122,7 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
         }),
         status: mapDocumentStatus(doc.status, doc.approvalStatus),
         approver: approverName,
+        lastEdited: formatRelativeTime(doc.updatedAt),
       };
     });
 
@@ -117,6 +139,33 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
     return handleError(error, request);
   }
 }, { allowedRoles: ["ADMIN", "USER"] });
+
+// Helper function to format relative time
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInMinutes < 1) {
+    return "Just now";
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes} ${diffInMinutes === 1 ? "Minute" : "Minutes"} ago`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} ${diffInHours === 1 ? "Hour" : "Hours"} ago`;
+  } else if (diffInDays === 1) {
+    return "Yesterday";
+  } else if (diffInDays < 7) {
+    return `${diffInDays} Days ago`;
+  } else {
+    return date.toLocaleDateString("en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }
+}
 
 // Helper function to map document status
 function mapDocumentStatus(status: string, approvalStatus: string): string {
@@ -155,6 +204,9 @@ const documentSubmissionSchema = z.object({
 
   // Step 4: Signature Document
   signature: z.string().optional(),
+
+  // Submission status (from step 5 preview)
+  status: z.enum(["DRAFT", "IN_REVIEW"]).optional().default("IN_REVIEW"),
 });
 
 export type DocumentSubmissionInput = z.infer<typeof documentSubmissionSchema>;
@@ -217,6 +269,10 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
     // Use new signature from step 4 if provided, otherwise use existing user signature
     const preparedBySignature = validatedData.signature || user.signature || null;
 
+    // Determine document status and approval status based on submission type
+    const documentStatus = validatedData.status || "IN_REVIEW";
+    const approvalStatus = documentStatus === "DRAFT" ? "PENDING" : "PENDING";
+
     // Create document with all submission data
     const document = await prisma.document.create({
       data: {
@@ -226,8 +282,8 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
         categoryId: validatedData.documentTypeId,
         version: "1.0",
         revisionNumber: 0,
-        status: "IN_REVIEW",
-        approvalStatus: "PENDING",
+        status: documentStatus,
+        approvalStatus: approvalStatus,
         fileUrl: "", // Will be generated later
         fileName: `${documentNumber}.pdf`,
         fileSize: 0,
@@ -284,24 +340,33 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
     }
 
     // Log activity
+    const actionDescription = documentStatus === "DRAFT"
+      ? `Saved document as draft: ${document.title}`
+      : `Submitted document for review: ${document.title}`;
+
     await prisma.activityLog.create({
       data: {
         userId: userId,
         action: "DOCUMENT_CREATED",
         entity: "Document",
         entityId: document.id,
-        description: `Created document submission: ${document.title}`,
+        description: actionDescription,
         metadata: {
           documentNumber: document.documentNumber,
           categoryId: document.categoryId,
           destinationDepartmentId: validatedData.destinationDepartmentId,
+          status: documentStatus,
         },
       },
     });
 
+    const successMessage = documentStatus === "DRAFT"
+      ? "Document saved as draft successfully"
+      : "Document submitted for review successfully";
+
     return NextResponse.json(
       {
-        message: "Document submitted successfully",
+        message: successMessage,
         document: {
           id: document.id,
           documentNumber: document.documentNumber,

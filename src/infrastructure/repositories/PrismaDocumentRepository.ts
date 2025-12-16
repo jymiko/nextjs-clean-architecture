@@ -9,15 +9,18 @@ import {
   DocumentAttachmentDTO,
   DocumentDistributionDTO,
   DocumentSearchResult,
+  DocumentComment,
+  DocumentAttachment,
+  DocumentDistribution,
   ApprovalStatus,
   DocumentStatus,
-  DistributionMethod,
   DistributionStatus,
 } from '@/domain/entities/Document';
 import { DocumentCategory } from '@/domain/entities/DocumentCategory';
-import { IDocumentRepository } from '@/domain/repositories/IDocumentRepository';
+import { IDocumentRepository, DocumentSearchFilters } from '@/domain/repositories/IDocumentRepository';
 import { prisma } from '../database';
 import { NotFoundError, ConflictError } from '../errors';
+import { Prisma } from '@prisma/client';
 
 export class PrismaDocumentRepository implements IDocumentRepository {
   async findAll(params: DocumentQueryParams): Promise<DocumentListResponse> {
@@ -38,7 +41,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
 
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.DocumentWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -405,7 +408,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
   async getComments(
     documentId: string,
     params: { page?: number; limit?: number; sortBy?: string; sortOrder?: string }
-  ): Promise<{ data: any[]; total: number }> {
+  ): Promise<{ data: DocumentComment[]; total: number }> {
     const { page = 1, limit = 50, sortBy = 'createdAt', sortOrder = 'asc' } = params;
     const skip = (page - 1) * limit;
 
@@ -429,7 +432,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return { data: comments, total };
   }
 
-  async addComment(documentId: string, commentData: DocumentCommentDTO & { authorId: string }): Promise<any> {
+  async addComment(documentId: string, commentData: DocumentCommentDTO & { authorId: string }): Promise<DocumentComment> {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
     });
@@ -456,7 +459,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
   async getAttachments(
     documentId: string,
     params: { page?: number; limit?: number; sortBy?: string; sortOrder?: string }
-  ): Promise<{ data: any[]; total: number }> {
+  ): Promise<{ data: DocumentAttachment[]; total: number }> {
     const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = params;
     const skip = (page - 1) * limit;
 
@@ -480,7 +483,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     return { data: attachments, total };
   }
 
-  async addAttachment(documentId: string, attachmentData: DocumentAttachmentDTO & { uploadedBy: string }): Promise<any> {
+  async addAttachment(documentId: string, attachmentData: DocumentAttachmentDTO & { uploadedBy: string }): Promise<DocumentAttachment> {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
     });
@@ -510,7 +513,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
   async getDistributionHistory(
     documentId: string,
     params: { page?: number; limit?: number; sortBy?: string; sortOrder?: string }
-  ): Promise<{ data: any[]; total: number }> {
+  ): Promise<{ data: DocumentDistribution[]; total: number }> {
     const { page = 1, limit = 20, sortBy = 'distributedAt', sortOrder = 'desc' } = params;
     const skip = (page - 1) * limit;
 
@@ -531,10 +534,10 @@ export class PrismaDocumentRepository implements IDocumentRepository {
       }),
     ]);
 
-    return { data: distributions, total };
+    return { data: distributions as unknown as DocumentDistribution[], total };
   }
 
-  async distributeDocument(documentId: string, distributionData: DocumentDistributionDTO & { distributedBy: string }): Promise<any> {
+  async distributeDocument(documentId: string, distributionData: DocumentDistributionDTO & { distributedBy: string }): Promise<DocumentDistribution> {
     const document = await prisma.document.findUnique({
       where: { id: documentId },
     });
@@ -543,7 +546,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
       throw new NotFoundError('Document not found');
     }
 
-    return prisma.documentDistribution.create({
+    const result = await prisma.documentDistribution.create({
       data: {
         documentId,
         distributedToId: distributionData.distributedToId,
@@ -559,13 +562,14 @@ export class PrismaDocumentRepository implements IDocumentRepository {
         },
       },
     });
+    return result as unknown as DocumentDistribution;
   }
 
-  async search(params: { query: string; filters?: any; page?: number; limit?: number }): Promise<{ data: DocumentSearchResult[]; total: number }> {
+  async search(params: { query: string; filters?: DocumentSearchFilters; page?: number; limit?: number }): Promise<{ data: DocumentSearchResult[]; total: number }> {
     const { query, filters, page = 1, limit = 10 } = params;
     const skip = (page - 1) * limit;
 
-    const where: any = {
+    const where: Prisma.DocumentWhereInput = {
       OR: [
         { title: { contains: query, mode: 'insensitive' } },
         { documentNumber: { contains: query, mode: 'insensitive' } },
@@ -581,13 +585,13 @@ export class PrismaDocumentRepository implements IDocumentRepository {
       where.status = filters.status;
     }
 
-    if (filters?.dateRange) {
+    if (filters?.dateRange?.from || filters?.dateRange?.to) {
       where.createdAt = {};
       if (filters.dateRange.from) {
-        where.createdAt.gte = new Date(filters.dateRange.from);
+        where.createdAt = { ...where.createdAt as object, gte: filters.dateRange.from };
       }
       if (filters.dateRange.to) {
-        where.createdAt.lte = new Date(filters.dateRange.to);
+        where.createdAt = { ...where.createdAt as object, lte: filters.dateRange.to };
       }
     }
 
@@ -624,7 +628,7 @@ export class PrismaDocumentRepository implements IDocumentRepository {
   }
 
   async getCategories(params: { isActive?: boolean }): Promise<DocumentCategory[]> {
-    const where: any = {};
+    const where: Prisma.DocumentCategoryWhereInput = {};
     if (params.isActive !== undefined) {
       where.isActive = params.isActive;
     }

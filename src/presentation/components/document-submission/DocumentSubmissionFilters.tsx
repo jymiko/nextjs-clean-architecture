@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, ChevronDown } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -37,6 +37,7 @@ const defaultDocumentTypes: DocumentType[] = [
   { id: "guideline", name: "Guideline" },
 ];
 
+// Draft status removed - drafts have their own page at /document-control/draft
 const submissionStatuses = [
   { id: "on_review", name: "On Review" },
   { id: "on_approval", name: "On Approval" },
@@ -44,7 +45,6 @@ const submissionStatuses = [
   { id: "pending_ack", name: "Pending Ack" },
   { id: "approved", name: "Approved" },
   { id: "rejected", name: "Rejected" },
-  { id: "draft", name: "Draft" },
 ];
 
 export function DocumentSubmissionFilters({
@@ -80,7 +80,6 @@ export function DocumentSubmissionFilters({
           >
             <SelectTrigger className="w-full h-11 bg-white border-[#e1e2e3] text-sm text-[#384654] rounded">
               <SelectValue placeholder="All Type" />
-              <ChevronDown className="h-5 w-5 opacity-50" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Type</SelectItem>
@@ -99,7 +98,6 @@ export function DocumentSubmissionFilters({
           >
             <SelectTrigger className="w-full h-11 bg-white border-[#e1e2e3] text-sm text-[#384654] rounded">
               <SelectValue placeholder="All Status" />
-              <ChevronDown className="h-5 w-5 opacity-50" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>

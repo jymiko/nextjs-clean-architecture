@@ -5,6 +5,7 @@ import { updateUserAdminSchema } from '@/infrastructure/validation';
 import { ZodError, ZodIssue } from 'zod';
 import { createRateLimitMiddleware } from '@/infrastructure/middleware';
 import { withAuthHandler } from '@/infrastructure/middleware/auth';
+import { UpdateUserDTO } from '@/domain/entities/User';
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -48,7 +49,7 @@ export const PUT = withAuthHandler(async (request: NextRequest, { params }: Rout
     const validatedData = updateUserAdminSchema.parse(body);
 
     const userRepository = container.cradle.userRepository;
-    const user = await userRepository.update(id, validatedData as any);
+    const user = await userRepository.update(id, validatedData as UpdateUserDTO);
 
     if (!user) {
       return NextResponse.json(

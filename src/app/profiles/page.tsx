@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { container } from '@/infrastructure/di/container';
 import { User } from '@/domain/entities/User';
+import { Department } from '@/domain/entities/Department';
+import { Position } from '@/domain/entities/Position';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,8 +40,8 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [departments, setDepartments] = useState<any[]>([]);
-  const [positions, setPositions] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -218,10 +219,10 @@ export default function UsersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {departments.find((d: any) => d.id === user.departmentId)?.name || '-'}
+                    {departments.find((d) => d.id === user.departmentId)?.name || '-'}
                   </TableCell>
                   <TableCell>
-                    {positions.find((p: any) => p.id === user.positionId)?.name || '-'}
+                    {positions.find((p) => p.id === user.positionId)?.name || '-'}
                   </TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${

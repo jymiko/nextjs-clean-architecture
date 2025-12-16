@@ -3,6 +3,7 @@ import { prisma } from "@/infrastructure/database";
 import { handleError } from "@/infrastructure/errors";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.DocumentWhereInput = {};
 
     // Search filter
     if (search) {
@@ -125,13 +126,13 @@ export async function GET(request: NextRequest) {
     if (dateFrom || dateTo) {
       where.createdAt = {};
       if (dateFrom) {
-        where.createdAt.gte = new Date(dateFrom);
+        where.createdAt = { ...where.createdAt as object, gte: new Date(dateFrom) };
       }
       if (dateTo) {
         // Add one day to include the end date
         const endDate = new Date(dateTo);
         endDate.setDate(endDate.getDate() + 1);
-        where.createdAt.lt = endDate;
+        where.createdAt = { ...where.createdAt as object, lt: endDate };
       }
     }
 
@@ -162,10 +163,10 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Build stats where clause (same filters but without pagination)
-    const statsWhere: any = { ...where };
+    const statsWhere: Prisma.DocumentWhereInput = { ...where };
     delete statsWhere.isObsolete;
     delete statsWhere.status;
-    if (where.OR && where.OR.some((clause: any) => clause.isObsolete !== undefined)) {
+    if (where.OR && Array.isArray(where.OR) && where.OR.some((clause) => typeof clause === 'object' && clause !== null && 'isObsolete' in clause)) {
       // Remove the obsolete-specific OR clause for stats
       delete statsWhere.OR;
       if (search) {

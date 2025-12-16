@@ -38,12 +38,16 @@ export function DraftDocumentTable({
   if (isLoading) {
     return (
       <div className="bg-white rounded-md overflow-hidden">
-        <div className="bg-[#e9f5fe] px-6 py-5">
-          <div className="h-5 bg-gray-200 rounded animate-pulse w-full" />
+        <div className="bg-[#e9f5fe] px-6 py-4">
+          <div className="grid grid-cols-6 gap-4">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-4 bg-gray-200 rounded animate-pulse" />
+            ))}
+          </div>
         </div>
-        <div className="p-6">
+        <div className="px-6 py-2">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded mb-2 animate-pulse" />
+            <div key={i} className="h-14 bg-gray-50 rounded mb-2 animate-pulse" />
           ))}
         </div>
       </div>
@@ -53,7 +57,7 @@ export function DraftDocumentTable({
   if (documents.length === 0) {
     return (
       <div className="bg-white rounded-md overflow-hidden">
-        <div className="bg-[#e9f5fe] px-6 py-5">
+        <div className="bg-[#e9f5fe] px-6 py-4">
           <div className="grid grid-cols-6 gap-4 text-sm font-semibold text-[#384654]">
             <span>Documents Code</span>
             <span>Documents Title</span>
@@ -63,7 +67,7 @@ export function DraftDocumentTable({
             <span>Action</span>
           </div>
         </div>
-        <div className="border border-[#e1e2e3] px-6 py-10 text-center text-[#384654]">
+        <div className="border-t border-[#e1e2e3] px-6 py-10 text-center text-[#384654]">
           No draft documents found
         </div>
       </div>
@@ -76,30 +80,33 @@ export function DraftDocumentTable({
       <div className="hidden xl:block overflow-x-auto">
         <Table>
           <TableHeader className="bg-[#e9f5fe]">
-            <TableRow className="hover:bg-[#e9f5fe]">
-              <TableHead className="text-[#384654] font-semibold text-sm h-[68px] px-6 whitespace-nowrap">
+            <TableRow className="hover:bg-[#e9f5fe] border-0">
+              <TableHead className="text-[#384654] font-semibold text-sm h-14 px-6 whitespace-nowrap w-[150px]">
                 Documents Code
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap min-w-[250px]">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
                 Documents Title
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[100px]">
                 Type
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap min-w-[150px]">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[150px]">
                 Create By
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[120px]">
                 Last Edited
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[130px]">
                 Action
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documents.map((doc) => (
-              <TableRow key={doc.id} className="border-[#e1e2e3] h-[68px]">
+            {documents.map((doc, index) => (
+              <TableRow
+                key={doc.id}
+                className={`h-14 ${index < documents.length - 1 ? "border-b border-[#e1e2e3]" : "border-0"}`}
+              >
                 <TableCell className="px-6">
                   <button
                     onClick={() => onViewDocument?.(doc)}
@@ -121,33 +128,33 @@ export function DraftDocumentTable({
                   {doc.lastEdited}
                 </TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-[5px]">
+                  <div className="flex items-center gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-11 w-11 p-0 border-[#e1e2e3]"
+                      className="h-9 w-9 p-0 border-[#e1e2e3]"
                       onClick={() => onViewDocument?.(doc)}
                       title="View Document"
                     >
-                      <FileSearch className="h-5 w-5 text-[#4DB1D4]" />
+                      <FileSearch className="h-4 w-4 text-[#4DB1D4]" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-11 w-11 p-0 border-[#e1e2e3]"
+                      className="h-9 w-9 p-0 border-[#e1e2e3]"
                       onClick={() => onEditDocument?.(doc)}
                       title="Edit Document"
                     >
-                      <Pencil className="h-5 w-5 text-[#F7931A]" />
+                      <Pencil className="h-4 w-4 text-[#F7931A]" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-11 w-11 p-0 border-[#e1e2e3]"
+                      className="h-9 w-9 p-0 border-[#e1e2e3]"
                       onClick={() => onDeleteDocument?.(doc)}
                       title="Delete Document"
                     >
-                      <Trash2 className="h-5 w-5 text-[#F24822]" />
+                      <Trash2 className="h-4 w-4 text-[#F24822]" />
                     </Button>
                   </div>
                 </TableCell>
@@ -161,8 +168,8 @@ export function DraftDocumentTable({
       <div className="hidden md:block xl:hidden overflow-x-auto">
         <Table>
           <TableHeader className="bg-[#e9f5fe]">
-            <TableRow className="hover:bg-[#e9f5fe]">
-              <TableHead className="text-[#384654] font-semibold text-xs h-[60px] px-4">
+            <TableRow className="hover:bg-[#e9f5fe] border-0">
+              <TableHead className="text-[#384654] font-semibold text-xs h-12 px-4">
                 Code / Title
               </TableHead>
               <TableHead className="text-[#384654] font-semibold text-xs">
@@ -180,8 +187,11 @@ export function DraftDocumentTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documents.map((doc) => (
-              <TableRow key={doc.id} className="border-[#e1e2e3]">
+            {documents.map((doc, index) => (
+              <TableRow
+                key={doc.id}
+                className={`${index < documents.length - 1 ? "border-b border-[#e1e2e3]" : "border-0"}`}
+              >
                 <TableCell className="px-4">
                   <div>
                     <button
@@ -207,7 +217,7 @@ export function DraftDocumentTable({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 border-[#e1e2e3]"
+                      className="h-8 w-8 p-0 border-[#e1e2e3]"
                       onClick={() => onViewDocument?.(doc)}
                     >
                       <FileSearch className="h-4 w-4 text-[#4DB1D4]" />
@@ -215,7 +225,7 @@ export function DraftDocumentTable({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 border-[#e1e2e3]"
+                      className="h-8 w-8 p-0 border-[#e1e2e3]"
                       onClick={() => onEditDocument?.(doc)}
                     >
                       <Pencil className="h-4 w-4 text-[#F7931A]" />
@@ -223,7 +233,7 @@ export function DraftDocumentTable({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 border-[#e1e2e3]"
+                      className="h-8 w-8 p-0 border-[#e1e2e3]"
                       onClick={() => onDeleteDocument?.(doc)}
                     >
                       <Trash2 className="h-4 w-4 text-[#F24822]" />
@@ -238,7 +248,7 @@ export function DraftDocumentTable({
 
       {/* Mobile View */}
       <div className="md:hidden">
-        <div className="bg-[#e9f5fe] px-4 py-4 text-[#384654] font-semibold text-sm">
+        <div className="bg-[#e9f5fe] px-4 py-3 text-[#384654] font-semibold text-sm">
           Draft Documents
         </div>
         <div className="divide-y divide-[#e1e2e3]">

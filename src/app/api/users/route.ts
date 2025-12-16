@@ -5,6 +5,7 @@ import { createUserAdminSchema, userQuerySchema } from "@/infrastructure/validat
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler } from "@/infrastructure/middleware/auth";
+import { UserQueryParams, CreateUserDTO } from "@/domain/entities/User";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -29,7 +30,7 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
     const validatedParams = userQuerySchema.parse(queryParams);
 
     const userRepository = container.cradle.userRepository;
-    const result = await userRepository.findAll(validatedParams as any);
+    const result = await userRepository.findAll(validatedParams as UserQueryParams);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -59,7 +60,7 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
     const validatedData = createUserAdminSchema.parse(body);
 
     const userRepository = container.cradle.userRepository;
-    const user = await userRepository.create(validatedData as any);
+    const user = await userRepository.create(validatedData as CreateUserDTO);
 
     // Remove password from response
     const { password: _, ...userWithoutPassword } = user;

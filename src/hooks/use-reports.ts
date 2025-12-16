@@ -164,8 +164,8 @@ export function useReportFilters(): UseReportFiltersResult {
         ]);
 
         setOptions({
-          departments: departmentsData.data?.map((d: any) => ({ id: d.id, name: d.name })) || [],
-          categories: categoriesData.data?.map((c: any) => ({ id: c.id, name: c.name })) || [],
+          departments: departmentsData.data?.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })) || [],
+          categories: categoriesData.data?.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })) || [],
         });
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch filter options');

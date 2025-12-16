@@ -66,6 +66,7 @@ export default function DocumentSubmissionPage() {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
+        excludeDraft: "true", // Exclude draft documents - they have their own page
       });
 
       if (filters.search) params.set("search", filters.search);
@@ -140,7 +141,7 @@ export default function DocumentSubmissionPage() {
     setAddDocumentModalOpen(true);
   };
 
-  const handleAddDocumentSubmit = async (data: DocumentFormData) => {
+  const handleAddDocumentSubmit = async (data: DocumentFormData, status: "DRAFT" | "IN_REVIEW") => {
     setIsSubmittingDocument(true);
     try {
       await apiClient.post("/api/documents/submission", {
@@ -159,6 +160,7 @@ export default function DocumentSubmissionPage() {
         relatedDocuments: data.relatedDocuments,
         procedureContent: data.procedureContent,
         signature: data.signature,
+        status: status,
       });
       setAddDocumentModalOpen(false);
       fetchDocuments(); // Refresh the list
@@ -176,15 +178,35 @@ export default function DocumentSubmissionPage() {
     setAddDocumentModalOpen(false);
   };
 
-  const handleEditDocumentSubmit = async (data: DocumentFormData) => {
+  const handleEditDocumentSubmit = async (data: DocumentFormData, status: "DRAFT" | "IN_REVIEW") => {
+    if (!selectedDocument?.id) return;
+
     setIsSubmittingDocument(true);
     try {
-      console.log("Updating document:", selectedDocument?.id, data);
-      // TODO: API call to update document
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await apiClient.put(`/api/documents/${selectedDocument.id}`, {
+        documentTypeId: data.documentTypeId,
+        documentTitle: data.documentTitle,
+        destinationDepartmentId: data.destinationDepartmentId,
+        estimatedDistributionDate: data.estimatedDistributionDate,
+        purpose: data.purpose,
+        scope: data.scope,
+        reviewerIds: data.reviewerIds,
+        approverIds: data.approverIds,
+        acknowledgedIds: data.acknowledgedIds,
+        responsibleDocument: data.responsibleDocument,
+        termsAndAbbreviations: data.termsAndAbbreviations,
+        warning: data.warning,
+        relatedDocuments: data.relatedDocuments,
+        procedureContent: data.procedureContent,
+        signature: data.signature,
+        status: status,
+      });
       setEditDocumentModalOpen(false);
       setSelectedDocument(null);
-      // TODO: Refresh document list
+      fetchDocuments(); // Refresh the list
+    } catch (error) {
+      console.error("Failed to update document:", error);
+      alert("Failed to update document");
     } finally {
       setIsSubmittingDocument(false);
     }
@@ -199,9 +221,9 @@ export default function DocumentSubmissionPage() {
       setDeleteDocumentModalOpen(false);
       setSelectedDocument(null);
       fetchDocuments(); // Refresh the list
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to delete document:", error);
-      alert(error.message || "Failed to delete document");
+      alert(error instanceof Error ? error.message : "Failed to delete document");
     } finally {
       setIsDeletingDocument(false);
     }

@@ -5,12 +5,41 @@ import { updateDocumentSchema } from "@/infrastructure/validation/document";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler } from "@/infrastructure/middleware/auth";
-import { DocumentStatus } from "@/domain/entities/Document";
+import { DocumentStatus, DocumentApproval, Document } from "@/domain/entities/Document";
 
 const rateLimiter = createRateLimitMiddleware();
 
 interface RouteParams {
   params: Promise<{ id: string }>;
+}
+
+// Extended types for API response with nested relations
+interface ApprovalWithRelations extends DocumentApproval {
+  approver: {
+    id: string;
+    name: string;
+    email: string;
+    employeeId?: string | null;
+    position?: { name: string } | null;
+    department?: { code?: string; name: string } | null;
+  };
+  signatureImage?: string | null;
+  signedAt?: Date | null;
+}
+
+interface DocumentWithRelations extends Document {
+  approvals?: ApprovalWithRelations[];
+  preparedBySignature?: string | null;
+  preparedBySignedAt?: Date | null;
+  createdBy: {
+    id: string;
+    name: string;
+    email: string;
+    employeeId?: string | null;
+    avatar?: string | null;
+    position?: { name: string } | null;
+    department?: { code?: string; name: string } | null;
+  };
 }
 
 // GET /api/documents/[id] - Get a specific document by ID
@@ -34,23 +63,26 @@ export async function GET(
       );
     }
 
+    // Cast document to include relations
+    const doc = document as DocumentWithRelations;
+
     // Extract approval data by level
-    const approvals = (document as any).approvals || [];
-    const reviewerApproval = approvals.find((a: any) => a.level === 1);
-    const approverApproval = approvals.find((a: any) => a.level === 2);
-    const acknowledgerApprovals = approvals.filter((a: any) => a.level === 3);
+    const approvals = doc.approvals || [];
+    const reviewerApproval = approvals.find((a) => a.level === 1);
+    const approverApproval = approvals.find((a) => a.level === 2);
+    const acknowledgerApprovals = approvals.filter((a) => a.level === 3);
 
     // Build destination department display - collect from main destination and acknowledgers' departments
-    const destDept = (document as any).destinationDepartment;
+    const destDept = doc.destinationDepartment;
     const destinationDepartments: string[] = [];
 
     // Add main destination department
     if (destDept) {
-      destinationDepartments.push(`${destDept.code} - ${destDept.name}`);
+      destinationDepartments.push(`${destDept.code || ''} - ${destDept.name}`);
     }
 
     // Collect unique departments from acknowledgers
-    acknowledgerApprovals.forEach((a: any) => {
+    acknowledgerApprovals.forEach((a) => {
       const dept = a.approver?.department;
       if (dept) {
         const deptDisplay = `${dept.code || ''} - ${dept.name}`.replace(/^- /, '');
@@ -66,13 +98,13 @@ export async function GET(
       : undefined;
 
     // Build acknowledgers array
-    const acknowledgers = acknowledgerApprovals.map((a: any) => ({
+    const acknowledgers = acknowledgerApprovals.map((a) => ({
       name: a.approver?.name || '',
       position: a.approver?.department?.name || a.approver?.position?.name || '',
     }));
 
     // Get createdBy position
-    const createdBy = document.createdBy as any;
+    const createdBy = doc.createdBy;
     const createdByPosition = createdBy?.department?.name || createdBy?.position?.name;
 
     // Build preparedBy object for signature panel
@@ -80,14 +112,14 @@ export async function GET(
       id: createdBy?.id,
       name: createdBy?.name || '',
       position: createdByPosition || '',
-      signature: (document as any).preparedBySignature || null,
-      signedAt: (document as any).preparedBySignedAt || null,
+      signature: doc.preparedBySignature || null,
+      signedAt: doc.preparedBySignedAt || null,
     };
 
     // Build approvals array for signature panel (reviewers, approvers, and acknowledgers)
     const signatureApprovals = approvals
-      .filter((a: any) => a.level === 1 || a.level === 2 || a.level === 3)
-      .map((a: any) => ({
+      .filter((a) => a.level === 1 || a.level === 2 || a.level === 3)
+      .map((a) => ({
         id: a.id,
         level: a.level,
         approver: {
@@ -129,7 +161,7 @@ export async function GET(
         position: document.acknowledgerPosition || '',
       }] : []),
       // Approved date from first approved approval
-      approvedDate: approvals.find((a: any) => a.status === 'APPROVED')?.approvedAt,
+      approvedDate: approvals.find((a) => a.status === 'APPROVED')?.approvedAt,
       lastUpdate: document.updatedAt,
     };
 

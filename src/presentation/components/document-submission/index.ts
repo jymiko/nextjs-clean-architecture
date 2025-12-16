@@ -3,6 +3,8 @@ export { DocumentSubmissionFilters, type FilterState } from "./DocumentSubmissio
 export { StepWizard, StepWizardCompact, type Step } from "./StepWizard";
 export { DocumentInfoPanel, type DocumentInfo } from "./DocumentInfoPanel";
 export { DocumentViewerInfoPanel, type DocumentViewerInfo } from "./DocumentViewerInfoPanel";
+export { DocumentSubmissionInfoPanel, type DocumentSubmissionInfoPanelProps } from "./DocumentSubmissionInfoPanel";
+export { DocumentSubmissionSignaturePreview, type DocumentSubmissionSignaturePreviewProps } from "./DocumentSubmissionSignaturePreview";
 export { SignatureSection, SignatureCard, SignatureSectionHorizontal, type Signature } from "./SignatureSection";
 export { RevisionModal, RejectModal, ApproveModal } from "./RevisionModal";
 export { AddDocumentModal, type DocumentFormData } from "./AddDocumentModal";

@@ -4,7 +4,7 @@ import { handleError } from "@/infrastructure/errors";
 import { documentDistributionSchema, documentQuerySchema } from "@/infrastructure/validation/document";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
-import { withAuthHandler } from "@/infrastructure/middleware/auth";
+import { withAuthHandler, type AuthenticatedRequest } from "@/infrastructure/middleware/auth";
 import { DistributionMethod } from "@/domain/entities/Document";
 
 const rateLimiter = createRateLimitMiddleware();
@@ -70,7 +70,13 @@ export const POST = withAuthHandler(async (
     const validatedData = documentDistributionSchema.parse(body);
 
     // Get user from request (should be added by auth middleware)
-    const userId = (request as any).user?.id;
+    const userId = (request as AuthenticatedRequest).user?.userId;
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User not authenticated' },
+        { status: 401 }
+      );
+    }
 
     const documentRepository = container.cradle.documentRepository;
     const distribution = await documentRepository.distributeDocument(id, {

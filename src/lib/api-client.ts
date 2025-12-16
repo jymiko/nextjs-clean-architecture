@@ -12,7 +12,7 @@ class ApiClient {
     this.baseURL = baseURL;
   }
 
-  private async request<T = any>(
+  private async request<T = unknown>(
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<T> {
@@ -20,9 +20,9 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
 
     // Get auth headers if not skipped
-    let headers = {
+    let headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...fetchOptions.headers,
+      ...(fetchOptions.headers as Record<string, string> | undefined),
     };
 
     if (!skipAuth) {
@@ -43,23 +43,11 @@ class ApiClient {
       const newTokens = await tokenManager.refreshAccessToken();
 
       if (newTokens) {
-        // Retry the request with the new token
-        const newHeaders = new Headers();
-
-        // Copy existing headers
-        if (headers instanceof Headers) {
-          headers.forEach((value, key) => {
-            newHeaders.append(key, value);
-          });
-        } else {
-          // If headers is a plain object
-          Object.entries(headers).forEach(([key, value]) => {
-            newHeaders.append(key, value as string);
-          });
-        }
-
-        newHeaders.set('Authorization', `Bearer ${newTokens.accessToken}`);
-        headers = newHeaders as any;
+        // Update headers with new auth token
+        headers = {
+          ...headers,
+          'Authorization': `Bearer ${newTokens.accessToken}`,
+        };
 
         response = await fetch(url, {
           ...fetchOptions,
@@ -178,8 +166,8 @@ class ApiClient {
           try {
             const response = JSON.parse(xhr.responseText);
             resolve(response);
-          } catch (e) {
-            resolve(xhr.responseText as any);
+          } catch {
+            resolve(xhr.responseText as T);
           }
         } else {
           if (xhr.status === 401) {
