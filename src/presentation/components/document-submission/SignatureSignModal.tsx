@@ -20,6 +20,7 @@ interface SignatureSignModalProps {
   onClose: () => void;
   onSign: (signatureImage: string) => Promise<void>;
   userSignature?: string | null;
+  existingSignature?: string | null;
   isLoading?: boolean;
 }
 
@@ -28,6 +29,7 @@ export function SignatureSignModal({
   onClose,
   onSign,
   userSignature,
+  existingSignature,
   isLoading = false,
 }: SignatureSignModalProps) {
   const signatureRef = useRef<SignatureCanvas>(null);
@@ -40,10 +42,17 @@ export function SignatureSignModal({
     if (isOpen) {
       setIsEmpty(true);
       setDrawnSignature("");
-      setActiveTab(userSignature ? "saved" : "draw");
+      // Default to "current" tab if editing existing signature, otherwise "saved" if available
+      if (existingSignature) {
+        setActiveTab("current");
+      } else if (userSignature) {
+        setActiveTab("saved");
+      } else {
+        setActiveTab("draw");
+      }
       signatureRef.current?.clear();
     }
-  }, [isOpen, userSignature]);
+  }, [isOpen, userSignature, existingSignature]);
 
   const handleClear = useCallback(() => {
     signatureRef.current?.clear();
@@ -71,10 +80,20 @@ export function SignatureSignModal({
         return;
       }
       await onSign("use-profile");
+    } else if (activeTab === "current") {
+      if (!existingSignature) {
+        return;
+      }
+      await onSign("keep-current");
     }
   };
 
-  const canSign = activeTab === "draw" ? !isEmpty && drawnSignature : !!userSignature;
+  const canSign =
+    activeTab === "draw"
+      ? !isEmpty && drawnSignature
+      : activeTab === "saved"
+        ? !!userSignature
+        : !!existingSignature;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -87,10 +106,16 @@ export function SignatureSignModal({
 
         <div className="px-6 py-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className={cn("grid w-full mb-4", existingSignature ? "grid-cols-3" : "grid-cols-2")}>
+              {existingSignature && (
+                <TabsTrigger value="current" className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4" />
+                  Current
+                </TabsTrigger>
+              )}
               <TabsTrigger value="draw" className="flex items-center gap-2">
                 <Pencil className="w-4 h-4" />
-                Draw Signature
+                Draw New
               </TabsTrigger>
               <TabsTrigger
                 value="saved"
@@ -183,6 +208,30 @@ export function SignatureSignModal({
                 )}
               </div>
             </TabsContent>
+
+            {existingSignature && (
+              <TabsContent value="current" className="mt-0">
+                <div className="border border-[#D1D5DC] rounded-lg bg-white p-4">
+                  <div className="flex flex-col items-center">
+                    <p className="text-sm text-[#6A7282] mb-3">
+                      Current signature on this document:
+                    </p>
+                    <div className="border border-dashed border-[#D1D5DC] rounded-lg p-4 bg-[#FAFAFA] relative w-full h-[150px]">
+                      <NextImage
+                        src={existingSignature}
+                        alt="Current signature"
+                        fill
+                        className="object-contain p-2"
+                        unoptimized
+                      />
+                    </div>
+                    <p className="text-xs text-[#9CA3AF] mt-2">
+                      Click &quot;Sign Document&quot; to keep this signature, or select another tab to change it.
+                    </p>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
 

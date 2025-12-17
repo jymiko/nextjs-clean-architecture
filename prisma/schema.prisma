@@ -107,6 +107,7 @@ model User {
   workflowSteps         ApprovalWorkflowStep[] @relation("SpecificApprover")
   documentVersions      DocumentVersion[]      @relation("DocumentVersions")
   userPermissions       UserPermission[]
+  revisionRequests      DocumentRevisionRequest[] @relation("RevisionRequester")
 
   @@index([departmentId])
   @@index([positionId])
@@ -406,6 +407,9 @@ model Document {
   preparedBySignature         String?                @db.Text  // Creator's signature
   preparedBySignedAt          DateTime?                        // When document was signed by creator
 
+  // Revision tracking
+  revisionCycle               Int                    @default(0) // Increments each time revision is requested
+
   // Ownership & tracking
   createdBy                   User                   @relation("DocumentCreator", fields: [createdById], references: [id])
   createdById                 String
@@ -426,6 +430,7 @@ model Document {
   fileMetadata                DocumentFileMetadata?
   documentTags                DocumentTag[] // NEW: Normalized tags
   versions                    DocumentVersion[] // PHASE 2: Version management
+  revisionRequests            DocumentRevisionRequest[] // Track revision request history
 
   @@index([status])
   @@index([approvalStatus])
@@ -443,6 +448,10 @@ model Document {
 enum DocumentStatus {
   DRAFT
   IN_REVIEW
+  ON_APPROVAL           // All reviewers approved, moving to approver stage
+  PENDING_ACKNOWLEDGED  // All approvers approved, waiting for acknowledged signatures
+  ON_REVISION           // Revision requested, awaiting creator fix
+  WAITING_VALIDATION    // All signed and approved, awaiting admin validation
   APPROVED
   ACTIVE
   REVISION_REQUIRED
@@ -453,6 +462,7 @@ enum DocumentStatus {
 // Approval status enum
 enum ApprovalStatus {
   PENDING
+  SIGNED       // User has signed but not yet clicked "Approved"
   IN_PROGRESS
   APPROVED
   REJECTED
@@ -474,6 +484,9 @@ model DocumentApproval {
   // Signature capture fields
   signatureImage String?      @db.Text  // Base64 encoded signature when signing
   signedAt       DateTime?              // Timestamp when signature was captured
+  // Approval confirmation fields
+  confirmedAt    DateTime?              // When user clicked "Approved" button (separate from signing)
+  revisionCycle  Int          @default(0) // Track which revision cycle this approval belongs to
   requestedAt  DateTime       @default(now())
   dueDate      DateTime?
   reminderSent Boolean        @default(false)
@@ -492,7 +505,29 @@ model DocumentApproval {
   @@index([documentId])
   @@index([level])
   @@index([isDeleted])
+  @@index([revisionCycle])
   @@map("document_approvals")
+}
+
+// Document revision request tracking (when reviewer/approver requests revision)
+model DocumentRevisionRequest {
+  id                String    @id @default(cuid())
+  document          Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId        String
+  requestedBy       User      @relation("RevisionRequester", fields: [requestedById], references: [id])
+  requestedById     String
+  reason            String    @db.Text // Revision reason text
+  approvalLevel     Int // Level of the person who requested revision (1=reviewer, 2=approver, 3=acknowledged)
+  approvalId        String? // The specific approval that triggered this revision
+  signatureSnapshot Json? // Store snapshot of signatures at time of revision request
+  resolvedAt        DateTime? // When creator resolved/resubmitted
+  resolvedBy        String? // User ID who resolved
+  createdAt         DateTime  @default(now())
+
+  @@index([documentId])
+  @@index([requestedById])
+  @@index([createdAt])
+  @@map("document_revision_requests")
 }
 
 // Document distribution tracking

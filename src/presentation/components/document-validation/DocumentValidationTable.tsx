@@ -59,22 +59,24 @@ export function DocumentValidationTable({
 
   if (documents.length === 0) {
     return (
-      <div className="bg-white rounded-md overflow-hidden">
-        <div className="bg-[#e9f5fe] px-6 py-5">
-          <div className="grid grid-cols-9 gap-4 text-sm font-semibold text-[#384654]">
-            <span>Documents Code</span>
-            <span>Documents Title</span>
-            <span>Type</span>
-            <span>Department</span>
-            <span>Create By</span>
-            <span>Submission Date</span>
-            <span>Status</span>
-            <span>Approver</span>
-            <span>Action</span>
+      <div className="bg-white rounded-md overflow-hidden overflow-x-auto">
+        <div className="min-w-[1200px]">
+          <div className="bg-[#e9f5fe] px-6 py-5">
+            <div className="grid grid-cols-9 gap-4 text-sm font-semibold text-[#384654]">
+              <span>Documents Code</span>
+              <span>Documents Title</span>
+              <span>Type</span>
+              <span>Department</span>
+              <span>Create By</span>
+              <span>Submission Date</span>
+              <span>Status</span>
+              <span>Approver</span>
+              <span>Action</span>
+            </div>
           </div>
-        </div>
-        <div className="border border-[#e1e2e3] px-6 py-10 text-center text-[#384654]">
-          No documents found
+          <div className="border border-[#e1e2e3] px-6 py-10 text-center text-[#384654]">
+            No documents found
+          </div>
         </div>
       </div>
     );
@@ -84,7 +86,7 @@ export function DocumentValidationTable({
     <div className="bg-white rounded-md overflow-hidden">
       {/* Desktop View */}
       <div className="hidden xl:block overflow-x-auto">
-        <Table>
+        <Table className="min-w-[1200px]">
           <TableHeader className="bg-[#e9f5fe]">
             <TableRow className="hover:bg-[#e9f5fe]">
               <TableHead className="text-[#384654] font-semibold text-sm h-[68px] px-6 whitespace-nowrap">
@@ -192,7 +194,7 @@ export function DocumentValidationTable({
 
       {/* Tablet View */}
       <div className="hidden md:block xl:hidden overflow-x-auto">
-        <Table>
+        <Table className="min-w-[800px]">
           <TableHeader className="bg-[#e9f5fe]">
             <TableRow className="hover:bg-[#e9f5fe]">
               <TableHead className="text-[#384654] font-semibold text-xs h-[60px] px-4">

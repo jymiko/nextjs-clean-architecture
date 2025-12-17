@@ -31,6 +31,8 @@ import { DocumentFormData } from "@/presentation/components/document-submission"
 import { PDFViewer } from "@/presentation/components/document-management/PDFViewer";
 import { DocumentSignaturePanel } from "./DocumentSignaturePanel";
 import { SignatureSignModal } from "./SignatureSignModal";
+import { ApprovalConfirmationModal } from "./ApprovalConfirmationModal";
+import { RevisionModal } from "./RevisionModal";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { toast } from "sonner";
 
@@ -53,6 +55,7 @@ interface SignatureApprovalData {
   signatureImage: string | null;
   signedAt: Date | string | null;
   status: string;
+  confirmedAt?: Date | string | null;
 }
 
 export interface ViewDocumentData {
@@ -127,6 +130,8 @@ function mapStatusToDocumentStatus(status?: string): DocumentStatus {
     "rejected": "rejected",
     "on_review": "on_review",
     "on_approval": "on_approval",
+    "on_revision": "on_revision",
+    "waiting_validation": "waiting_validation",
     "revision_by_reviewer": "revision_by_reviewer",
     "pending_ack": "pending_ack",
     "approved": "approved",
@@ -134,12 +139,19 @@ function mapStatusToDocumentStatus(status?: string): DocumentStatus {
     "DRAFT": "draft",
     "PENDING_REVIEW": "on_review",
     "ON_REVIEW": "on_review",
+    "IN_REVIEW": "on_review",
+    "UNDER_REVIEW": "on_review",
     "REVISION_BY_REVIEWER": "revision_by_reviewer",
+    "REVISION_REQUESTED": "revision_by_reviewer",
+    "ON_REVISION": "on_revision",
+    "WAITING_VALIDATION": "waiting_validation",
     "PENDING_APPROVAL": "pending_approval",
     "ON_APPROVAL": "on_approval",
+    "PENDING_ACKNOWLEDGED": "pending_ack",
     "APPROVED": "approved",
     "PENDING_ACK": "pending_ack",
     "DISTRIBUTED": "distributed",
+    "PUBLISHED": "approved",
     "REJECTED": "rejected",
     "OBSOLETE": "obsolete",
   };
@@ -162,6 +174,15 @@ export function ViewDocumentModal({
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
   const [isSigning, setIsSigning] = useState(false);
+
+  // Approval confirmation modal state
+  const [approvalConfirmModalOpen, setApprovalConfirmModalOpen] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState<SignatureApprovalData | null>(null);
+  const [isConfirmingApproval, setIsConfirmingApproval] = useState(false);
+
+  // Revision modal state
+  const [revisionModalOpen, setRevisionModalOpen] = useState(false);
+  const [isRequestingRevision, setIsRequestingRevision] = useState(false);
 
   // Current user
   const { user: currentUser } = useCurrentUser();
@@ -276,6 +297,14 @@ export function ViewDocumentModal({
   const handleSign = async (signatureImage: string) => {
     if (!documentId || !selectedApprovalId) return;
 
+    // If keeping current signature, just close the modal
+    if (signatureImage === "keep-current") {
+      toast.info("Signature kept unchanged");
+      setSignatureModalOpen(false);
+      setSelectedApprovalId(null);
+      return;
+    }
+
     setIsSigning(true);
     try {
       await apiClient.post(`/api/documents/${documentId}/sign`, {
@@ -283,17 +312,78 @@ export function ViewDocumentModal({
         signatureImage,
       });
 
-      toast.success("Document signed successfully");
+      toast.success("Document signed successfully. Please click Approved or Revision button to continue.");
       setSignatureModalOpen(false);
       setSelectedApprovalId(null);
 
-      // Refresh document data
+      // Refresh document data to update signature status
       await fetchDocument();
     } catch (err) {
       console.error("Failed to sign document:", err);
       toast.error(err instanceof Error ? err.message : "Failed to sign document");
     } finally {
       setIsSigning(false);
+    }
+  };
+
+  // Handle confirming approval
+  const handleConfirmApproval = async () => {
+    if (!documentId || !pendingApproval) return;
+
+    setIsConfirmingApproval(true);
+    try {
+      await apiClient.post(`/api/documents/${documentId}/confirm-approve`, {
+        approvalId: pendingApproval.id,
+      });
+
+      toast.success("Approval confirmed successfully");
+      setApprovalConfirmModalOpen(false);
+      setPendingApproval(null);
+
+      // Refresh document data
+      await fetchDocument();
+    } catch (err) {
+      console.error("Failed to confirm approval:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to confirm approval");
+    } finally {
+      setIsConfirmingApproval(false);
+    }
+  };
+
+  // Handle opening revision modal
+  const handleOpenRevisionModal = () => {
+    setApprovalConfirmModalOpen(false);
+    setRevisionModalOpen(true);
+  };
+
+  // Handle requesting revision
+  const handleRequestRevision = async (reason: string, approvalId?: string) => {
+    if (!documentId) return;
+
+    const targetApprovalId = approvalId || pendingApproval?.id;
+    if (!targetApprovalId) {
+      toast.error("No approval selected for revision request");
+      return;
+    }
+
+    setIsRequestingRevision(true);
+    try {
+      await apiClient.post(`/api/documents/${documentId}/request-revision`, {
+        approvalId: targetApprovalId,
+        reason,
+      });
+
+      toast.success("Revision requested successfully. All signatures have been reset.");
+      setRevisionModalOpen(false);
+      setPendingApproval(null);
+
+      // Refresh document data
+      await fetchDocument();
+    } catch (err) {
+      console.error("Failed to request revision:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to request revision");
+    } finally {
+      setIsRequestingRevision(false);
     }
   };
 
@@ -509,18 +599,92 @@ export function ViewDocumentModal({
 
           {/* Review Actions */}
           <div className="px-6 pb-6 pt-2 space-y-3 border-t border-[#E1E2E3] shrink-0">
-            {onEdit && (
-              <>
-                <h4 className="text-[#384654] font-medium text-sm mb-3">Review Actions</h4>
-                <Button
-                  className="w-full h-11 bg-[#F24822] hover:bg-[#d93d1b] text-white"
-                  onClick={handleEdit}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit
-                </Button>
-              </>
-            )}
+            {/* Show approval buttons if current user is an approver */}
+            {(() => {
+              // Find the current user's approval entry
+              const currentUserApproval = document.signatureApprovals?.find(
+                (a) => a.approver.id === currentUser?.id
+              );
+
+              // Check if current user has signed (status = SIGNED)
+              const hasCurrentUserSigned = currentUserApproval?.status === 'SIGNED';
+
+              // Only show Review Actions if user is an approver for this document
+              if (currentUserApproval) {
+                return (
+                  <>
+                    <h4 className="text-[#384654] font-medium text-sm mb-3">Review Actions</h4>
+                    <Button
+                      className={cn(
+                        "w-full h-11",
+                        hasCurrentUserSigned
+                          ? "bg-green-600 hover:bg-green-700 text-white"
+                          : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                      )}
+                      onClick={async () => {
+                        if (hasCurrentUserSigned && currentUserApproval) {
+                          // Directly approve without confirmation modal
+                          setIsConfirmingApproval(true);
+                          try {
+                            await apiClient.post(`/api/documents/${documentId}/confirm-approve`, {
+                              approvalId: currentUserApproval.id,
+                            });
+                            toast.success("Document approved successfully");
+                            await fetchDocument();
+                          } catch (err) {
+                            console.error("Failed to approve document:", err);
+                            toast.error(err instanceof Error ? err.message : "Failed to approve document");
+                          } finally {
+                            setIsConfirmingApproval(false);
+                          }
+                        }
+                      }}
+                      disabled={!hasCurrentUserSigned || isConfirmingApproval}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Approved
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full h-11",
+                        hasCurrentUserSigned
+                          ? "border-[#F24822] text-[#F24822] hover:bg-[#FFF4F4]"
+                          : "border-gray-200 text-gray-400 cursor-not-allowed"
+                      )}
+                      onClick={() => {
+                        if (hasCurrentUserSigned && currentUserApproval) {
+                          setPendingApproval(currentUserApproval);
+                          setRevisionModalOpen(true);
+                        }
+                      }}
+                      disabled={!hasCurrentUserSigned || isConfirmingApproval}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Revision
+                    </Button>
+                  </>
+                );
+              }
+
+              // Show edit button only if onEdit is provided and user is not an approver
+              if (onEdit) {
+                return (
+                  <>
+                    <h4 className="text-[#384654] font-medium text-sm mb-3">Review Actions</h4>
+                    <Button
+                      className="w-full h-11 bg-[#F24822] hover:bg-[#d93d1b] text-white"
+                      onClick={handleEdit}
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                  </>
+                );
+              }
+
+              return null;
+            })()}
 
             <Button
               variant="outline"
@@ -597,7 +761,39 @@ export function ViewDocumentModal({
         }}
         onSign={handleSign}
         userSignature={currentUser?.signature}
+        existingSignature={
+          selectedApprovalId
+            ? document?.signatureApprovals?.find((a) => a.id === selectedApprovalId)?.signatureImage
+            : null
+        }
         isLoading={isSigning}
+      />
+
+      {/* Approval Confirmation Modal */}
+      <ApprovalConfirmationModal
+        isOpen={approvalConfirmModalOpen}
+        onClose={() => {
+          setApprovalConfirmModalOpen(false);
+          setPendingApproval(null);
+        }}
+        onApprove={handleConfirmApproval}
+        onRequestRevision={handleOpenRevisionModal}
+        approval={pendingApproval}
+        documentTitle={document?.title}
+      />
+
+      {/* Revision Modal */}
+      <RevisionModal
+        isOpen={revisionModalOpen}
+        onClose={() => {
+          setRevisionModalOpen(false);
+          setPendingApproval(null);
+        }}
+        onSubmit={handleRequestRevision}
+        documentCode={document?.documentNumber}
+        documentTitle={document?.title}
+        approvalId={pendingApproval?.id}
+        isLoading={isRequestingRevision}
       />
     </>
   );

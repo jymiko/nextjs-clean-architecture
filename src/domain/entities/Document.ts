@@ -2,6 +2,10 @@
 export enum DocumentStatus {
   DRAFT = 'DRAFT',
   IN_REVIEW = 'IN_REVIEW',
+  ON_APPROVAL = 'ON_APPROVAL', // All reviewers approved, moving to approver stage
+  PENDING_ACKNOWLEDGED = 'PENDING_ACKNOWLEDGED', // All approvers approved, waiting for acknowledged signatures
+  ON_REVISION = 'ON_REVISION', // Revision requested, awaiting creator fix
+  WAITING_VALIDATION = 'WAITING_VALIDATION', // All signed and approved, awaiting admin validation
   APPROVED = 'APPROVED',
   ACTIVE = 'ACTIVE',
   REVISION_REQUIRED = 'REVISION_REQUIRED',
@@ -12,6 +16,7 @@ export enum DocumentStatus {
 // Approval status enum matching Prisma schema
 export enum ApprovalStatus {
   PENDING = 'PENDING',
+  SIGNED = 'SIGNED', // User has signed but not yet clicked "Approved"
   IN_PROGRESS = 'IN_PROGRESS',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
@@ -108,6 +113,8 @@ export interface Document {
   approverPosition?: string | null;
   acknowledgerName?: string | null;
   acknowledgerPosition?: string | null;
+  // Revision tracking
+  revisionCycle: number;
   createdById: string;
   createdBy: {
     id: string;
@@ -134,6 +141,7 @@ export interface Document {
   comments?: DocumentComment[];
   attachments?: DocumentAttachment[];
   documentTags?: DocumentTag[];
+  revisionRequests?: DocumentRevisionRequest[];
 }
 
 export interface DocumentApproval {
@@ -143,14 +151,24 @@ export interface DocumentApproval {
   approver: {
     id: string;
     name: string;
-    email: string;
+    email?: string;
     employeeId?: string | null;
+    position?: {
+      id?: string;
+      name: string;
+    } | null;
   };
   level: number;
   status: ApprovalStatus;
   comments?: string | null;
   approvedAt?: Date | null;
   rejectedAt?: Date | null;
+  // Signature capture fields
+  signatureImage?: string | null;
+  signedAt?: Date | null;
+  // Approval confirmation fields (separate from signing)
+  confirmedAt?: Date | null;
+  revisionCycle: number;
   requestedAt: Date;
   dueDate?: Date | null;
   reminderSent: boolean;
@@ -385,4 +403,45 @@ export interface DocumentSearchResult {
   fileName: string;
   fileSize: number;
   mimeType: string;
+}
+
+// Document revision request tracking (when reviewer/approver requests revision)
+export interface DocumentRevisionRequest {
+  id: string;
+  documentId: string;
+  requestedById: string;
+  requestedBy: {
+    id: string;
+    name: string;
+    email: string;
+    employeeId?: string | null;
+    position?: {
+      id: string;
+      name: string;
+    } | null;
+  };
+  reason: string;
+  approvalLevel: number;
+  approvalId?: string | null;
+  signatureSnapshot?: Record<string, unknown> | null;
+  resolvedAt?: Date | null;
+  resolvedBy?: string | null;
+  createdAt: Date;
+}
+
+// DTO for requesting revision
+export interface RequestRevisionDTO {
+  approvalId: string;
+  reason: string;
+}
+
+// DTO for confirming approval
+export interface ConfirmApprovalDTO {
+  approvalId: string;
+}
+
+// DTO for admin validation
+export interface ValidateDocumentDTO {
+  action: 'APPROVE' | 'REJECT';
+  comments?: string;
 }

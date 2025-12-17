@@ -11,14 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { FileEdit, X } from "lucide-react";
+import { FileEdit, X, AlertTriangle } from "lucide-react";
 
 interface RevisionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (reason: string) => void;
+  onSubmit: (reason: string, approvalId?: string) => void;
   documentCode?: string;
   documentTitle?: string;
+  approvalId?: string;
   isLoading?: boolean;
 }
 
@@ -28,13 +29,14 @@ export function RevisionModal({
   onSubmit,
   documentCode,
   documentTitle,
+  approvalId,
   isLoading,
 }: RevisionModalProps) {
   const [reason, setReason] = useState("");
 
   const handleSubmit = () => {
     if (reason.trim()) {
-      onSubmit(reason);
+      onSubmit(reason, approvalId);
       setReason("");
     }
   };
@@ -49,12 +51,25 @@ export function RevisionModal({
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#384654]">
-            <FileEdit className="h-5 w-5 text-[#4DB1D4]" />
+            <FileEdit className="h-5 w-5 text-orange-500" />
             Request Revision
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Warning Message */}
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-orange-500 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-orange-800">
+              <p className="font-medium mb-1">Important Notice</p>
+              <p>
+                Requesting a revision will <strong>reset all signatures</strong> except
+                the document creator's signature. All reviewers and approvers will need
+                to sign again after the revision is complete.
+              </p>
+            </div>
+          </div>
+
           {/* Document Info */}
           {(documentCode || documentTitle) && (
             <div className="bg-[#F9FBFF] rounded-lg p-4 space-y-2">
@@ -80,11 +95,14 @@ export function RevisionModal({
             </Label>
             <Textarea
               id="revision-reason"
-              placeholder="Please provide the reason for revision..."
+              placeholder="Please provide a detailed reason for revision (minimum 10 characters)..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="min-h-[120px] border-[#E1E2E3] focus-visible:ring-[#4DB1D4] resize-none"
+              className="min-h-[120px] border-[#E1E2E3] focus-visible:ring-orange-400 resize-none"
             />
+            <p className="text-xs text-gray-500">
+              {reason.length}/10 characters minimum
+            </p>
           </div>
         </div>
 
@@ -99,11 +117,11 @@ export function RevisionModal({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!reason.trim() || isLoading}
-            className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+            disabled={reason.trim().length < 10 || isLoading}
+            className="bg-orange-500 hover:bg-orange-600 text-white"
           >
             <FileEdit className="h-4 w-4 mr-2" />
-            {isLoading ? "Submitting..." : "Submit Revision"}
+            {isLoading ? "Submitting..." : "Request Revision"}
           </Button>
         </DialogFooter>
       </DialogContent>

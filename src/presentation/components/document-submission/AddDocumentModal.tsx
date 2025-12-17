@@ -146,6 +146,7 @@ interface AddDocumentModalProps {
   onClose: () => void;
   onSubmit: (data: DocumentFormData, status: "DRAFT" | "IN_REVIEW") => void;
   onSaveDraft?: (data: DocumentFormData) => void;
+  onSubmitSuccess?: () => void;
   isLoading?: boolean;
 }
 
@@ -154,6 +155,7 @@ export function AddDocumentModal({
   onClose,
   onSubmit,
   onSaveDraft,
+  onSubmitSuccess,
   isLoading,
 }: AddDocumentModalProps) {
   const { user: currentUser } = useCurrentUser();
@@ -208,6 +210,16 @@ export function AddDocumentModal({
       }
     }
   }, [currentUser, departments]);
+
+  // Auto-fill signature from user profile when modal opens
+  useEffect(() => {
+    if (isOpen && currentUser?.signature) {
+      setFormData((prev) => ({
+        ...prev,
+        signature: currentUser.signature || "",
+      }));
+    }
+  }, [isOpen, currentUser?.signature]);
 
   // Generate document code when document type changes
   useEffect(() => {
@@ -928,6 +940,7 @@ export function AddDocumentModal({
   const handleSuccessModalClose = () => {
     setShowSuccessModal(false);
     handleClose(); // Close the main modal after success popup
+    onSubmitSuccess?.(); // Notify parent to refresh data
   };
 
   return (

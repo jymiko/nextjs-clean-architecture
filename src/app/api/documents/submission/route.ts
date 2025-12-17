@@ -39,10 +39,8 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
 
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: Prisma.DocumentWhereInput = {
-      createdById: authUser.userId,
-    };
+    // Build where clause - show all documents (not filtered by user)
+    const where: Prisma.DocumentWhereInput = {};
 
     if (search) {
       where.OR = [
@@ -52,8 +50,9 @@ export const GET = withAuthHandler(async (request: NextRequest) => {
     }
 
     // Handle status filtering - excludeDraft takes precedence
+    // Also exclude WAITING_VALIDATION as those documents should appear in validation page
     if (excludeDraft) {
-      where.status = { not: "DRAFT" };
+      where.status = { notIn: ["DRAFT", "WAITING_VALIDATION"] };
     } else if (status) {
       where.status = status.toUpperCase() as DocumentStatus;
     }
@@ -170,13 +169,22 @@ function formatRelativeTime(date: Date): string {
 // Helper function to map document status
 function mapDocumentStatus(status: string, approvalStatus: string): string {
   if (status === "DRAFT") return "draft";
-  if (status === "IN_REVIEW" || status === "PENDING_REVIEW" || approvalStatus === "PENDING") return "on_review";
+  if (status === "IN_REVIEW" || status === "PENDING_REVIEW") return "on_review";
   if (status === "UNDER_REVIEW") return "on_review";
-  if (status === "PENDING_APPROVAL") return "on_approval";
-  if (status === "APPROVED") return "approved";
-  if (status === "REJECTED") return "rejected";
-  if (status === "REVISION_REQUESTED") return "revision_by_reviewer";
+  if (status === "ON_APPROVAL" || status === "PENDING_APPROVAL") return "on_approval";
+  if (status === "PENDING_ACKNOWLEDGED") return "pending_ack";
+  if (status === "ON_REVISION") return "on_revision";
+  if (status === "WAITING_VALIDATION") return "waiting_validation";
+  if (status === "APPROVED" || status === "ACTIVE") return "approved";
+  if (status === "REJECTED" || approvalStatus === "REJECTED") return "rejected";
+  if (status === "REVISION_REQUIRED" || status === "REVISION_REQUESTED") return "revision_by_reviewer";
   if (status === "PUBLISHED") return "approved";
+  if (status === "OBSOLETE") return "obsolete";
+  if (status === "ARCHIVED") return "archived";
+  // For any other status, check approvalStatus as fallback
+  if (approvalStatus === "PENDING") return "on_review";
+  if (approvalStatus === "IN_PROGRESS") return "on_review";
+  if (approvalStatus === "APPROVED") return "approved";
   return "draft";
 }
 
@@ -191,9 +199,10 @@ const documentSubmissionSchema = z.object({
   // Step 2: Detail Document
   purpose: z.string().optional(),
   scope: z.string().optional(),
-  reviewerId: z.string().cuid("Invalid reviewer ID").optional().or(z.literal("")),
-  approverId: z.string().cuid("Invalid approver ID").optional().or(z.literal("")),
-  acknowledgedId: z.string().cuid("Invalid acknowledged ID").optional().or(z.literal("")),
+  // Support both array (new format) and single string (legacy format)
+  reviewerIds: z.array(z.string().cuid("Invalid reviewer ID")).optional().default([]),
+  approverIds: z.array(z.string().cuid("Invalid approver ID")).optional().default([]),
+  acknowledgedIds: z.array(z.string().cuid("Invalid acknowledged ID")).optional().default([]),
   responsibleDocument: z.string().optional(),
   termsAndAbbreviations: z.string().optional(),
   warning: z.string().optional(),
@@ -326,18 +335,36 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
       });
     }
 
-    // Create approval workflow entries
-    const approvers = [
-      { userId: validatedData.reviewerId, level: 1, role: "Reviewer" },
-      { userId: validatedData.approverId, level: 2, role: "Approver" },
-      { userId: validatedData.acknowledgedId, level: 3, role: "Acknowledged" },
-    ].filter((a) => a.userId && a.userId !== "");
+    // Create approval workflow entries for multiple users per level
+    const approvalEntries: { userId: string; level: number; role: string }[] = [];
 
-    for (const approver of approvers) {
+    // Level 1: Reviewers
+    if (validatedData.reviewerIds && validatedData.reviewerIds.length > 0) {
+      validatedData.reviewerIds.forEach((userId) => {
+        approvalEntries.push({ userId, level: 1, role: "Reviewer" });
+      });
+    }
+
+    // Level 2: Approvers
+    if (validatedData.approverIds && validatedData.approverIds.length > 0) {
+      validatedData.approverIds.forEach((userId) => {
+        approvalEntries.push({ userId, level: 2, role: "Approver" });
+      });
+    }
+
+    // Level 3: Acknowledged
+    if (validatedData.acknowledgedIds && validatedData.acknowledgedIds.length > 0) {
+      validatedData.acknowledgedIds.forEach((userId) => {
+        approvalEntries.push({ userId, level: 3, role: "Acknowledged" });
+      });
+    }
+
+    // Create all approval entries
+    for (const approver of approvalEntries) {
       await prisma.documentApproval.create({
         data: {
           documentId: document.id,
-          approverId: approver.userId!,
+          approverId: approver.userId,
           level: approver.level,
           status: "PENDING",
         },

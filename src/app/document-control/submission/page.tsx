@@ -252,7 +252,7 @@ export default function DocumentSubmissionPage() {
           {/* Action Bar */}
           <div className="bg-white px-4 py-3 flex items-center justify-between">
             <h2 className="text-[#384654] font-semibold text-lg">
-              Your Submissions
+              All Submissions
             </h2>
             {userRole === "user" && (
               <Button
@@ -334,6 +334,7 @@ export default function DocumentSubmissionPage() {
         onClose={() => setAddDocumentModalOpen(false)}
         onSubmit={handleAddDocumentSubmit}
         onSaveDraft={handleAddDocumentSaveDraft}
+        onSubmitSuccess={fetchDocuments}
         isLoading={isSubmittingDocument}
       />
 

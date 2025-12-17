@@ -78,25 +78,25 @@ export function DraftDocumentTable({
     <div className="bg-white rounded-md overflow-hidden">
       {/* Desktop View */}
       <div className="hidden xl:block overflow-x-auto">
-        <Table className="table-fixed">
+        <Table>
           <TableHeader className="bg-[#e9f5fe]">
             <TableRow className="hover:bg-[#e9f5fe] border-0">
-              <TableHead className="text-[#384654] font-semibold text-sm h-14 px-6 whitespace-nowrap w-[130px]">
+              <TableHead className="text-[#384654] font-semibold text-sm h-14 px-6 whitespace-nowrap">
                 Documents Code
               </TableHead>
               <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
                 Documents Title
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[140px]">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
                 Type
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[150px]">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
                 Create By
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[100px]">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
                 Last Edited
               </TableHead>
-              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap w-[120px]">
+              <TableHead className="text-[#384654] font-semibold text-sm whitespace-nowrap">
                 Action
               </TableHead>
             </TableRow>

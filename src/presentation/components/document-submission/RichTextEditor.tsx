@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -88,6 +88,22 @@ export function RichTextEditor({
   const [tableCols, setTableCols] = useState(3);
   const [tableWithHeader, setTableWithHeader] = useState(true);
 
+  // Paragraph/Heading dropdown state
+  const [showParagraphDropdown, setShowParagraphDropdown] = useState(false);
+  const paragraphDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (paragraphDropdownRef.current && !paragraphDropdownRef.current.contains(event.target as Node)) {
+        setShowParagraphDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -142,7 +158,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm max-w-none focus:outline-none min-h-[350px] px-4 py-3 [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4 [&_a]:text-blue-600 [&_a]:underline [&_table]:border-collapse [&_table]:w-full [&_table]:my-4 [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-100 [&_th]:p-2 [&_th]:font-bold [&_td]:border [&_td]:border-gray-300 [&_td]:p-2",
+          "prose prose-sm max-w-none focus:outline-none min-h-[350px] px-4 py-3 [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-4 [&_h1]:mt-2 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:mb-3 [&_h2]:mt-2 [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:mb-2 [&_h3]:mt-2 [&_ul]:list-disc [&_ul]:ml-6 [&_ol]:list-decimal [&_ol]:ml-6 [&_li]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4 [&_a]:text-blue-600 [&_a]:underline [&_table]:border-collapse [&_table]:w-full [&_table]:my-4 [&_th]:border [&_th]:border-gray-300 [&_th]:bg-gray-100 [&_th]:p-2 [&_th]:font-bold [&_td]:border [&_td]:border-gray-300 [&_td]:p-2",
       },
     },
     onUpdate: ({ editor }) => {
@@ -155,6 +171,33 @@ export function RichTextEditor({
   }
 
   const wordCount = editor.storage.characterCount.words();
+
+  // Get current text block type
+  const getCurrentBlockType = () => {
+    if (editor.isActive("heading", { level: 1 })) return "Heading 1";
+    if (editor.isActive("heading", { level: 2 })) return "Heading 2";
+    if (editor.isActive("heading", { level: 3 })) return "Heading 3";
+    return "Paragraph";
+  };
+
+  const setBlockType = (type: string) => {
+    switch (type) {
+      case "Heading 1":
+        editor.chain().focus().toggleHeading({ level: 1 }).run();
+        break;
+      case "Heading 2":
+        editor.chain().focus().toggleHeading({ level: 2 }).run();
+        break;
+      case "Heading 3":
+        editor.chain().focus().toggleHeading({ level: 3 }).run();
+        break;
+      default:
+        editor.chain().focus().setParagraph().run();
+    }
+    setShowParagraphDropdown(false);
+  };
+
+  const blockTypes = ["Paragraph", "Heading 1", "Heading 2", "Heading 3"];
 
   const openLinkModal = () => {
     const previousUrl = editor.getAttributes('link').href;
@@ -227,22 +270,49 @@ export function RichTextEditor({
     <div className={cn("border border-[#E5E7EB] rounded-lg shadow-sm", className)}>
       {/* Toolbar */}
       <div className="flex items-center gap-1 px-2 py-2 border-b border-[#E5E7EB] bg-[rgba(249,250,251,0.5)] rounded-t-lg flex-wrap">
-        {/* Paragraph dropdown placeholder */}
-        <div className="flex items-center gap-1 px-3 py-1 border border-[#D1D5DC] rounded-lg bg-white min-w-[100px]">
-          <span className="text-sm text-[#0A0A0A]">Paragraph</span>
-          <svg
-            className="w-4 h-4 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        {/* Paragraph/Heading dropdown */}
+        <div className="relative" ref={paragraphDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setShowParagraphDropdown(!showParagraphDropdown)}
+            className="flex items-center gap-1 px-3 py-1 border border-[#D1D5DC] rounded-lg bg-white min-w-[100px] hover:bg-gray-50 transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
+            <span className="text-sm text-[#0A0A0A]">{getCurrentBlockType()}</span>
+            <svg
+              className={cn(
+                "w-4 h-4 text-gray-500 transition-transform",
+                showParagraphDropdown && "rotate-180"
+              )}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 9l-7 7-7-7"
+              />
+            </svg>
+          </button>
+
+          {showParagraphDropdown && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-[#D1D5DC] rounded-lg shadow-lg z-50 min-w-[140px]">
+              {blockTypes.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setBlockType(type)}
+                  className={cn(
+                    "w-full px-3 py-2 text-left text-sm hover:bg-gray-100 transition-colors first:rounded-t-lg last:rounded-b-lg",
+                    getCurrentBlockType() === type && "bg-gray-100 font-medium"
+                  )}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <Divider />

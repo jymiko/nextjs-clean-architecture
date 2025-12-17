@@ -82,13 +82,15 @@ export const POST = withAuthHandler(async (
       );
     }
 
-    // Check if already signed
-    if (approval.signedAt) {
+    // Check if already approved (confirmed) - can't re-sign after confirmed approval
+    if (approval.confirmedAt) {
       return NextResponse.json(
-        { error: "This approval has already been signed" },
+        { error: "This approval has already been confirmed and cannot be re-signed" },
         { status: 400 }
       );
     }
+
+    // Allow re-signing if already signed but not yet confirmed (for editing signature)
 
     // Validate sequential signing order
     // 1. Check if "Prepared By" is signed (document.preparedBySignedAt must exist)
@@ -99,21 +101,22 @@ export const POST = withAuthHandler(async (
       );
     }
 
-    // 2. Check all previous approvals are signed
-    // Filter approvals that should be signed before this one
+    // 2. Check all previous approvals are fully approved (signed AND confirmed)
+    // Filter approvals that should be approved before this one can sign
     const previousApprovals = document.approvals.filter(a => {
       if (a.id === approval.id) return false;
-      // Lower level must be signed first
+      // Lower level must be fully approved first
       if (a.level < approval.level) return true;
-      // Same level: check creation order (earlier created = must sign first)
+      // Same level: check creation order (earlier created = must approve first)
       if (a.level === approval.level && a.createdAt < approval.createdAt) return true;
       return false;
     });
 
-    const unsignedPrevious = previousApprovals.filter(a => !a.signedAt);
-    if (unsignedPrevious.length > 0) {
+    // Previous approvals must have status APPROVED (not just SIGNED)
+    const unapprovedPrevious = previousApprovals.filter(a => a.status !== "APPROVED");
+    if (unapprovedPrevious.length > 0) {
       return NextResponse.json(
-        { error: "Previous approvals must be signed first" },
+        { error: "Previous approvals must be fully approved first" },
         { status: 400 }
       );
     }
@@ -138,14 +141,15 @@ export const POST = withAuthHandler(async (
       signatureImage = user.signature;
     }
 
-    // Update the approval with signature
+    // Update the approval with signature only - status changes to SIGNED (not APPROVED yet)
+    // User needs to click "Approve" button separately to confirm approval
     const updatedApproval = await prisma.documentApproval.update({
       where: { id: validatedData.approvalId },
       data: {
         signatureImage,
         signedAt: new Date(),
-        status: "APPROVED",
-        approvedAt: new Date(),
+        status: "SIGNED", // Changed from APPROVED - user must confirm approval separately
+        // Don't set approvedAt or confirmedAt - that happens when user clicks "Approve"
       },
       include: {
         approver: {
@@ -154,51 +158,28 @@ export const POST = withAuthHandler(async (
       },
     });
 
-    // Check if all approvals are now signed
-    const allApprovals = await prisma.documentApproval.findMany({
-      where: { documentId, isDeleted: false },
-    });
-
-    const allSigned = allApprovals.every(a => a.signedAt !== null);
-    const allApproved = allApprovals.every(a => a.status === "APPROVED");
-
-    // Update document approval status if all are approved
-    if (allApproved) {
-      await prisma.document.update({
-        where: { id: documentId },
-        data: {
-          approvalStatus: "APPROVED",
-          status: "APPROVED",
-        },
-      });
-    } else {
-      await prisma.document.update({
-        where: { id: documentId },
-        data: {
-          approvalStatus: "IN_PROGRESS",
-        },
-      });
-    }
+    // Document status remains unchanged - will be updated when user confirms approval
 
     // Log activity
     await prisma.activityLog.create({
       data: {
         userId,
-        action: "DOCUMENT_APPROVED",
+        action: "DOCUMENT_APPROVED", // Could create a new action type "DOCUMENT_SIGNED" if needed
         entity: "DocumentApproval",
         entityId: updatedApproval.id,
-        description: `Signed document: ${document.title}`,
+        description: `Signed document (pending approval): ${document.title}`,
         metadata: {
           documentId: document.id,
           documentNumber: document.documentNumber,
           approvalLevel: approval.level,
+          action: "SIGNED", // Indicate this was just a signature, not approval
         },
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: "Document signed successfully",
+      message: "Document signed successfully. Please click 'Approve' to confirm your approval.",
       approval: {
         id: updatedApproval.id,
         level: updatedApproval.level,
@@ -206,9 +187,19 @@ export const POST = withAuthHandler(async (
         signedAt: updatedApproval.signedAt,
         approver: updatedApproval.approver,
       },
-      documentStatus: allApproved ? "APPROVED" : "IN_PROGRESS",
+      // Indicate that approval confirmation is still required
+      requiresApprovalConfirmation: true,
     });
   } catch (error) {
+    // Enhanced error logging for debugging
+    console.error('[Sign Route Error]', {
+      errorType: error?.constructor?.name,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : undefined,
+      errorCode: (error as any)?.code,
+      errorMeta: (error as any)?.meta,
+    });
+
     if (error instanceof ZodError) {
       return NextResponse.json(
         {

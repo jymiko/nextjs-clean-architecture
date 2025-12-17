@@ -6,6 +6,9 @@ import {
     View,
     StyleSheet,
 } from "@react-pdf/renderer";
+
+// Type for react-pdf styles
+type PdfStyle = ReturnType<typeof StyleSheet.create>[string];
 import { DocumentFormData } from "@/presentation/components/document-submission";
 
 // A4 page dimensions in points: 595 x 842
@@ -264,14 +267,9 @@ const getDocumentTitleLabel = (documentTypeName: string): string => {
     return labelMap[documentTypeName] || "JUDUL DOKUMEN";
 };
 
-// Helper to clean text from HTML tags and entities
+// Helper to clean text from HTML entities only (preserve for plain text extraction)
 const cleanText = (text: string): string => {
     return text
-        .replace(/<strong>(.*?)<\/strong>/gi, "$1")
-        .replace(/<b>(.*?)<\/b>/gi, "$1")
-        .replace(/<em>(.*?)<\/em>/gi, "$1")
-        .replace(/<i>(.*?)<\/i>/gi, "$1")
-        .replace(/<u>(.*?)<\/u>/gi, "$1")
         .replace(/<[^>]+>/g, "")
         .replace(/&nbsp;/g, " ")
         .replace(/&amp;/g, "&")
@@ -279,6 +277,101 @@ const cleanText = (text: string): string => {
         .replace(/&gt;/g, ">")
         .replace(/&quot;/g, '"')
         .trim();
+};
+
+// Helper to decode HTML entities
+const decodeHtmlEntities = (text: string): string => {
+    return text
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"');
+};
+
+// Interface for styled text segments
+interface StyledSegment {
+    text: string;
+    bold?: boolean;
+    italic?: boolean;
+    underline?: boolean;
+}
+
+// Parse inline formatting (bold, italic, underline) from HTML
+const parseInlineFormatting = (html: string): StyledSegment[] => {
+    const segments: StyledSegment[] = [];
+
+    // Simple regex-based parsing for inline tags
+    const tagPattern = /<(\/?)(?:strong|b|em|i|u)>|([^<]+)/gi;
+    let match;
+
+    let bold = false;
+    let italic = false;
+    let underline = false;
+
+    while ((match = tagPattern.exec(html)) !== null) {
+        const isClosing = match[1] === '/';
+        const tagMatch = match[0].toLowerCase();
+        const textContent = match[2];
+
+        if (tagMatch.includes('<strong') || tagMatch.includes('<b>') || tagMatch.includes('</strong') || tagMatch.includes('</b>')) {
+            bold = !isClosing;
+        } else if (tagMatch.includes('<em') || tagMatch.includes('<i>') || tagMatch.includes('</em') || tagMatch.includes('</i>')) {
+            italic = !isClosing;
+        } else if (tagMatch.includes('<u') || tagMatch.includes('</u')) {
+            underline = !isClosing;
+        } else if (textContent) {
+            const decodedText = decodeHtmlEntities(textContent);
+            if (decodedText.trim() || decodedText.includes(' ')) {
+                segments.push({
+                    text: decodedText,
+                    bold,
+                    italic,
+                    underline,
+                });
+            }
+        }
+    }
+
+    return segments;
+};
+
+// Render styled segments as react-pdf Text elements
+const renderStyledText = (segments: StyledSegment[], baseStyle: PdfStyle | PdfStyle[], key: number): React.ReactElement => {
+    if (segments.length === 0) {
+        return <Text key={key} style={baseStyle}></Text>;
+    }
+
+    // If all segments have no special styling, just render plain text
+    const hasFormatting = segments.some(s => s.bold || s.italic || s.underline);
+    if (!hasFormatting) {
+        return <Text key={key} style={baseStyle}>{segments.map(s => s.text).join('')}</Text>;
+    }
+
+    return (
+        <Text key={key} style={baseStyle}>
+            {segments.map((segment, idx) => {
+                const textStyle: { fontFamily?: string; textDecoration?: 'none' | 'underline' | 'line-through' | 'underline line-through' } = {};
+
+                if (segment.bold && segment.italic) {
+                    textStyle.fontFamily = 'Helvetica-BoldOblique';
+                } else if (segment.bold) {
+                    textStyle.fontFamily = 'Helvetica-Bold';
+                } else if (segment.italic) {
+                    textStyle.fontFamily = 'Helvetica-Oblique';
+                }
+
+                if (segment.underline) {
+                    textStyle.textDecoration = 'underline';
+                }
+
+                if (Object.keys(textStyle).length > 0) {
+                    return <Text key={idx} style={textStyle}>{segment.text}</Text>;
+                }
+                return segment.text;
+            })}
+        </Text>
+    );
 };
 
 // Estimate text height based on content length (conservative estimate)
@@ -297,7 +390,7 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
 
     const normalizedHtml = html.replace(/>\s+</g, '><').trim();
     const tagRegex = /<(\/?)(\w+)([^>]*)>|([^<]+)/g;
-    const tokens: { type: string; tag?: string; content?: string; isClosing?: boolean }[] = [];
+    const tokens: { type: string; tag?: string; content?: string; isClosing?: boolean; raw?: string }[] = [];
     let match;
 
     while ((match = tagRegex.exec(normalizedHtml)) !== null) {
@@ -306,14 +399,19 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                 type: 'tag',
                 tag: match[2].toLowerCase(),
                 isClosing: match[1] === '/',
+                raw: match[0], // Keep raw HTML tag
             });
         } else if (match[4]) {
             tokens.push({
                 type: 'text',
                 content: match[4],
+                raw: match[4],
             });
         }
     }
+
+    // Inline tags that should be preserved when collecting content
+    const inlineTags = ['strong', 'b', 'em', 'i', 'u'];
 
     let i = 0;
     let orderedListCounter = 0;
@@ -328,25 +426,29 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                 // Handle headings
                 if (tagName === 'h1' || tagName === 'h2' || tagName === 'h3') {
                     i++;
-                    let content = '';
+                    let rawContent = '';
                     while (i < tokens.length) {
                         const t = tokens[i];
                         if (t.type === 'tag' && t.isClosing && t.tag === tagName) {
                             i++;
                             break;
                         }
-                        if (t.type === 'text') {
-                            content += t.content;
+                        // Preserve inline formatting tags
+                        if (t.type === 'tag' && inlineTags.includes(t.tag || '')) {
+                            rawContent += t.raw || '';
+                        } else if (t.type === 'text') {
+                            rawContent += t.raw || t.content || '';
                         }
                         i++;
                     }
                     const style = tagName === 'h1' ? styles.heading1 : tagName === 'h2' ? styles.heading2 : styles.heading3;
-                    const cleaned = cleanText(content);
+                    const segments = parseInlineFormatting(rawContent);
+                    const plainText = cleanText(rawContent);
                     elements.push({
                         type: 'heading',
-                        content: cleaned,
+                        content: plainText,
                         estimatedHeight: HEADING_HEIGHT,
-                        element: <Text key={key++} style={style}>{cleaned}</Text>
+                        element: renderStyledText(segments, style, key++)
                     });
                     continue;
                 }
@@ -354,25 +456,29 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                 // Handle paragraphs
                 if (tagName === 'p') {
                     i++;
-                    let content = '';
+                    let rawContent = '';
                     while (i < tokens.length) {
                         const t = tokens[i];
                         if (t.type === 'tag' && t.isClosing && t.tag === 'p') {
                             i++;
                             break;
                         }
-                        if (t.type === 'text') {
-                            content += t.content;
+                        // Preserve inline formatting tags
+                        if (t.type === 'tag' && inlineTags.includes(t.tag || '')) {
+                            rawContent += t.raw || '';
+                        } else if (t.type === 'text') {
+                            rawContent += t.raw || t.content || '';
                         }
                         i++;
                     }
-                    const cleaned = cleanText(content);
-                    if (cleaned) {
+                    const plainText = cleanText(rawContent);
+                    if (plainText) {
+                        const segments = parseInlineFormatting(rawContent);
                         elements.push({
                             type: 'paragraph',
-                            content: cleaned,
-                            estimatedHeight: estimateTextHeight(cleaned),
-                            element: <Text key={key++} style={styles.paragraph}>{cleaned}</Text>
+                            content: plainText,
+                            estimatedHeight: estimateTextHeight(plainText),
+                            element: renderStyledText(segments, styles.paragraph, key++)
                         });
                     }
                     continue;
@@ -389,27 +495,32 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                         }
                         if (t.type === 'tag' && !t.isClosing && t.tag === 'li') {
                             i++;
-                            let liContent = '';
+                            let rawContent = '';
                             while (i < tokens.length) {
                                 const liToken = tokens[i];
                                 if (liToken.type === 'tag' && liToken.isClosing && liToken.tag === 'li') {
                                     i++;
                                     break;
                                 }
-                                if (liToken.type === 'text') {
-                                    liContent += liToken.content;
+                                // Preserve inline formatting tags
+                                if (liToken.type === 'tag' && inlineTags.includes(liToken.tag || '')) {
+                                    rawContent += liToken.raw || '';
+                                } else if (liToken.type === 'text') {
+                                    rawContent += liToken.raw || liToken.content || '';
                                 }
                                 i++;
                             }
-                            const cleaned = cleanText(liContent);
+                            const plainText = cleanText(rawContent);
+                            const segments = parseInlineFormatting(rawContent);
+                            const listKey = key++;
                             elements.push({
                                 type: 'listItem',
-                                content: cleaned,
+                                content: plainText,
                                 estimatedHeight: LIST_ITEM_HEIGHT,
                                 element: (
-                                    <View key={key++} style={styles.listItem}>
+                                    <View key={listKey} style={styles.listItem}>
                                         <Text style={styles.listBullet}>•</Text>
-                                        <Text style={styles.listText}>{cleaned}</Text>
+                                        {renderStyledText(segments, styles.listText, listKey * 1000)}
                                     </View>
                                 )
                             });
@@ -433,28 +544,33 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                         if (t.type === 'tag' && !t.isClosing && t.tag === 'li') {
                             i++;
                             orderedListCounter++;
-                            let liContent = '';
+                            let rawContent = '';
                             while (i < tokens.length) {
                                 const liToken = tokens[i];
                                 if (liToken.type === 'tag' && liToken.isClosing && liToken.tag === 'li') {
                                     i++;
                                     break;
                                 }
-                                if (liToken.type === 'text') {
-                                    liContent += liToken.content;
+                                // Preserve inline formatting tags
+                                if (liToken.type === 'tag' && inlineTags.includes(liToken.tag || '')) {
+                                    rawContent += liToken.raw || '';
+                                } else if (liToken.type === 'text') {
+                                    rawContent += liToken.raw || liToken.content || '';
                                 }
                                 i++;
                             }
-                            const cleaned = cleanText(liContent);
+                            const plainText = cleanText(rawContent);
+                            const segments = parseInlineFormatting(rawContent);
                             const bulletNum = orderedListCounter;
+                            const listKey = key++;
                             elements.push({
                                 type: 'listItem',
-                                content: cleaned,
+                                content: plainText,
                                 estimatedHeight: LIST_ITEM_HEIGHT,
                                 element: (
-                                    <View key={key++} style={styles.listItem}>
+                                    <View key={listKey} style={styles.listItem}>
                                         <Text style={styles.listBullet}>{bulletNum}.</Text>
-                                        <Text style={styles.listText}>{cleaned}</Text>
+                                        {renderStyledText(segments, styles.listText, listKey * 1000)}
                                     </View>
                                 )
                             });
@@ -468,28 +584,29 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                 // Handle blockquote
                 if (tagName === 'blockquote') {
                     i++;
-                    let content = '';
+                    let rawContent = '';
                     while (i < tokens.length) {
                         const t = tokens[i];
                         if (t.type === 'tag' && t.isClosing && t.tag === 'blockquote') {
                             i++;
                             break;
                         }
-                        if (t.type === 'text') {
-                            content += t.content;
+                        // Preserve inline formatting tags
+                        if (t.type === 'tag' && inlineTags.includes(t.tag || '')) {
+                            rawContent += t.raw || '';
+                        } else if (t.type === 'text') {
+                            rawContent += t.raw || t.content || '';
                         }
                         i++;
                     }
-                    const cleaned = cleanText(content);
+                    const plainText = cleanText(rawContent);
+                    const segments = parseInlineFormatting(rawContent);
+                    const blockquoteStyle = [styles.paragraph, { fontStyle: 'italic' as const, paddingLeft: 15, borderLeftWidth: 3, borderLeftColor: '#ccc' }];
                     elements.push({
                         type: 'paragraph',
-                        content: cleaned,
-                        estimatedHeight: estimateTextHeight(cleaned) + 10,
-                        element: (
-                            <Text key={key++} style={[styles.paragraph, { fontStyle: 'italic', paddingLeft: 15, borderLeftWidth: 3, borderLeftColor: '#ccc' }]}>
-                                {cleaned}
-                            </Text>
-                        )
+                        content: plainText,
+                        estimatedHeight: estimateTextHeight(plainText) + 10,
+                        element: renderStyledText(segments, blockquoteStyle, key++)
                     });
                     continue;
                 }
@@ -552,22 +669,27 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                                 if (cellToken.type === 'tag' && !cellToken.isClosing && cellToken.tag === 'th') {
                                     i++;
                                     currentCell++;
-                                    let cellContent = '';
+                                    let rawContent = '';
                                     while (i < tokens.length) {
                                         const innerToken = tokens[i];
                                         if (innerToken.type === 'tag' && innerToken.isClosing && innerToken.tag === 'th') {
                                             i++;
                                             break;
                                         }
-                                        if (innerToken.type === 'text') {
-                                            cellContent += innerToken.content;
+                                        // Preserve inline formatting tags
+                                        if (innerToken.type === 'tag' && inlineTags.includes(innerToken.tag || '')) {
+                                            rawContent += innerToken.raw || '';
+                                        } else if (innerToken.type === 'text') {
+                                            rawContent += innerToken.raw || innerToken.content || '';
                                         }
                                         i++;
                                     }
                                     const isLastCell = currentCell === totalCells;
+                                    const segments = parseInlineFormatting(rawContent);
+                                    const thKey = cellKey++;
                                     cells.push(
-                                        <View key={cellKey++} style={isLastCell ? styles.tableHeaderCellLast : styles.tableHeaderCell}>
-                                            <Text>{cleanText(cellContent)}</Text>
+                                        <View key={thKey} style={isLastCell ? styles.tableHeaderCellLast : styles.tableHeaderCell}>
+                                            {renderStyledText(segments, {}, thKey * 1000)}
                                         </View>
                                     );
                                     continue;
@@ -576,22 +698,27 @@ const parseHtmlContentWithHeight = (html: string): ParsedElement[] => {
                                 if (cellToken.type === 'tag' && !cellToken.isClosing && cellToken.tag === 'td') {
                                     i++;
                                     currentCell++;
-                                    let cellContent = '';
+                                    let rawContent = '';
                                     while (i < tokens.length) {
                                         const innerToken = tokens[i];
                                         if (innerToken.type === 'tag' && innerToken.isClosing && innerToken.tag === 'td') {
                                             i++;
                                             break;
                                         }
-                                        if (innerToken.type === 'text') {
-                                            cellContent += innerToken.content;
+                                        // Preserve inline formatting tags
+                                        if (innerToken.type === 'tag' && inlineTags.includes(innerToken.tag || '')) {
+                                            rawContent += innerToken.raw || '';
+                                        } else if (innerToken.type === 'text') {
+                                            rawContent += innerToken.raw || innerToken.content || '';
                                         }
                                         i++;
                                     }
                                     const isLastCell = currentCell === totalCells;
+                                    const segments = parseInlineFormatting(rawContent);
+                                    const tdKey = cellKey++;
                                     cells.push(
-                                        <View key={cellKey++} style={isLastCell ? styles.tableCellLast : styles.tableCell}>
-                                            <Text>{cleanText(cellContent)}</Text>
+                                        <View key={tdKey} style={isLastCell ? styles.tableCellLast : styles.tableCell}>
+                                            {renderStyledText(segments, {}, tdKey * 1000)}
                                         </View>
                                     );
                                     continue;

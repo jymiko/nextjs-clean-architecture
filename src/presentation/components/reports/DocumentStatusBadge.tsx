@@ -13,11 +13,13 @@ export type DocumentStatus =
   | "rejected"
   | "on_review"
   | "on_approval"
+  | "on_revision"
   | "revision_by_reviewer"
   | "pending_ack"
   | "approved"
   | "distributed"
-  | "waiting_validation";
+  | "waiting_validation"
+  | "archived";
 
 interface DocumentStatusBadgeProps {
   status: DocumentStatus;
@@ -63,14 +65,18 @@ const statusConfig: Record<DocumentStatus, { label: string; className: string }>
   },
   on_approval: {
     label: "On Approval",
-    className: "bg-[#FFF4D4] text-[#C08F2C]",
+    className: "bg-[#E9E4FF] text-[#7C3AED]",
+  },
+  on_revision: {
+    label: "On Revision",
+    className: "bg-[#FFF4E5] text-[#EA580C]",
   },
   revision_by_reviewer: {
     label: "Revision by Reviewer",
     className: "bg-[#FFD6CD] text-[#F24822]",
   },
   pending_ack: {
-    label: "Pending Ack",
+    label: "Pending Acknowledged",
     className: "bg-[#FFF4D4] text-[#C08F2C]",
   },
   approved: {
@@ -83,7 +89,11 @@ const statusConfig: Record<DocumentStatus, { label: string; className: string }>
   },
   waiting_validation: {
     label: "Waiting Validation",
-    className: "bg-[#FFF4D4] text-[#C08F2C]",
+    className: "bg-[#DBEAFE] text-[#1D4ED8]",
+  },
+  archived: {
+    label: "Archived",
+    className: "bg-[#F3F4F6] text-[#6B7280]",
   },
 };
 

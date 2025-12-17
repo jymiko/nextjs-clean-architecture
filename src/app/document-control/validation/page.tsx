@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { toast } from "sonner";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import {
   DocumentValidationHeader,
@@ -15,58 +16,6 @@ import {
   DocumentViewerModal,
   RejectReasonModal,
 } from "@/presentation/components/document-management";
-
-// Mock data for Documents Validation
-const mockValidationDocuments: ValidationDocument[] = [
-  {
-    id: "1",
-    code: "SOP-DT-001-003",
-    title: "Digitalisasi Arsip Kepegawaian",
-    type: "SOP",
-    department: "Digital Transformation",
-    createdBy: "Digital Transformation",
-    submissionDate: "Fri, 17 Jun 2025",
-    status: "waiting_validation" as DocumentStatus,
-    approver: "Gilang Prakasa",
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "2",
-    code: "STANDART-WH-103-002",
-    title: "Dokumen Operasional",
-    type: "Standart",
-    department: "Warehouse",
-    createdBy: "Warehouse",
-    submissionDate: "Thu, 23 Feb 2025",
-    status: "waiting_validation" as DocumentStatus,
-    approver: "Febrianti Utami",
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "3",
-    code: "SPEK-PDI-RM-003-004",
-    title: "Manual Mutu dan Keamanan Pangan",
-    type: "Spesifikasi",
-    department: "Food Safety",
-    createdBy: "Food Safety",
-    submissionDate: "Mon, 12 Feb 2025",
-    status: "waiting_validation" as DocumentStatus,
-    approver: "Susan Hidayati",
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "4",
-    code: "WI-EHS-008-001",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    department: "Environment, Health and Safety",
-    createdBy: "Environment, Health and Safety",
-    submissionDate: "Tue, 10 Jan 2025",
-    status: "waiting_validation" as DocumentStatus,
-    approver: "Dwi Cahyo Utomo",
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-];
 
 export default function DocumentValidationPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -87,53 +36,73 @@ export default function DocumentValidationPage() {
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // State for fetched documents
+  const [documents, setDocuments] = useState<ValidationDocument[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
   const handleItemsPerPageChange = (value: number) => {
     setItemsPerPage(value);
     setCurrentPage(1);
   };
 
-  // Filter documents based on current filters
-  const filteredDocuments = useMemo(() => {
-    return mockValidationDocuments.filter((doc) => {
-      // Document type filter
-      if (filters.documentType) {
-        const typeMap: Record<string, string> = {
-          sop: "SOP",
-          standart: "Standart",
-          spesifikasi: "Spesifikasi",
-          wi: "WI",
-        };
-        if (doc.type !== typeMap[filters.documentType]) {
-          return false;
-        }
-      }
+  // Fetch validation documents from API
+  const fetchDocuments = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
+        status: "WAITING_VALIDATION",
+      });
 
-      // Status filter
-      if (filters.status && doc.status !== filters.status) {
-        return false;
-      }
+      if (filters.search) params.set("search", filters.search);
+      if (filters.documentType) params.set("documentType", filters.documentType);
 
-      // Search filter (searches in code and title)
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        if (
-          !doc.code.toLowerCase().includes(searchLower) &&
-          !doc.title.toLowerCase().includes(searchLower)
-        ) {
-          return false;
-        }
-      }
+      const response = await fetch(`/api/documents/submission?${params.toString()}`);
+      const result = await response.json();
 
-      return true;
-    });
-  }, [filters]);
+      if (!response.ok) throw new Error(result.error || "Failed to fetch");
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
-  const paginatedDocuments = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDocuments, currentPage, itemsPerPage]);
+      const mappedDocs = (result.data || []).map((doc: {
+        id: string;
+        code: string;
+        title: string;
+        type: string;
+        createdBy: string;
+        submissionDate: string;
+        status: string;
+        approver: string;
+      }) => ({
+        id: doc.id,
+        code: doc.code,
+        title: doc.title,
+        type: doc.type,
+        department: doc.createdBy,
+        createdBy: doc.createdBy,
+        submissionDate: doc.submissionDate,
+        status: doc.status as DocumentStatus,
+        approver: doc.approver,
+        pdfUrl: undefined,
+      }));
+
+      setDocuments(mappedDocs);
+      setTotalPages(result.pagination?.totalPages || 1);
+      setTotalItems(result.pagination?.total || 0);
+    } catch (error) {
+      console.error("Failed to fetch validation documents:", error);
+      toast.error("Failed to fetch documents");
+      setDocuments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentPage, itemsPerPage, filters.search, filters.documentType]);
+
+  // Fetch documents on mount and when dependencies change
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
 
   const handleFilterChange = (newFilters: ValidationFilterState) => {
     setFilters(newFilters);
@@ -160,11 +129,28 @@ export default function DocumentValidationPage() {
     console.log("Delete document:", document);
   };
 
-  const handleApproveFromViewer = () => {
-    // TODO: Implement API call to approve document
-    console.log("Approving document:", selectedDocument);
-    setViewerModalOpen(false);
-    setSelectedDocument(null);
+  const handleApproveFromViewer = async () => {
+    if (!selectedDocument) return;
+
+    try {
+      const response = await fetch(`/api/documents/${selectedDocument.id}/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "APPROVE" }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to approve");
+      }
+
+      toast.success("Document validated and approved successfully");
+      setViewerModalOpen(false);
+      setSelectedDocument(null);
+      fetchDocuments();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to approve document");
+    }
   };
 
   const handleRejectFromViewer = () => {
@@ -172,11 +158,28 @@ export default function DocumentValidationPage() {
     setRejectModalOpen(true);
   };
 
-  const handleRejectSubmit = (_document: unknown, reason: string) => {
-    // TODO: Implement API call to reject document with reason
-    console.log("Rejecting document:", selectedDocument, "Reason:", reason);
-    setRejectModalOpen(false);
-    setSelectedDocument(null);
+  const handleRejectSubmit = async (_document: unknown, reason: string) => {
+    if (!selectedDocument) return;
+
+    try {
+      const response = await fetch(`/api/documents/${selectedDocument.id}/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REJECT", comments: reason }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to reject");
+      }
+
+      toast.success("Document rejected. Creator has been notified.");
+      setRejectModalOpen(false);
+      setSelectedDocument(null);
+      fetchDocuments();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to reject document");
+    }
   };
 
   // Convert ValidationDocument to ManagementDocument for the viewer modal
@@ -226,7 +229,8 @@ export default function DocumentValidationPage() {
           {/* Documents Table */}
           <div className="bg-white px-4 py-2">
             <DocumentValidationTable
-              documents={paginatedDocuments}
+              documents={documents}
+              isLoading={isLoading}
               onViewDocument={handleViewDocument}
               onApproveDocument={handleApproveDocument}
               onEditDocument={handleEditDocument}
@@ -235,7 +239,7 @@ export default function DocumentValidationPage() {
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
-              totalItems={filteredDocuments.length}
+              totalItems={totalItems}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
               onItemsPerPageChange={handleItemsPerPageChange}
