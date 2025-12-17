@@ -2,19 +2,131 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import { DayPicker, useNavigation } from "react-day-picker"
+import { setMonth, setYear } from "date-fns"
 
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>
+export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  /**
+   * Aktifkan dropdown untuk memilih bulan dan tahun
+   * Jika true, tombol prev/next akan diganti dengan dropdown
+   */
+  showMonthYearDropdown?: boolean
+  /**
+   * Tahun awal untuk dropdown tahun
+   * Default: 20 tahun ke belakang dari tahun sekarang
+   */
+  fromYear?: number
+  /**
+   * Tahun akhir untuk dropdown tahun
+   * Default: 10 tahun ke depan dari tahun sekarang
+   */
+  toYear?: number
+}
+
+const MONTHS = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+]
+
+interface DropdownCaptionProps {
+  displayMonth: Date
+  fromYear: number
+  toYear: number
+}
+
+function DropdownCaption({ displayMonth, fromYear, toYear }: DropdownCaptionProps) {
+  const { goToMonth } = useNavigation()
+
+  const years = React.useMemo(() => {
+    const result: number[] = []
+    for (let year = fromYear; year <= toYear; year++) {
+      result.push(year)
+    }
+    return result
+  }, [fromYear, toYear])
+
+  const handleMonthChange = (value: string) => {
+    const newDate = setMonth(displayMonth, parseInt(value))
+    goToMonth(newDate)
+  }
+
+  const handleYearChange = (value: string) => {
+    const newDate = setYear(displayMonth, parseInt(value))
+    goToMonth(newDate)
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-1">
+      <Select
+        value={displayMonth.getMonth().toString()}
+        onValueChange={handleMonthChange}
+      >
+        <SelectTrigger className="h-7 w-[110px] text-xs font-medium focus:ring-0 focus:ring-offset-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="max-h-[200px] overflow-y-auto">
+          {MONTHS.map((month, index) => (
+            <SelectItem key={month} value={index.toString()} className="text-xs">
+              {month}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={displayMonth.getFullYear().toString()}
+        onValueChange={handleYearChange}
+      >
+        <SelectTrigger className="h-7 w-[80px] text-xs font-medium focus:ring-0 focus:ring-offset-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="max-h-[200px] overflow-y-auto">
+          {years.map((year) => (
+            <SelectItem key={year} value={year.toString()} className="text-xs">
+              {year}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  showMonthYearDropdown = false,
+  fromYear: fromYearProp,
+  toYear: toYearProp,
   ...props
 }: CalendarProps) {
+  const currentYear = new Date().getFullYear()
+  const fromYear = fromYearProp ?? currentYear - 20
+  const toYear = toYearProp ?? currentYear + 10
+
+  const isDropdown = showMonthYearDropdown
+
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -22,9 +134,12 @@ function Calendar({
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
-        month_caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
+        month_caption: cn(
+          "flex justify-center pt-1 relative items-center",
+          isDropdown && "justify-center"
+        ),
+        caption_label: cn("text-sm font-medium", isDropdown && "hidden"),
+        nav: cn("space-x-1 flex items-center", isDropdown && "hidden"),
         button_previous: cn(
           buttonVariants({ variant: "outline" }),
           "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 absolute left-1"
@@ -58,6 +173,15 @@ function Calendar({
           const Icon = orientation === "left" ? ChevronLeft : ChevronRight
           return <Icon className="h-4 w-4" {...props} />
         },
+        ...(isDropdown && {
+          MonthCaption: ({ calendarMonth }) => (
+            <DropdownCaption
+              displayMonth={calendarMonth.date}
+              fromYear={fromYear}
+              toYear={toYear}
+            />
+          ),
+        }),
       }}
       {...props}
     />

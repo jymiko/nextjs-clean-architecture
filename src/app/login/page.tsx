@@ -267,10 +267,12 @@ export default function LoginPage() {
                 <div className="flex gap-[10px] items-center">
                   {branding.logoUrl && (
                     <div className="w-[43px] h-[31px] relative overflow-hidden">
-                      <img
+                      <Image
                         src={branding.logoUrl}
                         alt={`${branding.systemName} Logo`}
-                        className="absolute h-[193%] left-[-20%] top-[-40%] w-[139%] max-w-none"
+                        fill
+                        className="object-contain"
+                        unoptimized
                       />
                     </div>
                   )}
@@ -447,10 +449,12 @@ export default function LoginPage() {
                 <div className="flex gap-[10px] items-center">
                   {branding.logoUrl && (
                     <div className="w-[43px] h-[31px] relative overflow-hidden">
-                      <img
+                      <Image
                         src={branding.logoUrl}
                         alt={`${branding.systemName} Logo`}
-                        className="absolute h-[193%] left-[-20%] top-[-40%] w-[139%] max-w-none"
+                        fill
+                        className="object-contain"
+                        unoptimized
                       />
                     </div>
                   )}

@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, Pencil, CheckCircle, Image } from "lucide-react";
+import { Trash2, Pencil, CheckCircle, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import NextImage from "next/image";
 
 interface SignatureSignModalProps {
   isOpen: boolean;
@@ -96,7 +97,7 @@ export function SignatureSignModal({
                 className="flex items-center gap-2"
                 disabled={!userSignature}
               >
-                <Image className="w-4 h-4" />
+                <ImageIcon className="w-4 h-4" />
                 Use Saved
               </TabsTrigger>
             </TabsList>
@@ -156,11 +157,13 @@ export function SignatureSignModal({
                     <p className="text-sm text-[#6A7282] mb-3">
                       Your saved signature from profile:
                     </p>
-                    <div className="border border-dashed border-[#D1D5DC] rounded-lg p-4 bg-[#FAFAFA]">
-                      <img
+                    <div className="border border-dashed border-[#D1D5DC] rounded-lg p-4 bg-[#FAFAFA] relative w-full h-[150px]">
+                      <NextImage
                         src={userSignature}
                         alt="Saved signature"
-                        className="max-h-[150px] max-w-full object-contain"
+                        fill
+                        className="object-contain p-2"
+                        unoptimized
                       />
                     </div>
                     <p className="text-xs text-[#9CA3AF] mt-2">
@@ -169,7 +172,7 @@ export function SignatureSignModal({
                   </div>
                 ) : (
                   <div className="flex flex-col items-center py-8">
-                    <Image className="w-12 h-12 text-[#D1D5DC] mb-3" />
+                    <ImageIcon className="w-12 h-12 text-[#D1D5DC] mb-3" />
                     <p className="text-sm text-[#6A7282]">
                       No saved signature found.
                     </p>

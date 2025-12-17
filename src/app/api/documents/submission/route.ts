@@ -263,7 +263,12 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
       where: { categoryId: validatedData.documentTypeId },
     });
     const nextNumber = existingCount + 1;
-    const documentNumber = `${category.code}-${user.department?.code || "DOC"}-${String(nextNumber).padStart(3, "0")}`;
+    let documentNumber = `${category.code}-${user.department?.code || "DOC"}-${String(nextNumber).padStart(3, "0")}`;
+
+    // Add DRAFT- prefix if status is DRAFT
+    if (validatedData.status === "DRAFT") {
+      documentNumber = `DRAFT-${documentNumber}`;
+    }
 
     // Determine the signature to use for "Prepared By"
     // Use new signature from step 4 if provided, otherwise use existing user signature

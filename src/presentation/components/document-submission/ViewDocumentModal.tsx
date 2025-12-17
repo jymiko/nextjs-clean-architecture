@@ -363,11 +363,11 @@ export function ViewDocumentModal({
     };
 
     return (
-      <div className="flex flex-col lg:flex-row gap-4 lg:max-h-[75vh]">
+      <div className="flex flex-col lg:flex-row gap-4 h-full overflow-hidden">
         {/* Left Side - Document Information */}
-        <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-lg border border-[#E1E2E3] overflow-hidden flex flex-col order-2 lg:order-1 lg:max-h-[75vh]">
+        <div className="w-full lg:w-[380px] shrink-0 bg-white rounded-lg border border-[#E1E2E3] flex flex-col order-2 lg:order-1 overflow-hidden">
           {/* Header */}
-          <div className="bg-[#E9F5FE] px-6 py-4 flex items-center gap-3">
+          <div className="bg-[#E9F5FE] px-6 py-4 flex items-center gap-3 shrink-0">
             <FileText className="h-5 w-5 text-[#4DB1D4]" />
             <h3 className="text-[#384654] font-semibold text-base">Document Viewer</h3>
           </div>
@@ -508,7 +508,7 @@ export function ViewDocumentModal({
           </div>
 
           {/* Review Actions */}
-          <div className="px-6 pb-6 pt-2 space-y-3 border-t border-[#E1E2E3]">
+          <div className="px-6 pb-6 pt-2 space-y-3 border-t border-[#E1E2E3] shrink-0">
             {onEdit && (
               <>
                 <h4 className="text-[#384654] font-medium text-sm mb-3">Review Actions</h4>
@@ -534,9 +534,9 @@ export function ViewDocumentModal({
         </div>
 
         {/* Right Side - PDF Viewer + Signature Panel */}
-        <div className="flex-1 flex flex-col gap-4 order-1 lg:order-2 overflow-auto">
+        <div className="flex-1 flex flex-col gap-4 order-1 lg:order-2 overflow-hidden">
           {/* PDF Viewer */}
-          <div className="bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[350px] lg:min-h-[400px] lg:max-h-[55vh]">
+          <div className="bg-white rounded-lg border border-[#E1E2E3] overflow-hidden min-h-[300px] flex-1">
             {document.pdfUrl || generatedPdfUrl ? (
               <PDFViewer
                 file={document.pdfUrl || generatedPdfUrl}
@@ -561,12 +561,14 @@ export function ViewDocumentModal({
           </div>
 
           {/* Signature Panel - Always show */}
-          <DocumentSignaturePanel
-            preparedBy={preparedByData}
-            approvals={document.signatureApprovals || []}
-            currentUserId={currentUser?.id}
-            onSign={handleOpenSignModal}
-          />
+          <div className="shrink-0">
+            <DocumentSignaturePanel
+              preparedBy={preparedByData}
+              approvals={document.signatureApprovals || []}
+              currentUserId={currentUser?.id}
+              onSign={handleOpenSignModal}
+            />
+          </div>
         </div>
       </div>
     );
@@ -575,12 +577,14 @@ export function ViewDocumentModal({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[90vw] lg:max-w-[1200px] w-[95vw] max-h-[90vh] overflow-y-auto p-6">
+        <DialogContent className="w-[90vw] max-w-[90vw] h-[90vh] max-h-[90vh] p-6 flex flex-col">
           <DialogHeader className="sr-only">
             <DialogTitle>View Document</DialogTitle>
           </DialogHeader>
 
-          {renderContent()}
+          <div className="flex-1 overflow-hidden">
+            {renderContent()}
+          </div>
         </DialogContent>
       </Dialog>
 

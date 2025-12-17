@@ -38,6 +38,8 @@ import { DocumentSubmissionInfoPanel } from "./DocumentSubmissionInfoPanel";
 import { DocumentSubmissionSignaturePreview } from "./DocumentSubmissionSignaturePreview";
 import { PDFViewer } from "@/presentation/components/document-management/PDFViewer";
 import { generateDocumentPdf, generatePdfFileName } from "@/lib/pdf/generateSOPPdf";
+import { SuccessModal } from "@/presentation/components/department/SuccessModal";
+import { ErrorModal } from "@/presentation/components/department/ErrorModal";
 
 interface Department {
   id: string;
@@ -72,6 +74,31 @@ const formSteps: Step[] = [
   { id: "signature-document", label: "Signature Document" },
   { id: "document-preview", label: "Document Preview" },
 ];
+
+const MAX_TOTAL_APPROVERS = 4;
+
+// Interface untuk error messages per field
+interface FormErrors {
+  // Step 0
+  documentTypeId?: string;
+  documentTitle?: string;
+  destinationDepartmentId?: string;
+  estimatedDistributionDate?: string;
+  // Step 1
+  purpose?: string;
+  scope?: string;
+  reviewerIds?: string;
+  approverIds?: string;
+  acknowledgedIds?: string;
+  responsibleDocument?: string;
+  termsAndAbbreviations?: string;
+  warning?: string;
+  relatedDocuments?: string;
+  // Step 2
+  procedureContent?: string;
+  // Step 3
+  signature?: string;
+}
 
 const initialFormData: DocumentFormData = {
   departmentId: "",
@@ -112,6 +139,7 @@ export function EditDocumentModal({
   const { user: currentUser } = useCurrentUser();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<DocumentFormData>(initialFormData);
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
@@ -127,6 +155,13 @@ export function EditDocumentModal({
   const [pdfFileName, setPdfFileName] = useState("");
   const [pdfUrl, setPdfUrl] = useState<string>("");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Popup state for submission feedback
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalTitle, setModalTitle] = useState("");
+  const [isSubmittingDocument, setIsSubmittingDocument] = useState(false);
 
   // Fetch dropdown data when modal opens
   useEffect(() => {
@@ -209,11 +244,82 @@ export function EditDocumentModal({
 
   const updateFormData = (field: keyof DocumentFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error untuk field yang diubah
+    if (formErrors[field as keyof FormErrors]) {
+      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  // Fungsi untuk validasi step dan menampilkan error
+  const validateStep = (step: number): boolean => {
+    const errors: FormErrors = {};
+
+    switch (step) {
+      case 0: // Document Information
+        if (!formData.documentTypeId) errors.documentTypeId = "Jenis dokumen wajib dipilih";
+        if (!formData.documentTitle?.trim()) errors.documentTitle = "Judul dokumen wajib diisi";
+        if (!formData.destinationDepartmentId) errors.destinationDepartmentId = "Departemen tujuan wajib dipilih";
+        if (!formData.estimatedDistributionDate) errors.estimatedDistributionDate = "Tanggal distribusi wajib diisi";
+        break;
+      case 1: // Detail Document
+        if (!formData.purpose?.trim()) errors.purpose = "Tujuan wajib diisi";
+        if (!formData.scope?.trim()) errors.scope = "Ruang lingkup wajib diisi";
+        if (!formData.reviewerIds?.length) errors.reviewerIds = "Reviewer wajib dipilih";
+        if (!formData.approverIds?.length) errors.approverIds = "Approver wajib dipilih";
+        if (!formData.acknowledgedIds?.length) errors.acknowledgedIds = "Acknowledged wajib dipilih";
+        if (!formData.responsibleDocument?.trim()) errors.responsibleDocument = "Penanggung jawab wajib diisi";
+        if (!formData.termsAndAbbreviations?.trim()) errors.termsAndAbbreviations = "Istilah dan singkatan wajib diisi";
+        if (!formData.warning?.trim()) errors.warning = "Peringatan wajib diisi";
+        if (!formData.relatedDocuments?.trim()) errors.relatedDocuments = "Dokumen terkait wajib diisi";
+        break;
+      case 2: // Procedure Document
+        if (!formData.procedureContent?.trim() || formData.procedureContent === "<p></p>") errors.procedureContent = "Konten prosedur wajib diisi";
+        break;
+      case 3: // Signature Document
+        if (!formData.signature) errors.signature = "Tanda tangan wajib diisi";
+        break;
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Fungsi untuk check validasi tanpa set error (untuk disable tombol)
+  const isStepValid = (step: number): boolean => {
+    switch (step) {
+      case 0:
+        return !!(
+          formData.documentTypeId &&
+          formData.documentTitle?.trim() &&
+          formData.destinationDepartmentId &&
+          formData.estimatedDistributionDate
+        );
+      case 1:
+        return !!(
+          formData.purpose?.trim() &&
+          formData.scope?.trim() &&
+          formData.reviewerIds?.length &&
+          formData.approverIds?.length &&
+          formData.acknowledgedIds?.length &&
+          formData.responsibleDocument?.trim() &&
+          formData.termsAndAbbreviations?.trim() &&
+          formData.warning?.trim() &&
+          formData.relatedDocuments?.trim()
+        );
+      case 2:
+        return !!(formData.procedureContent?.trim() && formData.procedureContent !== "<p></p>");
+      case 3:
+        return !!formData.signature;
+      default:
+        return true;
+    }
   };
 
   const handleNext = () => {
-    if (currentStep < formSteps.length - 1) {
-      setCurrentStep(currentStep + 1);
+    if (validateStep(currentStep)) {
+      if (currentStep < formSteps.length - 1) {
+        setCurrentStep(currentStep + 1);
+      }
     }
   };
 
@@ -285,11 +391,41 @@ export function EditDocumentModal({
         return;
       }
 
-      // Submit form data with status
-      onSubmit(formData, status);
+      if (!documentId) {
+        alert("Document ID not found");
+        return;
+      }
 
-      // Close modal
-      handleClose();
+      setIsSubmittingDocument(true);
+      try {
+        await apiClient.put(`/api/documents/${documentId}`, {
+          ...formData,
+          status,
+        });
+
+        // Show success modal based on status
+        if (status === "DRAFT") {
+          setModalTitle("Draft Berhasil Disimpan!");
+          setModalMessage(`Draft dokumen "${formData.documentTitle}" berhasil disimpan.`);
+        } else {
+          setModalTitle("Dokumen Berhasil Disubmit!");
+          setModalMessage(`Dokumen "${formData.documentTitle}" berhasil disubmit untuk review.`);
+        }
+        setShowSuccessModal(true);
+      } catch (error: unknown) {
+        console.error("Failed to submit document:", error);
+        const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan saat menyimpan dokumen.";
+
+        if (status === "DRAFT") {
+          setModalTitle("Gagal Menyimpan Draft");
+        } else {
+          setModalTitle("Gagal Submit Dokumen");
+        }
+        setModalMessage(errorMessage);
+        setShowErrorModal(true);
+      } finally {
+        setIsSubmittingDocument(false);
+      }
     } catch (error) {
       console.error("Failed to submit document:", error);
       alert("Failed to submit document. Please try again.");
@@ -309,6 +445,7 @@ export function EditDocumentModal({
   const handleClose = () => {
     setCurrentStep(0);
     setFormData(initialFormData);
+    setFormErrors({});
     setError(null);
     if (pdfUrl) {
       URL.revokeObjectURL(pdfUrl);
@@ -326,32 +463,45 @@ export function EditDocumentModal({
   };
 
   // Memoize user options for each field with disabled state for users already selected in other fields
+  // Also exclude the current user (document creator) from all options
   const reviewerOptions = useMemo(() => {
-    const disabledIds = new Set([...formData.approverIds, ...formData.acknowledgedIds]);
+    const disabledIds = new Set([
+      ...formData.approverIds,
+      ...formData.acknowledgedIds,
+      currentUser?.id || '',
+    ]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
       disabled: disabledIds.has(user.id),
     }));
-  }, [users, formData.approverIds, formData.acknowledgedIds]);
+  }, [users, formData.approverIds, formData.acknowledgedIds, currentUser?.id]);
 
   const approverOptions = useMemo(() => {
-    const disabledIds = new Set([...formData.reviewerIds, ...formData.acknowledgedIds]);
+    const disabledIds = new Set([
+      ...formData.reviewerIds,
+      ...formData.acknowledgedIds,
+      currentUser?.id || '',
+    ]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
       disabled: disabledIds.has(user.id),
     }));
-  }, [users, formData.reviewerIds, formData.acknowledgedIds]);
+  }, [users, formData.reviewerIds, formData.acknowledgedIds, currentUser?.id]);
 
   const acknowledgedOptions = useMemo(() => {
-    const disabledIds = new Set([...formData.reviewerIds, ...formData.approverIds]);
+    const disabledIds = new Set([
+      ...formData.reviewerIds,
+      ...formData.approverIds,
+      currentUser?.id || '',
+    ]);
     return users.map((user) => ({
       value: user.id,
       label: `${user.name}${user.position ? ` - ${user.position.name}` : ""}`,
       disabled: disabledIds.has(user.id),
     }));
-  }, [users, formData.reviewerIds, formData.approverIds]);
+  }, [users, formData.reviewerIds, formData.approverIds, currentUser?.id]);
 
   // Handle multi-select change
   const handleMultiSelectChange = (
@@ -370,6 +520,11 @@ export function EditDocumentModal({
     }
 
     setFormData(newFormData);
+
+    // Clear error untuk field yang diubah
+    if (formErrors[fieldName]) {
+      setFormErrors((prev) => ({ ...prev, [fieldName]: undefined }));
+    }
   };
 
   // Step 1: Document Information
@@ -392,7 +547,7 @@ export function EditDocumentModal({
           value={formData.documentTypeId}
           onValueChange={(value) => updateFormData("documentTypeId", value)}
         >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
+          <SelectTrigger className={`h-12 border-[#E1E1E6] rounded-sm ${formErrors.documentTypeId ? "border-red-500" : ""}`}>
             <SelectValue placeholder="Choose type Document" />
           </SelectTrigger>
           <SelectContent>
@@ -403,6 +558,9 @@ export function EditDocumentModal({
             ))}
           </SelectContent>
         </Select>
+        {formErrors.documentTypeId && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.documentTypeId}</p>
+        )}
       </div>
 
       {/* Document Code (read-only) */}
@@ -422,8 +580,11 @@ export function EditDocumentModal({
           value={formData.documentTitle}
           onChange={(e) => updateFormData("documentTitle", e.target.value)}
           placeholder="Document Title"
-          className="h-12 border-[#E1E1E6] rounded-sm"
+          className={`h-12 border-[#E1E1E6] rounded-sm ${formErrors.documentTitle ? "border-red-500" : ""}`}
         />
+        {formErrors.documentTitle && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.documentTitle}</p>
+        )}
       </div>
 
       {/* Department of Destination */}
@@ -433,7 +594,7 @@ export function EditDocumentModal({
           value={formData.destinationDepartmentId}
           onValueChange={(value) => updateFormData("destinationDepartmentId", value)}
         >
-          <SelectTrigger className="h-12 border-[#E1E1E6] rounded-sm">
+          <SelectTrigger className={`h-12 border-[#E1E1E6] rounded-sm ${formErrors.destinationDepartmentId ? "border-red-500" : ""}`}>
             <SelectValue placeholder="Departement of Destination" />
           </SelectTrigger>
           <SelectContent>
@@ -444,6 +605,9 @@ export function EditDocumentModal({
             ))}
           </SelectContent>
         </Select>
+        {formErrors.destinationDepartmentId && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.destinationDepartmentId}</p>
+        )}
       </div>
 
       {/* Estimated Last Date of Distribution */}
@@ -455,7 +619,7 @@ export function EditDocumentModal({
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-full h-12 justify-between text-left font-normal border-[#E1E1E6] rounded-sm hover:bg-white"
+              className={`w-full h-12 justify-between text-left font-normal border-[#E1E1E6] rounded-sm hover:bg-white ${formErrors.estimatedDistributionDate ? "border-red-500" : ""}`}
             >
               <span className={formData.estimatedDistributionDate ? "text-[#384654]" : "text-[#a0aec0]"}>
                 {formData.estimatedDistributionDate
@@ -475,9 +639,13 @@ export function EditDocumentModal({
               }}
               initialFocus
               classNames={compactCalendarClassNames}
+              showMonthYearDropdown
             />
           </PopoverContent>
         </Popover>
+        {formErrors.estimatedDistributionDate && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.estimatedDistributionDate}</p>
+        )}
       </div>
     </div>
   );
@@ -492,8 +660,11 @@ export function EditDocumentModal({
           value={formData.purpose}
           onChange={(e) => updateFormData("purpose", e.target.value)}
           placeholder="Purpose"
-          className="h-12 border-[#E1E1E6] rounded-sm"
+          className={`h-12 border-[#E1E1E6] rounded-sm ${formErrors.purpose ? "border-red-500" : ""}`}
         />
+        {formErrors.purpose && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.purpose}</p>
+        )}
       </div>
 
       {/* Scope */}
@@ -503,8 +674,11 @@ export function EditDocumentModal({
           value={formData.scope}
           onChange={(e) => updateFormData("scope", e.target.value)}
           placeholder="Scope this document"
-          className="min-h-[80px] border-[#E1E1E6] rounded-sm resize-none"
+          className={`min-h-[80px] border-[#E1E1E6] rounded-sm resize-none ${formErrors.scope ? "border-red-500" : ""}`}
         />
+        {formErrors.scope && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.scope}</p>
+        )}
       </div>
 
       {/* Reviewer */}
@@ -515,7 +689,13 @@ export function EditDocumentModal({
           selected={formData.reviewerIds}
           onChange={(selectedIds) => handleMultiSelectChange('reviewerIds', selectedIds)}
           placeholder="Select reviewers..."
+          maxSelections={MAX_TOTAL_APPROVERS}
+          currentTotalSelected={formData.approverIds.length + formData.acknowledgedIds.length}
+          error={!!formErrors.reviewerIds}
         />
+        {formErrors.reviewerIds && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.reviewerIds}</p>
+        )}
       </div>
 
       {/* Approver */}
@@ -526,7 +706,13 @@ export function EditDocumentModal({
           selected={formData.approverIds}
           onChange={(selectedIds) => handleMultiSelectChange('approverIds', selectedIds)}
           placeholder="Select approvers..."
+          maxSelections={MAX_TOTAL_APPROVERS}
+          currentTotalSelected={formData.reviewerIds.length + formData.acknowledgedIds.length}
+          error={!!formErrors.approverIds}
         />
+        {formErrors.approverIds && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.approverIds}</p>
+        )}
       </div>
 
       {/* Acknowledged */}
@@ -537,7 +723,13 @@ export function EditDocumentModal({
           selected={formData.acknowledgedIds}
           onChange={(selectedIds) => handleMultiSelectChange('acknowledgedIds', selectedIds)}
           placeholder="Select acknowledged users..."
+          maxSelections={MAX_TOTAL_APPROVERS}
+          currentTotalSelected={formData.reviewerIds.length + formData.approverIds.length}
+          error={!!formErrors.acknowledgedIds}
         />
+        {formErrors.acknowledgedIds && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.acknowledgedIds}</p>
+        )}
       </div>
 
       {/* Responsible Document */}
@@ -547,8 +739,11 @@ export function EditDocumentModal({
           value={formData.responsibleDocument}
           onChange={(e) => updateFormData("responsibleDocument", e.target.value)}
           placeholder="Responsible this document"
-          className="min-h-[80px] border-[#E1E1E6] rounded-sm resize-none"
+          className={`min-h-[80px] border-[#E1E1E6] rounded-sm resize-none ${formErrors.responsibleDocument ? "border-red-500" : ""}`}
         />
+        {formErrors.responsibleDocument && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.responsibleDocument}</p>
+        )}
       </div>
 
       {/* List of Terms and Abbreviations */}
@@ -558,8 +753,11 @@ export function EditDocumentModal({
           value={formData.termsAndAbbreviations}
           onChange={(e) => updateFormData("termsAndAbbreviations", e.target.value)}
           placeholder="List of Terms and Abbreviations in this document"
-          className="min-h-[80px] border-[#E1E1E6] rounded-sm resize-none"
+          className={`min-h-[80px] border-[#E1E1E6] rounded-sm resize-none ${formErrors.termsAndAbbreviations ? "border-red-500" : ""}`}
         />
+        {formErrors.termsAndAbbreviations && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.termsAndAbbreviations}</p>
+        )}
       </div>
 
       {/* Warning */}
@@ -569,8 +767,11 @@ export function EditDocumentModal({
           value={formData.warning}
           onChange={(e) => updateFormData("warning", e.target.value)}
           placeholder="Warning for this document"
-          className="min-h-[80px] border-[#E1E1E6] rounded-sm resize-none"
+          className={`min-h-[80px] border-[#E1E1E6] rounded-sm resize-none ${formErrors.warning ? "border-red-500" : ""}`}
         />
+        {formErrors.warning && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.warning}</p>
+        )}
       </div>
 
       {/* Related documents */}
@@ -580,8 +781,11 @@ export function EditDocumentModal({
           value={formData.relatedDocuments}
           onChange={(e) => updateFormData("relatedDocuments", e.target.value)}
           placeholder="Related document"
-          className="min-h-[80px] border-[#E1E1E6] rounded-sm resize-none"
+          className={`min-h-[80px] border-[#E1E1E6] rounded-sm resize-none ${formErrors.relatedDocuments ? "border-red-500" : ""}`}
         />
+        {formErrors.relatedDocuments && (
+          <p className="text-sm text-red-500 mt-1">{formErrors.relatedDocuments}</p>
+        )}
       </div>
     </div>
   );
@@ -590,11 +794,16 @@ export function EditDocumentModal({
   const renderStep3 = () => (
     <div className="space-y-4">
       <Label className="text-[#323238] text-sm font-bold">Detail Prosedure Document</Label>
-      <RichTextEditor
-        value={formData.procedureContent}
-        onChange={(value) => updateFormData("procedureContent", value)}
-        placeholder="Write your procedure document here..."
-      />
+      <div className={formErrors.procedureContent ? "border border-red-500 rounded-sm" : ""}>
+        <RichTextEditor
+          value={formData.procedureContent}
+          onChange={(value) => updateFormData("procedureContent", value)}
+          placeholder="Write your procedure document here..."
+        />
+      </div>
+      {formErrors.procedureContent && (
+        <p className="text-sm text-red-500">{formErrors.procedureContent}</p>
+      )}
       <div className="text-[#8D8D99] text-sm">
         Word count: {getWordCount(formData.procedureContent)}
       </div>
@@ -605,10 +814,15 @@ export function EditDocumentModal({
   const renderStep4 = () => (
     <div className="space-y-4">
       <Label className="text-[#323238] text-sm font-bold">Signature your Document</Label>
-      <SignaturePad
-        value={formData.signature}
-        onChange={(value) => updateFormData("signature", value)}
-      />
+      <div className={formErrors.signature ? "border border-red-500 rounded-sm p-1" : ""}>
+        <SignaturePad
+          value={formData.signature}
+          onChange={(value) => updateFormData("signature", value)}
+        />
+      </div>
+      {formErrors.signature && (
+        <p className="text-sm text-red-500">{formErrors.signature}</p>
+      )}
     </div>
   );
 
@@ -657,7 +871,7 @@ export function EditDocumentModal({
             onSubmit={() => handleFinalSubmit("IN_REVIEW")}
             onDraft={() => handleFinalSubmit("DRAFT")}
             onClose={handleClosePreview}
-            isSubmitting={isLoading}
+            isSubmitting={isLoading || isSubmittingDocument}
           />
         </div>
 
@@ -731,7 +945,14 @@ export function EditDocumentModal({
   const isLastStep = currentStep === formSteps.length - 1;
   const isFirstStep = currentStep === 0;
 
+  // Handle success modal close
+  const handleSuccessModalClose = () => {
+    setShowSuccessModal(false);
+    handleClose(); // Close the main modal after success popup
+  };
+
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className={`w-[95vw] max-h-[90vh] overflow-y-auto ${currentStep === 4 ? 'sm:max-w-[90vw] lg:max-w-[1200px]' : 'sm:max-w-[900px]'}`}>
         <DialogHeader>
@@ -812,7 +1033,8 @@ export function EditDocumentModal({
                   </Button>
                   <Button
                     onClick={handleNext}
-                    className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
+                    disabled={!isStepValid(currentStep)}
+                    className={`bg-[#4DB1D4] hover:bg-[#3da0bf] text-white ${!isStepValid(currentStep) ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     Next
                   </Button>
@@ -823,5 +1045,25 @@ export function EditDocumentModal({
         )}
       </DialogContent>
     </Dialog>
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={handleSuccessModalClose}
+        title={modalTitle}
+        message={modalMessage}
+        autoClose={true}
+        autoCloseDelay={3000}
+      />
+
+      {/* Error Modal */}
+      <ErrorModal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title={modalTitle}
+        message={modalMessage}
+        autoClose={false}
+      />
+    </>
   );
 }

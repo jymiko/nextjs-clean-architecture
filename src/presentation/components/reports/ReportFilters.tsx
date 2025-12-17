@@ -165,6 +165,7 @@ export function ReportFilters({
                 onSelect={(date) => updateFilter("dateFrom", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>
@@ -190,6 +191,7 @@ export function ReportFilters({
                 onSelect={(date) => updateFilter("dateTo", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>

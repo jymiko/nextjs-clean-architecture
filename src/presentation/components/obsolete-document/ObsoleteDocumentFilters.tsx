@@ -151,6 +151,7 @@ export function ObsoleteDocumentFilters({
                 onSelect={(date) => updateFilter("dateFrom", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>
@@ -176,6 +177,7 @@ export function ObsoleteDocumentFilters({
                 onSelect={(date) => updateFilter("dateTo", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>

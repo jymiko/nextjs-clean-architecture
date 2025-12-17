@@ -169,6 +169,7 @@ export function DistributedDocumentFilters({
                 onSelect={(date) => updateFilter("dateFrom", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>
@@ -194,6 +195,7 @@ export function DistributedDocumentFilters({
                 onSelect={(date) => updateFilter("dateTo", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>

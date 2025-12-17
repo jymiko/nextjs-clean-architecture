@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { MousePointer2 } from "lucide-react";
+import Image from "next/image";
 
 interface PreparedBy {
   id?: string;
@@ -97,7 +98,7 @@ function SignatureCard({
   return (
     <div
       className={cn(
-        "border border-[#E1E2E3] rounded-lg bg-white p-4 flex flex-col min-w-[160px]",
+        "border border-[#E1E2E3] rounded-lg bg-white p-4 flex flex-col min-w-[200px] flex-1 flex-shrink-0",
         isClickable && "cursor-pointer hover:border-[#4DB1D4] hover:shadow-md transition-all"
       )}
       onClick={isClickable ? onClick : undefined}
@@ -110,13 +111,17 @@ function SignatureCard({
       </div>
 
       {/* Signature Area */}
-      <div className="flex-1 flex items-center justify-center min-h-[80px] border border-dashed border-[#D1D5DC] rounded-md bg-[#FAFAFA] mb-3">
+      <div className="flex items-center justify-center h-32 border border-dashed border-[#D1D5DC] rounded-md bg-[#FAFAFA] mb-3 overflow-hidden">
         {signature ? (
-          <img
-            src={signature}
-            alt={`${name}'s signature`}
-            className="max-h-[70px] max-w-full object-contain"
-          />
+          <div className="relative w-full h-full">
+            <Image
+              src={signature}
+              alt={`${name}'s signature`}
+              fill
+              className="object-cover p-2"
+              unoptimized
+            />
+          </div>
         ) : canSign && isCurrentUser ? (
           <div className="flex flex-col items-center text-[#4DB1D4]">
             <MousePointer2 className="w-8 h-8 mb-1" />
@@ -147,7 +152,7 @@ interface EmptySignatureCardProps {
 
 function EmptySignatureCard({ title }: EmptySignatureCardProps) {
   return (
-    <div className="border border-[#E1E2E3] rounded-lg bg-white p-4 flex flex-col min-w-[160px]">
+    <div className="border border-[#E1E2E3] rounded-lg bg-white p-4 flex flex-col min-w-[200px] flex-1 flex-shrink-0">
       {/* Title */}
       <div className="text-center mb-3">
         <span className="text-xs font-medium text-[#6B7280] uppercase tracking-wide">
@@ -156,7 +161,7 @@ function EmptySignatureCard({ title }: EmptySignatureCardProps) {
       </div>
 
       {/* Signature Area */}
-      <div className="flex-1 flex items-center justify-center min-h-[80px] border border-dashed border-[#D1D5DC] rounded-md bg-[#FAFAFA] mb-3">
+      <div className="flex items-center justify-center h-32 border border-dashed border-[#D1D5DC] rounded-md bg-[#FAFAFA] mb-3">
         <span className="text-xs text-[#9CA3AF]">Not assigned</span>
       </div>
 
@@ -185,22 +190,11 @@ export function DocumentSignaturePanel({
   const hasApprovers = approvers.length > 0;
   const hasAcknowledgers = acknowledgers.length > 0;
 
-  // Calculate total columns
-  const reviewerCount = hasReviewers ? reviewers.length : 1;
-  const approverCount = hasApprovers ? approvers.length : 1;
-  const acknowledgerCount = hasAcknowledgers ? acknowledgers.length : 1;
-  const totalCards = 1 + reviewerCount + approverCount + acknowledgerCount;
-
   return (
     <div className="bg-[#F9FAFB] rounded-lg p-4 border border-[#E1E2E3]">
       <h4 className="text-sm font-medium text-[#384654] mb-4">Document Signatures</h4>
 
-      <div
-        className="grid gap-3 overflow-x-auto"
-        style={{
-          gridTemplateColumns: `repeat(${Math.min(totalCards, 5)}, minmax(150px, 1fr))`,
-        }}
-      >
+      <div className="flex gap-3 overflow-x-auto pb-2">
         {/* Prepared By Card */}
         <SignatureCard
           title="Prepared By"

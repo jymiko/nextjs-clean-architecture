@@ -185,10 +185,33 @@ export const PUT = withAuthHandler(async (
     const validatedData = updateDocumentSchema.parse(body);
 
     const documentRepository = container.cradle.documentRepository;
-    const document = await documentRepository.update(id, {
+
+    // Get the existing document to check for status change
+    const existingDocument = await documentRepository.findById(id);
+    if (!existingDocument) {
+      return NextResponse.json(
+        { error: 'Document not found' },
+        { status: 404 }
+      );
+    }
+
+    // Prepare update data
+    const updateData: Record<string, unknown> = {
       ...validatedData,
       status: validatedData.status as DocumentStatus | undefined,
-    });
+    };
+
+    // Handle DRAFT prefix removal when status changes from DRAFT to IN_REVIEW
+    if (
+      existingDocument.status === 'DRAFT' &&
+      validatedData.status === 'IN_REVIEW' &&
+      existingDocument.documentNumber?.startsWith('DRAFT-')
+    ) {
+      // Remove DRAFT- prefix from document number
+      updateData.documentNumber = existingDocument.documentNumber.replace('DRAFT-', '');
+    }
+
+    const document = await documentRepository.update(id, updateData);
 
     if (!document) {
       return NextResponse.json(

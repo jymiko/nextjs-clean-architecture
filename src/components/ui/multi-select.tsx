@@ -20,6 +20,9 @@ interface MultiSelectProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  maxSelections?: number;
+  currentTotalSelected?: number;
+  error?: boolean;
 }
 
 export function MultiSelect({
@@ -29,6 +32,9 @@ export function MultiSelect({
   placeholder = "Select options...",
   className,
   disabled = false,
+  maxSelections,
+  currentTotalSelected = 0,
+  error = false,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [searchValue, setSearchValue] = React.useState("");
@@ -43,9 +49,17 @@ export function MultiSelect({
     if (selected.includes(value)) {
       onChange(selected.filter((item) => item !== value));
     } else {
+      const currentTotal = currentTotalSelected + selected.length;
+      if (maxSelections && currentTotal >= maxSelections) {
+        return;
+      }
       onChange([...selected, value]);
     }
   };
+
+  const isMaxReached = maxSelections
+    ? (currentTotalSelected + selected.length) >= maxSelections
+    : false;
 
   // Filter options based on search input
   const filteredOptions = React.useMemo(() => {
@@ -66,6 +80,7 @@ export function MultiSelect({
           className={cn(
             "w-full justify-between min-h-12 h-auto py-2 border-[#E1E1E6] rounded-sm hover:bg-transparent",
             disabled && "opacity-50 cursor-not-allowed",
+            error && "border-red-500",
             className
           )}
           onClick={() => !disabled && setOpen(!open)}
@@ -134,15 +149,17 @@ export function MultiSelect({
             ) : (
               filteredOptions.map((option) => {
                 const isSelected = selected.includes(option.value);
+                const isDisabledByMax = isMaxReached && !isSelected;
+                const isOptionDisabled = option.disabled || isDisabledByMax;
 
                 return (
                   <div
                     key={option.value}
                     className={cn(
                       "flex items-center px-2 py-2 rounded-sm cursor-pointer hover:bg-accent transition-colors",
-                      option.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                      isOptionDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent"
                     )}
-                    onClick={() => handleToggle(option.value, option.disabled)}
+                    onClick={() => handleToggle(option.value, isOptionDisabled)}
                   >
                     <div
                       className={cn(
@@ -156,13 +173,13 @@ export function MultiSelect({
                     </div>
                     <span className={cn(
                       "text-sm flex-1",
-                      option.disabled && "text-muted-foreground"
+                      isOptionDisabled && "text-muted-foreground"
                     )}>
                       {option.label}
                     </span>
-                    {option.disabled && (
+                    {isOptionDisabled && (
                       <span className="text-xs text-muted-foreground">
-                        (Sudah dipilih)
+                        {option.disabled ? "(Sudah dipilih)" : "(Limit tercapai)"}
                       </span>
                     )}
                   </div>

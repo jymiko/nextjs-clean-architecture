@@ -170,6 +170,7 @@ export function DocumentManagementFilters({
                 onSelect={(date) => updateFilter("dateFrom", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>
@@ -195,6 +196,7 @@ export function DocumentManagementFilters({
                 onSelect={(date) => updateFilter("dateTo", date)}
                 initialFocus
                 classNames={responsiveCalendarClassNames}
+                showMonthYearDropdown
               />
             </PopoverContent>
           </Popover>
