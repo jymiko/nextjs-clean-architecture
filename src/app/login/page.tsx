@@ -176,6 +176,17 @@ export default function LoginPage() {
       // Initialize tokens and redirect
       tokenManager.initializeTokens(tokenData);
 
+      // Check if password change is required
+      if (response.requirePasswordChange) {
+        toast.info('Please change your password before continuing', {
+          duration: 3000,
+        });
+        setTimeout(() => {
+          router.push('/change-password?required=true');
+        }, 1000);
+        return;
+      }
+
       // Show success toast
       toast.success(`Login berhasil! Selamat datang, ${response.user.name}`, {
         duration: 2000,

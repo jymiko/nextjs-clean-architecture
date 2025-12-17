@@ -58,9 +58,10 @@ export async function PUT(request: NextRequest) {
     // Hash new password
     const hashedPassword = await bcrypt.hash(validatedData.newPassword, 10);
 
-    // Update password
+    // Update password and reset mustChangePassword flag
     await userRepository.update(authenticatedRequest.user.userId, {
       password: hashedPassword,
+      mustChangePassword: false, // User has now changed their password
     });
 
     return NextResponse.json({

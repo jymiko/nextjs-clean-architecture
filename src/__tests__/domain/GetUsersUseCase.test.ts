@@ -7,8 +7,8 @@ describe("GetUsersUseCase", () => {
   let mockUserRepository: jest.Mocked<IUserRepository>;
 
   const mockUsers: User[] = [
-    { id: "1", name: "John Doe", email: "john@example.com", role: UserRole.USER, isActive: true, createdAt: new Date(), updatedAt: new Date() },
-    { id: "2", name: "Jane Doe", email: "jane@example.com", role: UserRole.ADMIN, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: "1", name: "John Doe", email: "john@example.com", role: UserRole.USER, isActive: true, mustChangePassword: false, createdAt: new Date(), updatedAt: new Date() },
+    { id: "2", name: "Jane Doe", email: "jane@example.com", role: UserRole.ADMIN, isActive: true, mustChangePassword: false, createdAt: new Date(), updatedAt: new Date() },
   ];
 
   const mockUserListResponse: UserListResponse = {
@@ -26,6 +26,7 @@ describe("GetUsersUseCase", () => {
       findByEmail: jest.fn(),
       findByEmployeeId: jest.fn(),
       create: jest.fn(),
+      createWithAccess: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       authenticate: jest.fn(),

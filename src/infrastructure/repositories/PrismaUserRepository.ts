@@ -7,11 +7,13 @@ import {
   AuthResponse,
   UserListResponse,
   UserQueryParams,
+  CreateUserResponseDTO,
 } from '@/domain/entities/User';
 import { IUserRepository } from '@/domain/repositories/IUserRepository';
 import { prisma } from '../database';
 import { hashPassword, comparePassword } from '../auth';
 import { generateTokenPair } from '../auth/refresh-token';
+import { generateSecurePassword, generateInvitationToken, calculateTokenExpiry } from '../auth/password-generator';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../errors';
 import { UserRole as PrismaUserRole } from '@prisma/client';
 
@@ -30,6 +32,7 @@ export class PrismaUserRepository implements IUserRepository {
     avatar: string | null;
     signature: string | null;
     isActive: boolean;
+    mustChangePassword: boolean;
     deletedAt: Date | null;
     lastLogin: Date | null;
     createdAt: Date;
@@ -49,6 +52,7 @@ export class PrismaUserRepository implements IUserRepository {
       avatar: data.avatar,
       signature: data.signature,
       isActive: data.isActive,
+      mustChangePassword: data.mustChangePassword,
       deletedAt: data.deletedAt,
       lastLogin: data.lastLogin,
       createdAt: data.createdAt,
@@ -240,6 +244,7 @@ export class PrismaUserRepository implements IUserRepository {
         departmentId: data.departmentId,
         positionId: data.positionId,
         isActive: data.isActive ?? true,
+        mustChangePassword: false, // Will be set by createWithAccess method
       },
       include: {
         department: {
@@ -252,6 +257,108 @@ export class PrismaUserRepository implements IUserRepository {
     });
 
     return this.mapToUser(user);
+  }
+
+  /**
+   * Create user with access method (generate password or invitation link)
+   * This is the preferred method for admin-created users
+   */
+  async createWithAccess(data: CreateUserDTO): Promise<CreateUserResponseDTO> {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const creationMethod = data.creationMethod || 'generate_password';
+
+    // Check if user already exists by email
+    const existingEmail = await this.findByEmail(data.email);
+    if (existingEmail) {
+      throw new ConflictError('User with this email already exists');
+    }
+
+    // Check if employeeId already exists (if provided)
+    if (data.employeeId) {
+      const existingEmployeeId = await this.findByEmployeeId(data.employeeId);
+      if (existingEmployeeId) {
+        throw new ConflictError('User with this employee ID already exists');
+      }
+    }
+
+    // Validate departmentId if provided
+    if (data.departmentId) {
+      const department = await prisma.department.findUnique({ where: { id: data.departmentId } });
+      if (!department) {
+        throw new NotFoundError('Department not found');
+      }
+    }
+
+    // Validate positionId if provided
+    if (data.positionId) {
+      const position = await prisma.position.findUnique({ where: { id: data.positionId } });
+      if (!position) {
+        throw new NotFoundError('Position not found');
+      }
+    }
+
+    let plainPassword: string | undefined;
+    let hashedPassword: string | null = null;
+    let mustChangePassword = false;
+    let invitationLink: string | undefined;
+    let invitationExpiresAt: Date | undefined;
+
+    if (creationMethod === 'generate_password') {
+      // Generate a secure password
+      plainPassword = generateSecurePassword(12);
+      hashedPassword = await hashPassword(plainPassword);
+      mustChangePassword = true; // User must change password on first login
+    }
+    // For 'invitation_link', password remains null - will be set when user accepts invitation
+
+    // Create user
+    const user = await prisma.user.create({
+      data: {
+        employeeId: data.employeeId,
+        name: data.name,
+        email: data.email,
+        password: hashedPassword,
+        role: data.role ?? 'USER',
+        departmentId: data.departmentId,
+        positionId: data.positionId,
+        isActive: data.isActive ?? true,
+        mustChangePassword,
+      },
+      include: {
+        department: {
+          select: { id: true, code: true, name: true },
+        },
+        position: {
+          select: { id: true, code: true, name: true },
+        },
+      },
+    });
+
+    // If using invitation link, create invitation token
+    if (creationMethod === 'invitation_link') {
+      const token = generateInvitationToken();
+      invitationExpiresAt = calculateTokenExpiry(7); // 7 days
+
+      await prisma.invitationToken.create({
+        data: {
+          userId: user.id,
+          token,
+          expiresAt: invitationExpiresAt,
+        },
+      });
+
+      invitationLink = `${baseUrl}/accept-invitation?token=${token}`;
+    }
+
+    const mappedUser = this.mapToUser(user);
+    const { password: _, ...userWithoutPassword } = mappedUser;
+
+    return {
+      user: userWithoutPassword,
+      generatedPassword: plainPassword,
+      invitationLink,
+      invitationExpiresAt,
+    };
   }
 
   async update(id: string, data: UpdateUserDTO): Promise<User | null> {
@@ -309,6 +416,7 @@ export class PrismaUserRepository implements IUserRepository {
         avatar: data.avatar,
         signature: data.signature,
         isActive: data.isActive,
+        mustChangePassword: data.mustChangePassword,
       },
       include: {
         department: {
@@ -382,6 +490,7 @@ export class PrismaUserRepository implements IUserRepository {
       refreshToken: tokenPair.refreshToken,
       expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
       tokenType: 'Bearer',
+      requirePasswordChange: user.mustChangePassword, // Indicate if user must change password
     };
   }
 

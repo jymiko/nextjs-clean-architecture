@@ -13,6 +13,7 @@ describe("CreateUserUseCase", () => {
       findByEmail: jest.fn(),
       findByEmployeeId: jest.fn(),
       create: jest.fn(),
+      createWithAccess: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       authenticate: jest.fn(),
@@ -33,6 +34,7 @@ describe("CreateUserUseCase", () => {
       email: createUserDTO.email,
       role: UserRole.USER,
       isActive: true,
+      mustChangePassword: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -59,6 +61,7 @@ describe("CreateUserUseCase", () => {
       email: "john@example.com",
       role: UserRole.USER,
       isActive: true,
+      mustChangePassword: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

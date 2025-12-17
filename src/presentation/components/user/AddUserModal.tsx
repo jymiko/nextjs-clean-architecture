@@ -27,6 +27,8 @@ interface AddUserModalProps {
   onSubmit: (data: UserFormData) => void;
 }
 
+export type CreationMethod = 'generate_password' | 'invitation_link';
+
 export interface UserFormData {
   id: string;           // Database ID (cuid) for API calls
   displayId: string;    // Employee ID for display
@@ -37,6 +39,7 @@ export interface UserFormData {
   departmentId: string;
   roleId: string;
   status: string;
+  creationMethod?: CreationMethod;  // Only used for new user creation
 }
 
 const roles = [
@@ -65,6 +68,7 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
     departmentId: "",
     roleId: "",
     status: "",
+    creationMethod: "generate_password",
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -162,6 +166,7 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
       departmentId: "",
       roleId: "",
       status: "",
+      creationMethod: "generate_password",
     });
     setErrors({});
     onClose();
@@ -353,6 +358,43 @@ export function AddUserModal({ isOpen, onClose, onSubmit }: AddUserModalProps) {
             {errors.status && (
               <p className="text-xs text-red-500 mt-1">{errors.status}</p>
             )}
+          </div>
+
+          {/* Access Method */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-[#1a1a1a]">
+              How should the user get access? <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 p-3 bg-[#f6faff] rounded-lg cursor-pointer border border-transparent hover:border-[#4db1d4] transition-colors">
+                <input
+                  type="radio"
+                  name="creationMethod"
+                  value="generate_password"
+                  checked={formData.creationMethod === "generate_password"}
+                  onChange={(e) => setFormData({ ...formData, creationMethod: e.target.value as CreationMethod })}
+                  className="w-4 h-4 text-[#4db1d4] focus:ring-[#4db1d4]"
+                />
+                <div>
+                  <p className="text-sm font-medium text-[#1a1a1a]">Generate Password</p>
+                  <p className="text-xs text-[#8a8f9d]">System will generate a temporary password that you can share with the user</p>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 p-3 bg-[#f6faff] rounded-lg cursor-pointer border border-transparent hover:border-[#4db1d4] transition-colors">
+                <input
+                  type="radio"
+                  name="creationMethod"
+                  value="invitation_link"
+                  checked={formData.creationMethod === "invitation_link"}
+                  onChange={(e) => setFormData({ ...formData, creationMethod: e.target.value as CreationMethod })}
+                  className="w-4 h-4 text-[#4db1d4] focus:ring-[#4db1d4]"
+                />
+                <div>
+                  <p className="text-sm font-medium text-[#1a1a1a]">Send Invitation Link</p>
+                  <p className="text-xs text-[#8a8f9d]">User will receive a link to set their own password (valid for 7 days)</p>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
 

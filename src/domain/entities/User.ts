@@ -27,11 +27,15 @@ export interface User {
   avatar?: string | null;
   signature?: string | null;
   isActive: boolean;
+  mustChangePassword: boolean;
   deletedAt?: Date | null;
   lastLogin?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Method for creating new user access
+export type UserCreationMethod = 'generate_password' | 'invitation_link';
 
 export interface CreateUserDTO {
   employeeId?: string;
@@ -42,6 +46,15 @@ export interface CreateUserDTO {
   departmentId?: string;
   positionId?: string;
   isActive?: boolean;
+  creationMethod?: UserCreationMethod; // How to give user access
+}
+
+// Response when creating user with generated password or invitation
+export interface CreateUserResponseDTO {
+  user: Omit<User, 'password'>;
+  generatedPassword?: string;  // Only returned when creationMethod is 'generate_password'
+  invitationLink?: string;     // Only returned when creationMethod is 'invitation_link'
+  invitationExpiresAt?: Date;  // Expiry time for invitation link
 }
 
 export interface UpdateUserDTO {
@@ -55,6 +68,7 @@ export interface UpdateUserDTO {
   avatar?: string | null;
   signature?: string | null;
   isActive?: boolean;
+  mustChangePassword?: boolean;
 }
 
 export interface UserListResponse {
@@ -88,4 +102,5 @@ export interface AuthResponse {
   refreshToken: string;
   expiresIn: number;
   tokenType: string;
+  requirePasswordChange?: boolean; // True if user must change password
 }

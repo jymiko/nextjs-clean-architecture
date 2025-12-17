@@ -16,6 +16,7 @@ describe("UserService", () => {
     email: "john@example.com",
     role: UserRole.USER,
     isActive: true,
+    mustChangePassword: false,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

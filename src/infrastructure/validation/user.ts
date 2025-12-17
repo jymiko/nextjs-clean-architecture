@@ -12,6 +12,9 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+// Creation method for new users
+export const userCreationMethodSchema = z.enum(['generate_password', 'invitation_link']);
+
 // Schema for admin user management (CRUD)
 export const createUserAdminSchema = z.object({
   employeeId: z.string()
@@ -30,6 +33,7 @@ export const createUserAdminSchema = z.object({
   departmentId: z.string().cuid('Invalid department ID').optional(),
   positionId: z.string().cuid('Invalid position ID').optional(),
   isActive: z.boolean().default(true),
+  creationMethod: userCreationMethodSchema.default('generate_password'),
 });
 
 export const updateUserAdminSchema = z.object({
@@ -96,6 +100,25 @@ export const verifyResetTokenSchema = z.object({
   token: z.string().min(1, 'Token is required'),
 });
 
+// Schema for verifying invitation token
+export const verifyInvitationTokenSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+});
+
+// Schema for accepting invitation and setting password
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  password: z.string()
+    .min(6, 'Password must be at least 6 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  confirmPassword: z.string().min(1, 'Confirm password is required'),
+}).refine(data => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+});
+
 // Schema for user profile update (self-update)
 export const updateProfileSchema = z.object({
   name: z.string()
@@ -140,6 +163,9 @@ export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type VerifyResetTokenInput = z.infer<typeof verifyResetTokenSchema>;
+export type VerifyInvitationTokenInput = z.infer<typeof verifyInvitationTokenSchema>;
+export type AcceptInvitationInput = z.infer<typeof acceptInvitationSchema>;
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type UpdateSignatureInput = z.infer<typeof updateSignatureSchema>;
+export type UserCreationMethod = z.infer<typeof userCreationMethodSchema>;

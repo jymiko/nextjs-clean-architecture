@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/presentation/components/Sidebar";
-import { Plus, Search, Eye, Pencil, Trash2, Users, UserCheck, UserX, User, Bell } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, Users, UserCheck, UserX, User, Bell, Mail, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,8 @@ import {
   ErrorModal,
 } from "@/presentation/components/user";
 import { UserFormData } from "@/presentation/components/user/AddUserModal";
+import { GeneratedPasswordModal } from "@/presentation/components/user/GeneratedPasswordModal";
+import { InvitationLinkModal } from "@/presentation/components/user/InvitationLinkModal";
 import apiClient from "@/lib/api-client";
 
 interface User {
@@ -63,9 +65,19 @@ export default function UsersPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isInvitationModalOpen, setIsInvitationModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [successMessage, setSuccessMessage] = useState({ title: "", message: "" });
   const [errorMessage, setErrorMessage] = useState({ title: "", message: "" });
+  const [createdUserInfo, setCreatedUserInfo] = useState<{
+    userName: string;
+    userEmail: string;
+    generatedPassword?: string;
+    invitationLink?: string;
+    invitationExpiresAt?: string;
+  } | null>(null);
+  const [resendingInvitationUserId, setResendingInvitationUserId] = useState<string | null>(null);
 
   // Fetch users
   useEffect(() => {
@@ -162,15 +174,34 @@ export default function UsersPage() {
         departmentId: data.departmentId || undefined,
         role: data.roleId === "1" ? "ADMIN" : data.roleId === "2" ? "USER" : undefined,
         isActive: data.status === "active",
+        creationMethod: data.creationMethod,
       };
 
-      await apiClient.post("/api/users", apiData);
+      const response = await apiClient.post("/api/users", apiData);
 
-      setSuccessMessage({
-        title: "Successfully Added!",
-        message: "The user data has been added to the system. The changes have been saved successfully.",
+      // Store created user info for modals
+      setCreatedUserInfo({
+        userName: data.name,
+        userEmail: data.email,
+        generatedPassword: response.generatedPassword,
+        invitationLink: response.invitationLink,
+        invitationExpiresAt: response.invitationExpiresAt,
       });
-      setIsSuccessModalOpen(true);
+
+      // Show appropriate modal based on creation method
+      if (response.generatedPassword) {
+        setIsPasswordModalOpen(true);
+      } else if (response.invitationLink) {
+        setIsInvitationModalOpen(true);
+      } else {
+        // Fallback to success modal
+        setSuccessMessage({
+          title: "Successfully Added!",
+          message: "The user data has been added to the system.",
+        });
+        setIsSuccessModalOpen(true);
+      }
+
       fetchUsers();
     } catch (error) {
       console.error("Error adding user:", error);
@@ -253,6 +284,34 @@ export default function UsersPage() {
   const handleDeleteClick = (user: User) => {
     setSelectedUser(user);
     setIsDeleteModalOpen(true);
+  };
+
+  const handleResendInvitation = async (user: User) => {
+    try {
+      setResendingInvitationUserId(user.id);
+
+      const response = await apiClient.post(`/api/users/${user.id}/resend-invitation`);
+
+      // Store user info for invitation modal
+      setCreatedUserInfo({
+        userName: user.name,
+        userEmail: user.email,
+        invitationLink: response.invitationLink,
+        invitationExpiresAt: response.expiresAt,
+      });
+
+      setIsInvitationModalOpen(true);
+    } catch (error) {
+      console.error("Error resending invitation:", error);
+      const errorMsg = error instanceof Error ? error.message : "Failed to resend invitation. Please try again.";
+      setErrorMessage({
+        title: "Failed to Resend Invitation!",
+        message: errorMsg,
+      });
+      setIsErrorModalOpen(true);
+    } finally {
+      setResendingInvitationUserId(null);
+    }
   };
 
   return (
@@ -430,6 +489,7 @@ export default function UsersPage() {
                             size="icon"
                             className="h-10 w-10 border-[#e1e2e3]"
                             onClick={() => handleView(user)}
+                            title="View user details"
                           >
                             <Eye className="size-4 text-[#384654]" />
                           </Button>
@@ -438,6 +498,7 @@ export default function UsersPage() {
                             size="icon"
                             className="h-10 w-10 border-[#e1e2e3]"
                             onClick={() => handleEditClick(user)}
+                            title="Edit user"
                           >
                             <Pencil className="size-4 text-[#4db1d4]" />
                           </Button>
@@ -445,7 +506,22 @@ export default function UsersPage() {
                             variant="outline"
                             size="icon"
                             className="h-10 w-10 border-[#e1e2e3]"
+                            onClick={() => handleResendInvitation(user)}
+                            disabled={resendingInvitationUserId === user.id}
+                            title="Resend invitation link"
+                          >
+                            {resendingInvitationUserId === user.id ? (
+                              <Loader2 className="size-4 text-[#9b59b6] animate-spin" />
+                            ) : (
+                              <Mail className="size-4 text-[#9b59b6]" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 border-[#e1e2e3]"
                             onClick={() => handleDeleteClick(user)}
+                            title="Delete user"
                           >
                             <Trash2 className="size-4 text-[#f24822]" />
                           </Button>
@@ -524,6 +600,35 @@ export default function UsersPage() {
         title={errorMessage.title}
         message={errorMessage.message}
       />
+
+      {/* Generated Password Modal */}
+      {createdUserInfo && (
+        <GeneratedPasswordModal
+          isOpen={isPasswordModalOpen}
+          onClose={() => {
+            setIsPasswordModalOpen(false);
+            setCreatedUserInfo(null);
+          }}
+          userName={createdUserInfo.userName}
+          userEmail={createdUserInfo.userEmail}
+          generatedPassword={createdUserInfo.generatedPassword || ""}
+        />
+      )}
+
+      {/* Invitation Link Modal */}
+      {createdUserInfo && (
+        <InvitationLinkModal
+          isOpen={isInvitationModalOpen}
+          onClose={() => {
+            setIsInvitationModalOpen(false);
+            setCreatedUserInfo(null);
+          }}
+          userName={createdUserInfo.userName}
+          userEmail={createdUserInfo.userEmail}
+          invitationLink={createdUserInfo.invitationLink || ""}
+          expiresAt={createdUserInfo.invitationExpiresAt}
+        />
+      )}
     </div>
   );
 }

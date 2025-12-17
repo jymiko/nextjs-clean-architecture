@@ -83,6 +83,7 @@ model User {
   avatar                String?
   signature             String?                @db.Text // Base64 encoded signature image from canvas drawing
   isActive              Boolean                @default(true)
+  mustChangePassword    Boolean                @default(false) // Force password change on first login
   deletedAt             DateTime?
   lastLogin             DateTime?
   createdAt             DateTime               @default(now())
@@ -90,6 +91,7 @@ model User {
   sessions              Session[]
   refreshTokens         RefreshToken[]
   passwordResetTokens   PasswordResetToken[]
+  invitationTokens      InvitationToken[]
   preferences           UserPreference?
   documentsCreated      Document[]             @relation("DocumentCreator")
   documentsOwned        Document[]             @relation("DocumentOwner")
@@ -189,6 +191,23 @@ model PasswordResetToken {
   @@index([token])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+// Invitation tokens for new user password setup
+model InvitationToken {
+  id         String    @id @default(cuid())
+  userId     String
+  token      String    @unique
+  expiresAt  DateTime
+  accepted   Boolean   @default(false)
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("invitation_tokens")
 }
 
 // ============================================================================

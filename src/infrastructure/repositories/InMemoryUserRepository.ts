@@ -7,8 +7,10 @@ import {
   AuthResponse,
   UserListResponse,
   UserQueryParams,
+  CreateUserResponseDTO,
 } from "@/domain/entities/User";
 import { IUserRepository } from "@/domain/repositories/IUserRepository";
+import { generateSecurePassword, generateInvitationToken, calculateTokenExpiry } from '../auth/password-generator';
 
 export class InMemoryUserRepository implements IUserRepository {
   private users: Map<string, User> = new Map();
@@ -131,12 +133,65 @@ export class InMemoryUserRepository implements IUserRepository {
       avatar: null,
       signature: null,
       isActive: data.isActive ?? true,
+      mustChangePassword: false,
       lastLogin: null,
       createdAt: now,
       updatedAt: now,
     };
     this.users.set(user.id, user);
     return user;
+  }
+
+  async createWithAccess(data: CreateUserDTO): Promise<CreateUserResponseDTO> {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const creationMethod = data.creationMethod || 'generate_password';
+    const now = new Date();
+
+    let plainPassword: string | undefined;
+    let mustChangePassword = false;
+    let invitationLink: string | undefined;
+    let invitationExpiresAt: Date | undefined;
+
+    if (creationMethod === 'generate_password') {
+      plainPassword = generateSecurePassword(12);
+      mustChangePassword = true;
+    }
+
+    const user: User = {
+      id: crypto.randomUUID(),
+      employeeId: data.employeeId || null,
+      name: data.name,
+      email: data.email,
+      password: creationMethod === 'generate_password' ? plainPassword : undefined,
+      role: data.role ?? UserRole.USER,
+      departmentId: data.departmentId || null,
+      department: null,
+      positionId: data.positionId || null,
+      position: null,
+      avatar: null,
+      signature: null,
+      isActive: data.isActive ?? true,
+      mustChangePassword,
+      lastLogin: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.users.set(user.id, user);
+
+    if (creationMethod === 'invitation_link') {
+      const token = generateInvitationToken();
+      invitationExpiresAt = calculateTokenExpiry(7);
+      invitationLink = `${baseUrl}/accept-invitation?token=${token}`;
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+
+    return {
+      user: userWithoutPassword,
+      generatedPassword: plainPassword,
+      invitationLink,
+      invitationExpiresAt,
+    };
   }
 
   async update(id: string, data: UpdateUserDTO): Promise<User | null> {

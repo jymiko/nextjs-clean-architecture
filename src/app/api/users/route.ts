@@ -60,12 +60,11 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
     const validatedData = createUserAdminSchema.parse(body);
 
     const userRepository = container.cradle.userRepository;
-    const user = await userRepository.create(validatedData as CreateUserDTO);
 
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
+    // Use createWithAccess for admin-created users to handle password generation or invitation
+    const result = await userRepository.createWithAccess(validatedData as CreateUserDTO);
 
-    return NextResponse.json(userWithoutPassword, { status: 201 });
+    return NextResponse.json(result, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) {
       return NextResponse.json(
