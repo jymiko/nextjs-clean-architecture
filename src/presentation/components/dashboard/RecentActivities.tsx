@@ -3,60 +3,105 @@
 import { FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import type { DashboardActivity } from "@/domain/entities/Dashboard";
 
-interface Activity {
-  id: string;
-  fileName: string;
-  action: string;
-  time: string;
-  type: "approved" | "revision";
+// ============================================
+// Props Interface
+// ============================================
+
+interface RecentActivitiesProps {
+  activities: DashboardActivity[];
+  isLoading?: boolean;
+  onViewAll?: () => void;
 }
 
-const activities: Activity[] = [
-  {
-    id: "1",
-    fileName: "SOP-DT-001.pdf",
-    action: "Approved by Acknowledge",
-    time: "1 minutes ago",
-    type: "approved",
-  },
-  {
-    id: "2",
-    fileName: "Standart-DT-001.pdf",
-    action: "Revisi by Reviewer",
-    time: "7 hours ago",
-    type: "revision",
-  },
-  {
-    id: "3",
-    fileName: "WI-DT-001.pdf",
-    action: "Approved by Reviewer",
-    time: "yesterday",
-    type: "approved",
-  },
-  {
-    id: "4",
-    fileName: "WI-DT-001.pdf",
-    action: "Approved by Acknowledge",
-    time: "10 Sept 2025",
-    type: "approved",
-  },
-  {
-    id: "5",
-    fileName: "Standart-DT-001.pdf",
-    action: "Revisi by Approver",
-    time: "14 Oct 2025",
-    type: "revision",
-  },
-];
+// ============================================
+// Skeleton Component
+// ============================================
 
-export function RecentActivities() {
+function ActivitySkeleton() {
+  return (
+    <div className="bg-white flex items-center gap-6 px-4 py-3 rounded-[8px] animate-pulse flex-1">
+      {/* Icon Skeleton */}
+      <div className="size-[23px] rounded bg-gray-200 shrink-0" />
+
+      {/* Content Skeleton */}
+      <div className="flex flex-col gap-2 flex-1">
+        <div className="h-4 w-32 bg-gray-200 rounded" />
+        <div className="h-3 w-40 bg-gray-200 rounded" />
+        <div className="h-3 w-24 bg-gray-200 rounded" />
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Helper Functions
+// ============================================
+
+function formatTimeAgo(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInMinutes < 1) {
+    return 'Just now';
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+  } else if (diffInDays === 1) {
+    return 'Yesterday';
+  } else if (diffInDays < 7) {
+    return `${diffInDays} days ago`;
+  } else {
+    return date.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+}
+
+function getActionText(action: DashboardActivity['action'], role: string): string {
+  switch (action) {
+    case 'APPROVED':
+      return `Approved by ${role}`;
+    case 'REJECTED':
+      return `Rejected by ${role}`;
+    case 'NEEDS_REVISION':
+      return `Revision requested by ${role}`;
+    case 'SUBMITTED':
+      return `Submitted by ${role}`;
+    case 'DISTRIBUTED':
+      return `Distributed by ${role}`;
+    default:
+      return `Action by ${role}`;
+  }
+}
+
+// ============================================
+// Main Component
+// ============================================
+
+export function RecentActivities({
+  activities,
+  isLoading = false,
+  onViewAll,
+}: RecentActivitiesProps) {
   return (
     <Card className="h-full w-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between w-full">
           <CardTitle className="text-black text-lg font-bold">Recent Activities</CardTitle>
-          <Button variant="link" className="text-[#4DB1D4] text-base font-normal p-0 h-auto">
+          <Button
+            variant="link"
+            className="text-[#4DB1D4] text-base font-normal p-0 h-auto"
+            onClick={onViewAll}
+          >
             View All
           </Button>
         </div>
@@ -64,36 +109,50 @@ export function RecentActivities() {
       <CardContent className="flex-1 pt-0">
         {/* Activities List */}
         <div className="flex flex-col gap-3 flex-1 w-full">
-          {activities.map((activity) => (
-            <div
-              key={activity.id}
-              className="bg-white flex items-center gap-6 px-4 py-3 rounded-[8px] hover:bg-gray-50 transition-colors flex-1"
-            >
-              {/* Icon */}
-              <div
-                className={`size-[23px] rounded flex items-center justify-center shrink-0 ${
-                  activity.type === "approved"
-                    ? "bg-[#DBFFE0] text-[#0E9211]"
-                    : "bg-[#FFE4D6] text-[#F24822]"
-                }`}
-              >
-                <FileText className="size-4" />
-              </div>
-
-              {/* Content */}
-              <div className="flex flex-col gap-1">
-                <p className="text-[#0e1115] text-sm font-medium leading-none">
-                  {activity.fileName}
-                </p>
-                <p className="text-[#737373] text-sm font-medium leading-none">
-                  {activity.action}
-                </p>
-                <p className="text-[#737373] text-xs font-medium leading-none">
-                  {activity.time}
-                </p>
-              </div>
+          {isLoading ? (
+            // Skeleton loading state
+            Array.from({ length: 5 }).map((_, index) => (
+              <ActivitySkeleton key={index} />
+            ))
+          ) : activities.length === 0 ? (
+            // Empty state
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-8">
+              <FileText className="size-12 mb-2 opacity-50" />
+              <p className="text-sm">No recent activities</p>
             </div>
-          ))}
+          ) : (
+            // Activities list
+            activities.map((activity) => (
+              <div
+                key={activity.id}
+                className="bg-white flex items-center gap-6 px-4 py-3 rounded-[8px] hover:bg-gray-50 transition-colors flex-1"
+              >
+                {/* Icon */}
+                <div
+                  className={`size-[23px] rounded flex items-center justify-center shrink-0 ${
+                    activity.type === "approved"
+                      ? "bg-[#DBFFE0] text-[#0E9211]"
+                      : "bg-[#FFE4D6] text-[#F24822]"
+                  }`}
+                >
+                  <FileText className="size-4" />
+                </div>
+
+                {/* Content */}
+                <div className="flex flex-col gap-1 min-w-0">
+                  <p className="text-[#0e1115] text-sm font-medium leading-none truncate">
+                    {activity.documentNumber}
+                  </p>
+                  <p className="text-[#737373] text-sm font-medium leading-none truncate">
+                    {getActionText(activity.action, activity.actionByRole)}
+                  </p>
+                  <p className="text-[#737373] text-xs font-medium leading-none">
+                    {formatTimeAgo(activity.timestamp)}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </CardContent>
     </Card>

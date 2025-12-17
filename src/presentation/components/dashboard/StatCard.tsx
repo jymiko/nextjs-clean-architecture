@@ -9,6 +9,7 @@ interface StatCardProps {
   subtitle: string;
   subtitleColor: "cyan" | "warning" | "error" | "success";
   icon: ReactNode;
+  isLoading?: boolean;
 }
 
 const subtitleColorClasses = {
@@ -24,7 +25,25 @@ export function StatCard({
   subtitle,
   subtitleColor,
   icon,
+  isLoading = false,
 }: StatCardProps) {
+  if (isLoading) {
+    return (
+      <Card className="border-[#e9f5fe] h-[134px] w-full">
+        <CardContent className="p-[23px]">
+          <div className="flex justify-between items-start gap-4 animate-pulse">
+            <div className="flex flex-col gap-2">
+              <div className="h-5 w-28 bg-gray-200 rounded" />
+              <div className="h-8 w-20 bg-gray-200 rounded" />
+            </div>
+            <div className="size-[50px] bg-gray-200 rounded-lg shrink-0" />
+          </div>
+          <div className="h-4 w-32 bg-gray-200 rounded mt-2 animate-pulse" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="border-[#e9f5fe] h-[134px] w-full">
       <CardContent className="p-[23px]">
