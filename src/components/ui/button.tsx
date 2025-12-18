@@ -1,8 +1,14 @@
+"use client"
+
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { motion, type HTMLMotionProps } from "framer-motion"
+import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useButtonAnimation, useReducedMotion } from "@/lib/animations/hooks"
+import { springConfig } from "@/lib/animations/config"
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -37,9 +43,63 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  isLoading?: boolean
+  loadingText?: string
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, isLoading, loadingText, children, disabled, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button"
+    const shouldReduceMotion = useReducedMotion()
+    const animation = useButtonAnimation()
+
+    const content = isLoading ? (
+      <>
+        <motion.span
+          initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mr-2"
+        >
+          <Loader2 className="h-4 w-4 animate-spin" />
+        </motion.span>
+        {loadingText || children}
+      </>
+    ) : (
+      children
+    )
+
+    if (asChild) {
+      return (
+        <Comp
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          disabled={disabled || isLoading}
+          {...props}
+        >
+          {content}
+        </Comp>
+      )
+    }
+
+    return (
+      <motion.button
+        className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
+        disabled={disabled || isLoading}
+        whileHover={disabled || isLoading ? undefined : animation.whileHover}
+        whileTap={disabled || isLoading ? undefined : animation.whileTap}
+        transition={animation.transition}
+        {...(props as HTMLMotionProps<"button">)}
+      >
+        {content}
+      </motion.button>
+    )
+  }
+)
+Button.displayName = "Button"
+
+// Non-animated version for cases where motion is not desired
+const ButtonStatic = React.forwardRef<HTMLButtonElement, Omit<ButtonProps, 'isLoading' | 'loadingText'>>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     return (
@@ -51,6 +111,6 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     )
   }
 )
-Button.displayName = "Button"
+ButtonStatic.displayName = "ButtonStatic"
 
-export { Button, buttonVariants }
+export { Button, ButtonStatic, buttonVariants }

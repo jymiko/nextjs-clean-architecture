@@ -1,17 +1,18 @@
 "use client";
 
+// All icons normalized to 20x20 area centered at (25,25) within 50x50 viewBox
+
 export function TotalDocumentsIcon() {
   return (
     <svg
-      width="50"
-      height="50"
+      className="size-full"
       viewBox="0 0 50 50"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <rect width="50" height="50" rx="12" fill="#E9F5FE" />
       <path
-        d="M32 15H18C16.9 15 16 15.9 16 17V33C16 34.1 16.9 35 18 35H32C33.1 35 34 34.1 34 33V17C34 15.9 33.1 15 32 15ZM30 31H20V29H30V31ZM30 27H20V25H30V27ZM30 23H20V21H30V23Z"
+        d="M31 15H19C17.9 15 17 15.9 17 17V33C17 34.1 17.9 35 19 35H31C32.1 35 33 34.1 33 33V17C33 15.9 32.1 15 31 15ZM29 31H21V29H29V31ZM29 27H21V25H29V27ZM29 23H21V21H29V23Z"
         fill="#4DB1D4"
       />
     </svg>
@@ -21,8 +22,7 @@ export function TotalDocumentsIcon() {
 export function PendingApprovalsIcon() {
   return (
     <svg
-      width="50"
-      height="50"
+      className="size-full"
       viewBox="0 0 50 50"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -39,15 +39,14 @@ export function PendingApprovalsIcon() {
 export function ExpiringSoonIcon() {
   return (
     <svg
-      width="50"
-      height="50"
+      className="size-full"
       viewBox="0 0 50 50"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <rect width="50" height="50" rx="12" fill="#FFD6CD" />
       <path
-        d="M24 31H26V33H24V31ZM24 17H26V29H24V17ZM24.99 13C18.47 13 13 18.48 13 25C13 31.52 18.47 37 24.99 37C31.52 37 37 31.52 37 25C37 18.48 31.52 13 24.99 13ZM25 35C19.48 35 15 30.52 15 25C15 19.48 19.48 15 25 15C30.52 15 35 19.48 35 25C35 30.52 30.52 35 25 35Z"
+        d="M24 29H26V31H24V29ZM24 19H26V27H24V19ZM25 15C19.48 15 15 19.48 15 25C15 30.52 19.48 35 25 35C30.52 35 35 30.52 35 25C35 19.48 30.52 15 25 15ZM25 33C20.59 33 17 29.41 17 25C17 20.59 20.59 17 25 17C29.41 17 33 20.59 33 25C33 29.41 29.41 33 25 33Z"
         fill="#F24822"
       />
     </svg>
@@ -57,15 +56,14 @@ export function ExpiringSoonIcon() {
 export function NewSubmissionsIcon() {
   return (
     <svg
-      width="50"
-      height="50"
+      className="size-full"
       viewBox="0 0 50 50"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <rect width="50" height="50" rx="12" fill="#DBFFE0" />
       <path
-        d="M28 15H20C18.9 15 18.01 15.9 18.01 17L18 33C18 34.1 18.89 35 19.99 35H30C31.1 35 32 34.1 32 33V19L28 15ZM30 33H20V17H27V20H30V33ZM21 27V29H29V27H21ZM21 23V25H26V23H21Z"
+        d="M29 15H21C19.9 15 19 15.9 19 17V33C19 34.1 19.9 35 21 35H31C32.1 35 33 34.1 33 33V19L29 15ZM31 33H21V17H28V20H31V33ZM22 27V29H30V27H22ZM22 23V25H27V23H22Z"
         fill="#0E9211"
       />
     </svg>

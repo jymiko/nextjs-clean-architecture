@@ -1,8 +1,9 @@
 'use client';
 
-import { Bell, User, Menu } from "lucide-react";
+import { User, Menu } from "lucide-react";
 import Image from "next/image";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { NotificationBell } from "@/presentation/components/notifications/NotificationBell";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -28,10 +29,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         {/* User Info */}
         <div className="flex items-center gap-3 lg:gap-4">
           {/* Notification Bell */}
-          <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors">
-            <Bell className="size-5 lg:size-6 text-[#DA318C]" />
-            <span className="absolute top-1 right-1 size-2 bg-[#DA318C] rounded-full" />
-          </button>
+          <NotificationBell />
 
           {/* User Profile */}
           <button className="flex items-center gap-2 lg:gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors">

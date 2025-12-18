@@ -2,8 +2,11 @@
 
 import { FilePlus, Share2, FileQuestion, FileText, Users } from "lucide-react";
 import { ReactNode } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useReducedMotion } from "@/lib/animations/hooks";
+import { springConfig } from "@/lib/animations/config";
 
 interface QuickAction {
   id: string;
@@ -57,46 +60,118 @@ const quickActions: QuickAction[] = [
   },
 ];
 
-export function QuickActions() {
-  return (
-    <Card className="h-full w-full flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between w-full">
-          <CardTitle className="text-black text-lg font-bold">Quick Action</CardTitle>
-          <Button variant="link" className="text-[#4DB1D4] text-base font-normal p-0 h-auto">
-            View All
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-1 pt-0">
-        {/* Actions List */}
-        <div className="flex flex-col gap-3 w-full flex-1">
-          {quickActions.map((action) => (
-            <Button
-              key={action.id}
-              variant="ghost"
-              className="w-full flex items-center justify-start gap-6 px-4 py-3 h-auto rounded-[10px] flex-1"
-            >
-              {/* Icon */}
-              <div
-                className={`size-[23px] rounded flex items-center justify-center shrink-0 ${action.iconBg} ${action.iconColor}`}
-              >
-                {action.icon}
-              </div>
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05,
+      delayChildren: 0.1,
+    },
+  },
+};
 
-              {/* Content */}
-              <div className="flex flex-col gap-1 text-left">
-                <p className="text-[#0e1115] text-sm font-medium leading-none">
-                  {action.title}
-                </p>
-                <p className="text-[#737373] text-sm font-medium leading-none">
-                  {action.description}
-                </p>
-              </div>
+const itemVariants = {
+  hidden: { opacity: 0, x: -10 },
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: springConfig.snappy,
+  },
+};
+
+export function QuickActions() {
+  const shouldReduceMotion = useReducedMotion();
+
+  if (shouldReduceMotion) {
+    return (
+      <Card className="h-full w-full flex flex-col">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between w-full">
+            <CardTitle className="text-black text-lg font-bold">Quick Action</CardTitle>
+            <Button variant="link" className="text-[#4DB1D4] text-base font-normal p-0 h-auto">
+              View All
             </Button>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 pt-0">
+          <div className="flex flex-col gap-3 w-full flex-1">
+            {quickActions.map((action) => (
+              <Button
+                key={action.id}
+                variant="ghost"
+                className="w-full flex items-center justify-start gap-3 sm:gap-6 px-3 sm:px-4 py-3 h-auto rounded-[10px] flex-1"
+              >
+                <div
+                  className={`size-5 sm:size-[23px] rounded flex items-center justify-center shrink-0 ${action.iconBg} ${action.iconColor}`}
+                >
+                  {action.icon}
+                </div>
+                <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
+                  <p className="text-[#0e1115] text-xs sm:text-sm font-medium leading-none truncate">
+                    {action.title}
+                  </p>
+                  <p className="text-[#737373] text-xs sm:text-sm font-medium leading-none truncate">
+                    {action.description}
+                  </p>
+                </div>
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ ...springConfig.smooth, delay: 0.3 }}
+    >
+      <Card className="h-full w-full flex flex-col">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between w-full">
+            <CardTitle className="text-black text-lg font-bold">Quick Action</CardTitle>
+            <Button variant="link" className="text-[#4DB1D4] text-base font-normal p-0 h-auto">
+              View All
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 pt-0">
+          <motion.div
+            className="flex flex-col gap-3 w-full flex-1"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {quickActions.map((action, index) => (
+              <motion.div key={action.id} variants={itemVariants}>
+                <Button
+                  variant="ghost"
+                  className="w-full flex items-center justify-start gap-3 sm:gap-6 px-3 sm:px-4 py-3 h-auto rounded-[10px] flex-1 transition-all hover:scale-[1.02]"
+                >
+                  <motion.div
+                    className={`size-5 sm:size-[23px] rounded flex items-center justify-center shrink-0 ${action.iconBg} ${action.iconColor}`}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={springConfig.snappy}
+                  >
+                    {action.icon}
+                  </motion.div>
+                  <div className="flex flex-col gap-1 text-left min-w-0 flex-1">
+                    <p className="text-[#0e1115] text-xs sm:text-sm font-medium leading-none truncate">
+                      {action.title}
+                    </p>
+                    <p className="text-[#737373] text-xs sm:text-sm font-medium leading-none truncate">
+                      {action.description}
+                    </p>
+                  </div>
+                </Button>
+              </motion.div>
+            ))}
+          </motion.div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

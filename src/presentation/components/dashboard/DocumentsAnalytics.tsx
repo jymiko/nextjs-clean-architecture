@@ -311,15 +311,15 @@ export function DocumentsAnalytics({
   return (
     <Card className="w-full h-full flex flex-col">
       <CardHeader className="pb-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <CardTitle className="text-black text-lg font-bold leading-6">Documents Analytics</CardTitle>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 w-full sm:w-auto">
             {/* Category Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center justify-between gap-2 px-3 py-2 border-[#8a8f9d] w-[180px] h-[38px]"
+                  className="flex items-center justify-between gap-2 px-3 py-2 border-[#8a8f9d] w-full sm:w-[180px] h-[38px]"
                   disabled={isLoading}
                 >
                   <span className="text-sm font-medium text-black truncate">
@@ -328,7 +328,7 @@ export function DocumentsAnalytics({
                   <ChevronDown className="size-5 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[180px]">
+              <DropdownMenuContent align="end" className="w-full sm:w-[180px]">
                 <DropdownMenuItem
                   onClick={() => onCategoryChange?.(null)}
                   className={!selectedCategory ? 'bg-gray-100' : ''}
@@ -352,7 +352,7 @@ export function DocumentsAnalytics({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center justify-between gap-2 px-3 py-2 border-[#8a8f9d] w-[180px] h-[38px]"
+                  className="flex items-center justify-between gap-2 px-3 py-2 border-[#8a8f9d] w-full sm:w-[180px] h-[38px]"
                   disabled={isLoading}
                 >
                   <span className="text-sm font-medium text-black truncate">
@@ -361,7 +361,7 @@ export function DocumentsAnalytics({
                   <Calendar className="size-5 shrink-0" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[180px]">
+              <DropdownMenuContent align="end" className="w-full sm:w-[180px]">
                 {DATE_PRESETS.map((preset) => (
                   <DropdownMenuItem
                     key={preset.value}
@@ -378,9 +378,9 @@ export function DocumentsAnalytics({
       </CardHeader>
       <CardContent className="flex-1 pt-0">
         {/* Charts Section */}
-        <div className="flex gap-4 flex-1 min-h-0 h-full">
+        <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0 h-full">
           {/* Line Chart Section */}
-          <div className="flex-[2.5] min-w-0 flex flex-col min-h-0">
+          <div className="flex-1 lg:flex-[2.5] min-w-0 flex flex-col min-h-[200px] lg:min-h-0">
             <p className="text-sm text-black mb-2">All Documents</p>
             <div className="flex-1 w-full min-h-0">
               {isLoading ? (
@@ -396,7 +396,7 @@ export function DocumentsAnalytics({
           </div>
 
           {/* Pie Chart Section */}
-          <div className="flex-1 max-w-[300px] shrink-0 flex flex-col min-h-0">
+          <div className="flex-1 lg:max-w-[300px] lg:shrink-0 flex flex-col min-h-[280px] lg:min-h-0">
             <p className="text-sm text-black mb-2">Document Status</p>
             <div className="flex justify-center items-center flex-1 min-h-0">
               {isLoading ? (

@@ -27,7 +27,7 @@ export default function SettingsPage() {
   const allTabs: Tab[] = [
     { id: "profile", label: "Profile", icon: User },
     { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "system", label: "System", icon: SettingsIcon, roles: [UserRole.SUPERADMIN] },
+    { id: "system", label: "System", icon: SettingsIcon, roles: [UserRole.SUPERADMIN, UserRole.ADMIN] },
   ];
 
   const tabs = useMemo(() => {

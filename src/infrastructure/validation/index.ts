@@ -1,4 +1,5 @@
 export * from './user';
+export * from './user-preference';
 export * from './department';
 export * from './division';
 export * from './position';

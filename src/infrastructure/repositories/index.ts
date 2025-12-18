@@ -1,5 +1,6 @@
 export * from "./InMemoryUserRepository";
 export * from "./PrismaUserRepository";
+export * from "./PrismaUserPreferenceRepository";
 export * from "./PrismaPasswordResetRepository";
 export * from "./PrismaDepartmentRepository";
 export * from "./PrismaDivisionRepository";

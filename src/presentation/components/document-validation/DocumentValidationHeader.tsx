@@ -1,9 +1,10 @@
 "use client";
 
-import { Menu, User, Bell } from "lucide-react";
+import { Menu, User } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { NotificationBell } from "@/presentation/components/notifications/NotificationBell";
 
 interface DocumentValidationHeaderProps {
   onMenuClick?: () => void;
@@ -43,10 +44,7 @@ export function DocumentValidationHeader({
       {/* User Info */}
       <div className="flex items-center gap-2 lg:gap-3">
         {/* Notification Bell */}
-        <Button variant="ghost" size="icon" className="relative size-8 lg:size-[34px] p-0">
-          <Bell className="size-5 lg:size-6 text-[#DA318C]" />
-          <span className="absolute top-0 right-0 size-2 bg-[#DA318C] rounded-full" />
-        </Button>
+        <NotificationBell />
 
         {/* User Profile */}
         <div className="flex items-center gap-2 lg:gap-[15px]">

@@ -119,23 +119,56 @@ model User {
 
 // User preferences and settings
 model UserPreference {
-  id                 String   @id @default(cuid())
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId             String   @unique
-  language           String   @default("id") // id, en
-  timezone           String   @default("Asia/Jakarta")
-  dateFormat         String   @default("DD/MM/YYYY")
-  notifyEmail        Boolean  @default(true)
-  notifyInApp        Boolean  @default(true)
-  notifyApproval     Boolean  @default(true)
-  notifyDistribution Boolean  @default(true)
-  notifyExpiring     Boolean  @default(true)
-  notifyObsolete     Boolean  @default(true)
-  theme              String   @default("light") // light, dark, auto
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                    String                @id @default(cuid())
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId                String                @unique
+  language              String                @default("id") // id, en
+  timezone              String                @default("Asia/Jakarta")
+  dateFormat            String                @default("DD/MM/YYYY")
+  notifyEmail           Boolean               @default(true)
+  notifyInApp           Boolean               @default(true)
+  notifyPush            Boolean               @default(false) // Push notifications via FCM
+  notifyApproval        Boolean               @default(true)
+  notifyDistribution    Boolean               @default(true)
+  notifyExpiring        Boolean               @default(true)
+  notifyObsolete        Boolean               @default(true)
+  notifyWeeklyDigest    Boolean               @default(true) // Weekly summary digest
+  notificationFrequency NotificationFrequency @default(IMMEDIATE)
+  theme                 String                @default("light") // light, dark, auto
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  // FCM device tokens for push notifications
+  fcmTokens FcmToken[]
 
   @@map("user_preferences")
+}
+
+// Notification frequency enum
+enum NotificationFrequency {
+  IMMEDIATE
+  HOURLY
+  DAILY
+  WEEKLY
+}
+
+// FCM device tokens for push notifications
+model FcmToken {
+  id           String         @id @default(cuid())
+  preference   UserPreference @relation(fields: [preferenceId], references: [id], onDelete: Cascade)
+  preferenceId String
+  token        String         @unique
+  deviceId     String? // Optional device identifier
+  deviceName   String? // Optional device name
+  platform     String? // web, android, ios
+  isActive     Boolean        @default(true)
+  lastUsedAt   DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([preferenceId])
+  @@index([token])
+  @@map("fcm_tokens")
 }
 
 // User role enum (simplified)

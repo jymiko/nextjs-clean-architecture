@@ -1,10 +1,12 @@
 "use client";
 
-import { Menu, Search, Upload, User, Bell } from "lucide-react";
+import { Menu, Search, Upload, User } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { NotificationBell } from "@/presentation/components/notifications";
+import { NotificationPrompt } from "@/presentation/components/notifications/NotificationPrompt";
 
 interface DashboardHeaderProps {
   onMenuClick?: () => void;
@@ -18,9 +20,13 @@ export function DashboardHeader({
   const { user, isLoading } = useCurrentUser();
 
   return (
-    <div className="flex flex-col gap-[6px] w-full">
-      {/* Top Header */}
-      <header className="bg-white min-h-[70px] lg:h-[111px] flex items-center justify-between px-4 lg:px-[27px] py-4 lg:py-[38px]">
+    <>
+      {/* Auto-prompt for push notifications */}
+      <NotificationPrompt />
+
+      <div className="flex flex-col gap-[6px] w-full">
+        {/* Top Header */}
+        <header className="bg-white min-h-[70px] lg:h-[111px] flex items-center justify-between px-4 lg:px-[27px] py-4 lg:py-[38px]">
         {/* Title */}
         <div className="flex items-center gap-3 lg:gap-4">
           <Button
@@ -37,10 +43,7 @@ export function DashboardHeader({
         {/* User Info */}
         <div className="flex items-center gap-2 lg:gap-3">
           {/* Notification Bell */}
-          <Button variant="ghost" size="icon" className="relative size-8 lg:size-[34px] p-0">
-            <Bell className="size-5 lg:size-6 text-[#DA318C]" />
-            <span className="absolute top-0 right-0 size-2 bg-[#DA318C] rounded-full" />
-          </Button>
+          <NotificationBell />
 
           {/* User Profile */}
           <div className="flex items-center gap-2 lg:gap-[15px]">
@@ -84,6 +87,7 @@ export function DashboardHeader({
           <span className="text-black text-sm lg:text-[15px] font-medium">Export Data</span>
         </Button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

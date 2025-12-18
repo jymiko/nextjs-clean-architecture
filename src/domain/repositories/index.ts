@@ -1,4 +1,5 @@
 export * from "./IUserRepository";
+export * from "./IUserPreferenceRepository";
 export * from "./IPasswordResetRepository";
 export * from "./IDepartmentRepository";
 export * from "./IDivisionRepository";

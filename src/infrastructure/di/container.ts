@@ -2,6 +2,7 @@ import { createContainer, asClass, asFunction, InjectionMode } from "awilix";
 import {
   InMemoryUserRepository,
   PrismaUserRepository,
+  PrismaUserPreferenceRepository,
   PrismaPasswordResetRepository,
   PrismaDepartmentRepository,
   PrismaDivisionRepository,
@@ -22,6 +23,7 @@ import {
 import { UserService } from "@/application/services/UserService";
 import {
   IUserRepository,
+  IUserPreferenceRepository,
   IPasswordResetRepository,
   IDepartmentRepository,
   IDivisionRepository,
@@ -32,9 +34,13 @@ import {
 } from "@/domain/repositories";
 import { IInvitationRepository } from "@/domain/repositories/IInvitationRepository";
 import { EmailService, IEmailService } from "../services/EmailService";
+import { FirebaseFcmService, IFirebaseFcmService } from "../services/FirebaseFcmService";
+import { PusherService, IPusherService } from "../services/PusherService";
+import { NotificationService, INotificationService } from "../services/NotificationService";
 
 export interface Cradle {
   userRepository: IUserRepository;
+  userPreferenceRepository: IUserPreferenceRepository;
   passwordResetRepository: IPasswordResetRepository;
   invitationRepository: IInvitationRepository;
   departmentRepository: IDepartmentRepository;
@@ -44,6 +50,9 @@ export interface Cradle {
   documentRepository: IDocumentRepository;
   systemSettingRepository: ISystemSettingRepository;
   emailService: IEmailService;
+  fcmService: IFirebaseFcmService;
+  pusherService: IPusherService;
+  notificationService: INotificationService;
   getUsersUseCase: GetUsersUseCase;
   createUserUseCase: CreateUserUseCase;
   getUserByIdUseCase: GetUserByIdUseCase;
@@ -65,6 +74,8 @@ container.register({
     ? asClass(PrismaUserRepository).singleton()
     : asClass(InMemoryUserRepository).singleton(),
 
+  userPreferenceRepository: asClass(PrismaUserPreferenceRepository).singleton(),
+
   passwordResetRepository: asClass(PrismaPasswordResetRepository).singleton(),
 
   invitationRepository: asClass(PrismaInvitationRepository).singleton(),
@@ -82,6 +93,15 @@ container.register({
   systemSettingRepository: asClass(PrismaSystemSettingRepository).singleton(),
 
   emailService: asClass(EmailService).singleton(),
+
+  fcmService: asClass(FirebaseFcmService).singleton(),
+
+  pusherService: asClass(PusherService).singleton(),
+
+  notificationService: asFunction(
+    ({ userPreferenceRepository, fcmService, pusherService }: Cradle) =>
+      new NotificationService(userPreferenceRepository, fcmService, pusherService)
+  ).scoped(),
 
   getUsersUseCase: asFunction(
     ({ userRepository }: Cradle) => new GetUsersUseCase(userRepository)

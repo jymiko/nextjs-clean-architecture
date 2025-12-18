@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Sidebar } from "@/presentation/components/Sidebar";
 import { DocumentManagementHeader } from "@/presentation/components/document-management/DocumentManagementHeader";
 import { Pagination } from "@/components/ui/pagination";
@@ -22,7 +23,11 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 
-export default function DocumentSubmissionPage() {
+function DocumentSubmissionContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const documentIdFromUrl = searchParams.get("id");
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState<FilterState>({
@@ -47,6 +52,7 @@ export default function DocumentSubmissionPage() {
   const [isSubmittingDocument, setIsSubmittingDocument] = useState(false);
   const [isDeletingDocument, setIsDeletingDocument] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<SubmissionDocument | null>(null);
+  const [lastHandledUrlDocumentId, setLastHandledUrlDocumentId] = useState<string | null>(null);
 
   // For demo purposes - in real app this comes from auth context
   // "user" | "reviewer" | "admin" | "approval" | "ack"
@@ -88,6 +94,22 @@ export default function DocumentSubmissionPage() {
   useEffect(() => {
     fetchDocuments();
   }, [fetchDocuments]);
+
+  // Handle document ID from URL - auto open view modal
+  useEffect(() => {
+    // Only open modal if there's a new document ID that hasn't been handled yet
+    if (documentIdFromUrl && documentIdFromUrl !== lastHandledUrlDocumentId && !isLoading) {
+      // Set a mock selected document with just the ID - the ViewDocumentModal will fetch the full data
+      setSelectedDocument({ id: documentIdFromUrl } as SubmissionDocument);
+      setViewDocumentModalOpen(true);
+      setLastHandledUrlDocumentId(documentIdFromUrl);
+    }
+    // Reset lastHandledUrlDocumentId when URL no longer has id parameter
+    // This allows the same document to be opened again via URL after modal was closed
+    if (!documentIdFromUrl && lastHandledUrlDocumentId) {
+      setLastHandledUrlDocumentId(null);
+    }
+  }, [documentIdFromUrl, lastHandledUrlDocumentId, isLoading]);
 
   const handleFilterChange = (newFilters: FilterState) => {
     setFilters(newFilters);
@@ -343,6 +365,10 @@ export default function DocumentSubmissionPage() {
         onClose={() => {
           setViewDocumentModalOpen(false);
           setSelectedDocument(null);
+          // Clear URL parameter if it exists (don't reset lastHandledUrlDocumentId here to prevent race condition)
+          if (documentIdFromUrl) {
+            router.replace("/document-control/submission", { scroll: false });
+          }
         }}
         documentId={selectedDocument?.id || null}
       />
@@ -368,5 +394,17 @@ export default function DocumentSubmissionPage() {
         isLoading={isDeletingDocument}
       />
     </div>
+  );
+}
+
+export default function DocumentSubmissionPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f9fbff] flex items-center justify-center">
+        <span className="text-gray-500">Loading...</span>
+      </div>
+    }>
+      <DocumentSubmissionContent />
+    </Suspense>
   );
 }

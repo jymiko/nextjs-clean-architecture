@@ -5,6 +5,12 @@ import { z } from "zod";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler, type AuthenticatedRequest } from "@/infrastructure/middleware/auth";
+import { NotificationType, Priority } from "@prisma/client";
+import { container } from "@/infrastructure/di/container";
+import {
+  getMessageKeyByLevel,
+  getRoleLabelByLevel,
+} from "@/infrastructure/services/NotificationService";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -186,6 +192,175 @@ export const POST = withAuthHandler(async (
         },
       },
     });
+
+    // ===== NOTIFICATIONS: After Approval Confirmation =====
+    try {
+      const notificationService = container.cradle.notificationService;
+
+      // Get requester info
+      const requester = await prisma.user.findUnique({
+        where: { id: document.createdById },
+        select: { id: true, name: true },
+      });
+
+      // Get signer's language for role label
+      const signerLanguage = await notificationService.getUserLanguage(userId);
+      const roleLabel = getRoleLabelByLevel(approval.level, signerLanguage);
+
+      // 1. Notify requester that someone signed their document
+      if (requester) {
+        await notificationService.sendLocalizedNotification(
+          document.createdById,
+          NotificationType.DOCUMENT_APPROVED,
+          "DOCUMENT_SIGNED",
+          {
+            docTitle: document.title,
+            signerName: updatedApproval.approver.name,
+            role: roleLabel,
+          },
+          `/document-control/submission?id=${documentId}`,
+          Priority.MEDIUM
+        );
+
+        console.log(
+          `[ConfirmApprove] Notification sent to requester: ${requester.name}`
+        );
+      }
+
+      // 2. Find and notify next signer (if not yet WAITING_VALIDATION)
+      if (newDocumentStatus !== "WAITING_VALIDATION") {
+        // Get fresh approval list with approver info
+        const allApprovals = await prisma.documentApproval.findMany({
+          where: { documentId, isDeleted: false },
+          orderBy: [{ level: "asc" }, { createdAt: "asc" }],
+          include: {
+            approver: { select: { id: true, name: true } },
+          },
+        });
+
+        // Check if there are more PENDING at current level
+        const pendingAtCurrentLevel = allApprovals.filter(
+          (a) => a.level === approval.level && a.status === "PENDING"
+        );
+
+        if (pendingAtCurrentLevel.length > 0) {
+          // Still have pending at current level - notify FIRST one only (sequential at same level)
+          const nextSigner = pendingAtCurrentLevel[0];
+          const messageKey = getMessageKeyByLevel(nextSigner.level);
+
+          await notificationService.sendLocalizedNotification(
+            nextSigner.approverId,
+            NotificationType.APPROVAL_NEEDED,
+            messageKey,
+            {
+              docTitle: document.title,
+              requesterName: requester?.name || "Unknown",
+            },
+            `/document-control/approval/${documentId}`,
+            Priority.HIGH
+          );
+
+          console.log(
+            `[ConfirmApprove] Notification sent to next signer at current level: ${nextSigner.approver.name}`
+          );
+        } else {
+          // All at current level done, check next level
+          const allCurrentLevelApproved = allApprovals
+            .filter((a) => a.level === approval.level)
+            .every((a) => a.status === "APPROVED");
+
+          if (allCurrentLevelApproved) {
+            const nextLevel = approval.level + 1;
+            // Get ALL pending at next level (notify all when transitioning to new level)
+            const pendingAtNextLevel = allApprovals.filter(
+              (a) => a.level === nextLevel && a.status === "PENDING"
+            );
+
+            if (pendingAtNextLevel.length > 0) {
+              const messageKey = getMessageKeyByLevel(nextLevel);
+
+              // Notify ALL pending at next level
+              for (const nextSigner of pendingAtNextLevel) {
+                await notificationService.sendLocalizedNotification(
+                  nextSigner.approverId,
+                  NotificationType.APPROVAL_NEEDED,
+                  messageKey,
+                  {
+                    docTitle: document.title,
+                    requesterName: requester?.name || "Unknown",
+                  },
+                  `/document-control/approval/${documentId}`,
+                  Priority.HIGH
+                );
+
+                console.log(
+                  `[ConfirmApprove] Notification sent to next level signer: ${nextSigner.approver.name}`
+                );
+              }
+
+              console.log(
+                `[ConfirmApprove] Total ${pendingAtNextLevel.length} signers at level ${nextLevel} notified`
+              );
+            }
+          }
+        }
+      }
+
+      // 3. Notify all admins when document reaches WAITING_VALIDATION
+      if (newDocumentStatus === "WAITING_VALIDATION") {
+        // Get all active admins
+        const admins = await prisma.user.findMany({
+          where: {
+            role: "ADMIN",
+            isActive: true,
+            deletedAt: null,
+          },
+          select: { id: true, name: true },
+        });
+
+        for (const admin of admins) {
+          await notificationService.sendLocalizedNotification(
+            admin.id,
+            NotificationType.APPROVAL_NEEDED,
+            "VALIDATION_REQUIRED",
+            {
+              docTitle: document.title,
+              docNumber: document.documentNumber,
+            },
+            `/document-control/validation/${documentId}`,
+            Priority.HIGH
+          );
+
+          console.log(
+            `[ConfirmApprove] Validation notification sent to admin: ${admin.name}`
+          );
+        }
+
+        // Also notify requester that document is awaiting validation
+        if (requester) {
+          await notificationService.sendLocalizedNotification(
+            document.createdById,
+            NotificationType.GENERAL,
+            "AWAITING_VALIDATION",
+            {
+              docTitle: document.title,
+            },
+            `/document-control/submission?id=${documentId}`,
+            Priority.MEDIUM
+          );
+
+          console.log(
+            `[ConfirmApprove] Awaiting validation notification sent to requester: ${requester.name}`
+          );
+        }
+      }
+    } catch (notificationError) {
+      // Don't fail the approval if notification fails
+      console.error(
+        "[ConfirmApprove] Failed to send notification:",
+        notificationError
+      );
+    }
 
     return NextResponse.json({
       success: true,

@@ -8,6 +8,8 @@ import { withAuthHandler, type AuthenticatedRequest } from "@/infrastructure/mid
 import { writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
+import { NotificationType, Priority } from "@prisma/client";
+import { container } from "@/infrastructure/di/container";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -203,17 +205,24 @@ export const POST = withAuthHandler(async (
       },
     });
 
-    // Notify document creator
-    await prisma.notification.create({
-      data: {
-        userId: document.createdById,
-        type: "DOCUMENT_APPROVED",
-        title: "Document Finalized",
-        message: `Your document "${document.title}" has been finalized and categorized as ${validatedData.category === 'MANAGEMENT' ? 'Document Management' : 'Distributed Document'}.`,
-        link: `/document-control/submission?id=${documentId}`,
-        priority: "MEDIUM",
-      },
-    });
+    // Notify document creator via NotificationService (supports push & real-time)
+    try {
+      const notificationService = container.cradle.notificationService;
+      await notificationService.sendLocalizedNotification(
+        document.createdById,
+        NotificationType.DOCUMENT_APPROVED,
+        "DOCUMENT_FINALIZED",
+        {
+          docTitle: document.title,
+          category: validatedData.category,
+        },
+        `/document-control/submission?id=${documentId}`,
+        Priority.MEDIUM
+      );
+      console.log(`[FinalizeDocument] Notification sent to: ${document.createdBy.name}`);
+    } catch (notificationError) {
+      console.error("[FinalizeDocument] Failed to send notification:", notificationError);
+    }
 
     return NextResponse.json({
       success: true,

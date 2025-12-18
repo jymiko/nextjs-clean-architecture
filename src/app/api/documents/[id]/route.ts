@@ -6,6 +6,7 @@ import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler } from "@/infrastructure/middleware/auth";
 import { DocumentStatus, DocumentApproval, Document } from "@/domain/entities/Document";
+import { prisma } from "@/infrastructure/database";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -132,6 +133,19 @@ export async function GET(
         status: a.status,
       }));
 
+    // Fetch latest revision request reason if document is ON_REVISION
+    let revisionNotes: string | null = null;
+    if (document.status === 'ON_REVISION') {
+      const latestRevisionRequest = await prisma.documentRevisionRequest.findFirst({
+        where: { documentId: id },
+        orderBy: { createdAt: 'desc' },
+        select: { reason: true },
+      });
+      if (latestRevisionRequest?.reason) {
+        revisionNotes = latestRevisionRequest.reason;
+      }
+    }
+
     // Map fields for frontend compatibility
     // For documents in WAITING_VALIDATION status, show original PDF without stamp
     // Only show finalPdfUrl for finalized documents (APPROVED, ACTIVE, etc.)
@@ -173,6 +187,8 @@ export async function GET(
       // Approved date from first approved approval
       approvedDate: approvals.find((a) => a.status === 'APPROVED')?.approvedAt,
       lastUpdate: document.updatedAt,
+      // Notes - show revision reason when document is ON_REVISION
+      notes: revisionNotes || undefined,
     };
 
     return NextResponse.json(response);

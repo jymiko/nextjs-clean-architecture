@@ -5,7 +5,9 @@ import { z } from "zod";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler, getRequestUser, type AuthenticatedRequest } from "@/infrastructure/middleware/auth";
-import { Prisma, DocumentStatus } from "@prisma/client";
+import { Prisma, DocumentStatus, NotificationType, Priority } from "@prisma/client";
+import { container } from "@/infrastructure/di/container";
+import { getMessageKeyByLevel } from "@/infrastructure/services/NotificationService";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -267,16 +269,71 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
       );
     }
 
-    // Generate document number
-    const existingCount = await prisma.document.count({
-      where: { categoryId: validatedData.documentTypeId },
+    // Generate document number by finding the highest existing number
+    const deptCode = user.department?.code || "DOC";
+    const basePattern = `${category.code}-${deptCode}-`;
+
+    // Find the highest document number for this category and department
+    const latestDocument = await prisma.document.findFirst({
+      where: {
+        documentNumber: {
+          contains: basePattern,
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        documentNumber: true,
+      },
     });
-    const nextNumber = existingCount + 1;
-    let documentNumber = `${category.code}-${user.department?.code || "DOC"}-${String(nextNumber).padStart(3, "0")}`;
+
+    let nextNumber = 1;
+    if (latestDocument) {
+      // Extract the number from document number (e.g., "WI-DT-001" or "DRAFT-WI-DT-001")
+      const docNum = latestDocument.documentNumber.replace("DRAFT-", "");
+      const match = docNum.match(new RegExp(`${basePattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)`));
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
+    }
+
+    let documentNumber = `${basePattern}${String(nextNumber).padStart(3, "0")}`;
 
     // Add DRAFT- prefix if status is DRAFT
     if (validatedData.status === "DRAFT") {
       documentNumber = `DRAFT-${documentNumber}`;
+    }
+
+    // Ensure uniqueness with retry logic
+    let isUnique = false;
+    let retryCount = 0;
+    const maxRetries = 10;
+
+    while (!isUnique && retryCount < maxRetries) {
+      const existing = await prisma.document.findUnique({
+        where: { documentNumber },
+        select: { id: true },
+      });
+
+      if (!existing) {
+        isUnique = true;
+      } else {
+        // Increment and try again
+        nextNumber++;
+        documentNumber = `${basePattern}${String(nextNumber).padStart(3, "0")}`;
+        if (validatedData.status === "DRAFT") {
+          documentNumber = `DRAFT-${documentNumber}`;
+        }
+        retryCount++;
+      }
+    }
+
+    if (!isUnique) {
+      return NextResponse.json(
+        { error: "Gagal membuat nomor dokumen unik. Silakan coba lagi." },
+        { status: 500 }
+      );
     }
 
     // Determine the signature to use for "Prepared By"
@@ -391,6 +448,57 @@ export const POST = withAuthHandler(async (request: NextRequest) => {
         },
       },
     });
+
+    // ===== NOTIFICATION: Document Submitted =====
+    // Send notification to ALL reviewers when document is submitted for review
+    if (documentStatus === "IN_REVIEW" && approvalEntries.length > 0) {
+      try {
+        const notificationService = container.cradle.notificationService;
+
+        // Find ALL reviewers at level 1 (not just the first one)
+        const allReviewers = approvalEntries.filter((a) => a.level === 1);
+
+        if (allReviewers.length > 0) {
+          // Get all reviewer details
+          const reviewerIds = allReviewers.map((r) => r.userId);
+          const reviewers = await prisma.user.findMany({
+            where: { id: { in: reviewerIds } },
+            select: { id: true, name: true },
+          });
+
+          const messageKey = getMessageKeyByLevel(1); // REVIEW_REQUIRED
+
+          // Send notification to each reviewer
+          for (const reviewer of reviewers) {
+            await notificationService.sendLocalizedNotification(
+              reviewer.id,
+              NotificationType.APPROVAL_NEEDED,
+              messageKey,
+              {
+                docTitle: document.title,
+                requesterName: user.name || "Unknown",
+              },
+              `/document-control/approval/${document.id}`,
+              Priority.HIGH
+            );
+
+            console.log(
+              `[DocumentSubmission] Notification sent to reviewer: ${reviewer.name}`
+            );
+          }
+
+          console.log(
+            `[DocumentSubmission] Total ${reviewers.length} reviewers notified`
+          );
+        }
+      } catch (notificationError) {
+        // Don't fail the submission if notification fails
+        console.error(
+          "[DocumentSubmission] Failed to send notification:",
+          notificationError
+        );
+      }
+    }
 
     const successMessage = documentStatus === "DRAFT"
       ? "Document saved as draft successfully"

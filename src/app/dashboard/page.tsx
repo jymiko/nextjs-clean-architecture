@@ -139,7 +139,7 @@ export default function DashboardPage() {
         />
 
         {/* Stats Cards Row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-[6px]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-[6px]">
           <StatCard
             title="Total Documents"
             value={formatValue(stats?.totalDocuments)}
@@ -147,6 +147,7 @@ export default function DashboardPage() {
             subtitleColor={getChangeColor(stats?.totalDocumentsChange)}
             icon={<TotalDocumentsIcon />}
             isLoading={isDashboardLoading}
+            index={0}
           />
           <StatCard
             title="Pending Approvals"
@@ -155,6 +156,7 @@ export default function DashboardPage() {
             subtitleColor="warning"
             icon={<PendingApprovalsIcon />}
             isLoading={isDashboardLoading}
+            index={1}
           />
           <StatCard
             title="Expiring Soon"
@@ -163,6 +165,7 @@ export default function DashboardPage() {
             subtitleColor="error"
             icon={<ExpiringSoonIcon />}
             isLoading={isDashboardLoading}
+            index={2}
           />
           <StatCard
             title="New Submissions"
@@ -171,6 +174,7 @@ export default function DashboardPage() {
             subtitleColor="success"
             icon={<NewSubmissionsIcon />}
             isLoading={isDashboardLoading}
+            index={3}
           />
         </div>
 

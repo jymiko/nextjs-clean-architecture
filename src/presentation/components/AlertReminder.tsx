@@ -21,22 +21,22 @@ interface AlertsRemindersProps {
 
 function AlertSkeleton() {
   return (
-    <div className="relative bg-white border-[3px] rounded-[8px] p-5 flex-1 border-gray-100 animate-pulse">
+    <div className="relative bg-white border-[3px] rounded-[8px] p-4 sm:p-5 flex-1 border-gray-100 animate-pulse">
       {/* Left Accent Bar Skeleton */}
       <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-gray-200" />
 
-      <div className="flex items-center justify-between gap-4 ml-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ml-2">
         {/* Icon + Content Skeleton */}
-        <div className="flex items-center gap-4 flex-1">
-          <div className="size-8 rounded bg-gray-200 shrink-0" />
+        <div className="flex items-center gap-3 sm:gap-4 flex-1">
+          <div className="size-6 sm:size-8 rounded bg-gray-200 shrink-0" />
           <div className="flex-1">
-            <div className="h-5 w-48 bg-gray-200 rounded mb-2" />
-            <div className="h-4 w-64 bg-gray-200 rounded" />
+            <div className="h-5 w-32 sm:w-48 bg-gray-200 rounded mb-2" />
+            <div className="h-4 w-full sm:w-64 bg-gray-200 rounded" />
           </div>
         </div>
 
         {/* Button Skeleton */}
-        <div className="h-9 w-24 bg-gray-200 rounded shrink-0" />
+        <div className="h-9 w-full sm:w-24 bg-gray-200 rounded shrink-0" />
       </div>
     </div>
   );
@@ -114,27 +114,27 @@ export function AlertsReminders({
               return (
                 <div
                   key={alert.id}
-                  className={`relative bg-white border-[3px] rounded-[8px] p-5 flex-1 ${styles.border}`}
+                  className={`relative bg-white border-[3px] rounded-[8px] p-4 sm:p-5 flex-1 ${styles.border}`}
                 >
                   {/* Left Accent Bar */}
                   <div
                     className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full ${styles.accent}`}
                   />
 
-                  <div className="flex items-center justify-between gap-4 ml-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 ml-2">
                     {/* Icon + Content */}
-                    <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
                       {/* Icon */}
-                      <div className="size-8 shrink-0 flex items-center justify-center">
+                      <div className="size-6 sm:size-8 shrink-0 flex items-center justify-center">
                         {getAlertIcon(alert.type, alert.severity)}
                       </div>
 
                       {/* Text Content */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-black text-base font-semibold mb-1 truncate">
+                        <p className="text-black text-sm sm:text-base font-semibold mb-1 truncate">
                           {alert.title}
                         </p>
-                        <p className={`text-sm ${styles.text} truncate`}>
+                        <p className={`text-xs sm:text-sm ${styles.text} truncate`}>
                           {alert.description}
                         </p>
                       </div>
@@ -143,7 +143,7 @@ export function AlertsReminders({
                     {/* View Detail Button */}
                     <Button
                       variant="ghost"
-                      className={`px-6 py-2 rounded-[5px] border shrink-0 h-auto ${styles.button}`}
+                      className={`px-4 sm:px-6 py-2 rounded-[5px] border shrink-0 h-auto w-full sm:w-auto ${styles.button}`}
                       onClick={() => onViewDetail?.(alert)}
                     >
                       View Detail

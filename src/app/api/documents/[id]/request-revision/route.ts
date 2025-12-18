@@ -87,7 +87,7 @@ export const POST = withAuthHandler(async (
     }
 
     // Check if document is in a state that allows revision requests
-    const allowedStatuses = ["IN_REVIEW", "ON_APPROVAL"];
+    const allowedStatuses = ["IN_REVIEW", "ON_APPROVAL", "PENDING_ACKNOWLEDGED"];
     if (!allowedStatuses.includes(document.status)) {
       return NextResponse.json(
         { error: `Cannot request revision for document in ${document.status} status` },

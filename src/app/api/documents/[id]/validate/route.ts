@@ -5,6 +5,8 @@ import { z } from "zod";
 import { ZodError, ZodIssue } from "zod";
 import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler, type AuthenticatedRequest } from "@/infrastructure/middleware/auth";
+import { NotificationType, Priority } from "@prisma/client";
+import { container } from "@/infrastructure/di/container";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -102,17 +104,21 @@ export const POST = withAuthHandler(async (
         },
       });
 
-      // Notify document creator
-      await prisma.notification.create({
-        data: {
-          userId: document.createdById,
-          type: "DOCUMENT_APPROVED",
-          title: "Document Approved",
-          message: `Your document "${document.title}" has been validated and approved.`,
-          link: `/document-control/submission?id=${documentId}`,
-          priority: "MEDIUM",
-        },
-      });
+      // Notify document creator via NotificationService (supports push & real-time)
+      try {
+        const notificationService = container.cradle.notificationService;
+        await notificationService.sendLocalizedNotification(
+          document.createdById,
+          NotificationType.DOCUMENT_APPROVED,
+          "DOCUMENT_APPROVED",
+          { docTitle: document.title },
+          `/document-control/submission?id=${documentId}`,
+          Priority.MEDIUM
+        );
+        console.log(`[ValidateDocument] Approval notification sent to: ${document.createdBy.name}`);
+      } catch (notificationError) {
+        console.error("[ValidateDocument] Failed to send approval notification:", notificationError);
+      }
 
       return NextResponse.json({
         success: true,
@@ -208,17 +214,24 @@ export const POST = withAuthHandler(async (
         },
       });
 
-      // Notify document creator
-      await prisma.notification.create({
-        data: {
-          userId: document.createdById,
-          type: "REVISION_NEEDED",
-          title: "Document Rejected by Admin",
-          message: `Your document "${document.title}" was rejected during validation. ${validatedData.comments ? `Reason: ${validatedData.comments}` : "Please check and revise."}`,
-          link: `/document-control/submission?id=${documentId}`,
-          priority: "HIGH",
-        },
-      });
+      // Notify document creator via NotificationService (supports push & real-time)
+      try {
+        const notificationService = container.cradle.notificationService;
+        await notificationService.sendLocalizedNotification(
+          document.createdById,
+          NotificationType.REVISION_NEEDED,
+          "DOCUMENT_REJECTED",
+          {
+            docTitle: document.title,
+            reason: validatedData.comments || undefined,
+          },
+          `/document-control/submission?id=${documentId}`,
+          Priority.HIGH
+        );
+        console.log(`[ValidateDocument] Rejection notification sent to: ${document.createdBy.name}`);
+      } catch (notificationError) {
+        console.error("[ValidateDocument] Failed to send rejection notification:", notificationError);
+      }
 
       return NextResponse.json({
         success: true,
