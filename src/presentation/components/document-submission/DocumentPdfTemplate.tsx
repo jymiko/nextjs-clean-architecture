@@ -5,6 +5,7 @@ import {
     Text,
     View,
     StyleSheet,
+    Image,
 } from "@react-pdf/renderer";
 
 // Type for react-pdf styles
@@ -13,11 +14,11 @@ import { DocumentFormData } from "@/presentation/components/document-submission"
 
 // A4 page dimensions in points: 595 x 842
 // With 40pt padding, content area is 515 x 762
-// Header ~100pt, Footer ~80pt, Document title ~60pt
-// Available content area per page: ~520pt (first page with title), ~580pt (subsequent pages)
+// Header ~130pt (includes document title inside), Footer ~80pt
+// Available content area per page: ~550pt
 
-const CONTENT_HEIGHT_FIRST_PAGE = 320; // First page has title + header + footer space (very conservative)
-const CONTENT_HEIGHT_OTHER_PAGES = 380; // Subsequent pages with header + footer space (very conservative)
+const CONTENT_HEIGHT_FIRST_PAGE = 480; // First page with header (includes title) + footer
+const CONTENT_HEIGHT_OTHER_PAGES = 500; // Subsequent pages with header + footer
 const LINE_HEIGHT = 16; // Approximate height per line of text
 const PARAGRAPH_MARGIN = 12;
 const LIST_ITEM_HEIGHT = 22;
@@ -47,18 +48,10 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
     },
-    logoBox: {
+    logoImage: {
         width: 80,
         height: 60,
-        border: "2pt solid #000",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    logoText: {
-        fontSize: 9,
-        fontWeight: "bold",
-        textAlign: "center",
-        lineHeight: 1.2,
+        objectFit: "contain",
     },
     headerContent: {
         flex: 1,
@@ -94,12 +87,61 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         minHeight: 18,
     },
+    metaItemWithBorder: {
+        flexDirection: "row",
+        paddingVertical: 4,
+        paddingHorizontal: 5,
+        minHeight: 20,
+        borderBottom: "2pt solid #000",
+    },
+    metaItemLast: {
+        flexDirection: "row",
+        paddingVertical: 4,
+        paddingHorizontal: 5,
+        minHeight: 20,
+    },
     metaLabel: {
         fontWeight: "bold",
         width: 80,
     },
     metaValue: {
         flex: 1,
+    },
+    // Header Body Layout (new structure with document title inside)
+    headerBody: {
+        flexDirection: "row",
+    },
+    headerBodyLeft: {
+        flex: 1,
+        borderRight: "2pt solid #000",
+    },
+    headerBodyRight: {
+        flex: 1,
+        fontSize: 9,
+    },
+    headerDocType: {
+        borderBottom: "2pt solid #000",
+        padding: 8,
+        textAlign: "center",
+    },
+    headerDocTypeText: {
+        fontSize: 11,
+        fontWeight: "bold",
+    },
+    headerDocTitleBox: {
+        padding: 8,
+        textAlign: "center",
+        minHeight: 40,
+    },
+    headerDocTitleLabel: {
+        fontSize: 10,
+        fontWeight: "bold",
+        marginBottom: 4,
+    },
+    headerDocTitleValue: {
+        fontSize: 10,
+        fontWeight: "bold",
+        textTransform: "uppercase",
     },
     // Document Title
     docTitle: {
@@ -215,17 +257,117 @@ const styles = StyleSheet.create({
         marginTop: 10,
         fontSize: 10,
     },
+    // Signature section styles
+    signatureSection: {
+        marginTop: 30,
+        paddingTop: 20,
+        borderTop: "1pt solid #000",
+    },
+    signatureSectionTitle: {
+        fontSize: 11,
+        fontWeight: "bold",
+        marginBottom: 15,
+        textAlign: "center",
+    },
+    signatureRow: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        marginBottom: 20,
+    },
+    signatureBox: {
+        width: 95,
+        alignItems: "center",
+    },
+    signatureTitle: {
+        fontSize: 9,
+        fontWeight: "bold",
+        marginBottom: 5,
+        textAlign: "center",
+    },
+    signatureImageContainer: {
+        width: 80,
+        height: 40,
+        borderWidth: 1,
+        borderColor: "#ccc",
+        marginBottom: 5,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    signatureImage: {
+        maxWidth: 75,
+        maxHeight: 35,
+        objectFit: "contain",
+    },
+    signatureName: {
+        fontSize: 8,
+        textAlign: "center",
+        fontWeight: "bold",
+    },
+    signaturePosition: {
+        fontSize: 7,
+        textAlign: "center",
+        color: "#666",
+    },
+    signatureDate: {
+        fontSize: 7,
+        textAlign: "center",
+        color: "#999",
+        marginTop: 2,
+    },
+    stampBox: {
+        width: 100,
+        alignItems: "center",
+    },
+    stampImage: {
+        width: 80,
+        height: 80,
+        objectFit: "contain",
+    },
+    stampOverlay: {
+        position: "absolute",
+        bottom: 60,
+        right: 0,
+    },
+    stampOverlayImage: {
+        width: 70,
+        height: 70,
+        objectFit: "contain",
+    },
 });
+
+// Signature data for PDF
+export interface PdfSignatureData {
+    title: string;
+    name: string;
+    position: string;
+    signature: string | null; // base64 image
+    signedAt?: string | null;
+}
+
+// Extended additional data with signatures for final PDF
+export interface PdfAdditionalData {
+    documentTypeName: string;
+    destinationDepartmentName: string;
+    reviewerName?: string;
+    approverName?: string;
+    acknowledgedName?: string;
+    reviewerNames?: string[];
+    approverNames?: string[];
+    acknowledgedNames?: string[];
+    // Signature data for final PDF
+    signatures?: {
+        preparedBy?: PdfSignatureData;
+        reviewers?: PdfSignatureData[];
+        approvers?: PdfSignatureData[];
+        acknowledgers?: PdfSignatureData[];
+    };
+    companyStamp?: string; // base64 image
+    includeSignatures?: boolean; // Flag to include signature section
+}
 
 interface DocumentPdfTemplateProps {
     formData: DocumentFormData;
-    additionalData: {
-        documentTypeName: string;
-        destinationDepartmentName: string;
-        reviewerName?: string;
-        approverName?: string;
-        acknowledgedName?: string;
-    };
+    additionalData: PdfAdditionalData;
 }
 
 interface ParsedElement {
@@ -252,7 +394,12 @@ const getDocumentTypeTitle = (documentTypeName: string): string => {
     const typeMap: Record<string, string> = {
         "Standard Operating Procedure": "STANDARD OPERATING PROCEDURES",
         "Work Instruction": "WORK INSTRUCTION",
+        "Specification": "SPECIFICATION",
+        "Form": "FORM",
         "Formulir": "FORMULIR",
+        "Policy": "POLICY",
+        "Manual": "MANUAL",
+        "Standard": "STANDARD",
         "One Point Lessons": "ONE POINT LESSONS",
         "Quality Standard": "QUALITY STANDARD",
     };
@@ -824,35 +971,50 @@ const HeaderKopSurat: React.FC<{
     effectiveDate: string;
     pageNumber: number;
     totalPages: number;
-}> = ({ documentTypeTitle, documentCode, departmentName, effectiveDate, pageNumber, totalPages }) => (
+    documentTitleLabel?: string;
+    documentTitle?: string;
+}> = ({ documentTypeTitle, documentCode, departmentName, effectiveDate, pageNumber, totalPages, documentTitleLabel, documentTitle }) => (
     <View style={styles.header}>
+        {/* Logo Section - Left */}
         <View style={styles.headerLogo}>
-            <View style={styles.logoBox}>
-                <Text style={styles.logoText}>PESTA{"\n"}PORA{"\n"}ABADI</Text>
-            </View>
+            <Image style={styles.logoImage} src="/PPA.jpg" />
         </View>
+
+        {/* Main Header Content - Right */}
         <View style={styles.headerContent}>
+            {/* Company Title - Top */}
             <View style={styles.headerTitle}>
                 <Text style={styles.headerTitleMain}>PT. PESTA PORA ABADI</Text>
-                <Text style={styles.headerTitleSub}>{documentTypeTitle}</Text>
             </View>
-            <View style={styles.headerMeta}>
-                <View style={[styles.headerMetaCol, styles.headerMetaColLeft]}>
-                    <View style={styles.metaItem}>
+
+            {/* Body - 2 columns */}
+            <View style={styles.headerBody}>
+                {/* Left Column - Document Type + Title */}
+                <View style={styles.headerBodyLeft}>
+                    <View style={styles.headerDocType}>
+                        <Text style={styles.headerDocTypeText}>{documentTypeTitle}</Text>
+                    </View>
+                    <View style={styles.headerDocTitleBox}>
+                        <Text style={styles.headerDocTitleLabel}>{documentTitleLabel || ""}</Text>
+                        <Text style={styles.headerDocTitleValue}>{documentTitle || ""}</Text>
+                    </View>
+                </View>
+
+                {/* Right Column - Meta Information */}
+                <View style={styles.headerBodyRight}>
+                    <View style={styles.metaItemWithBorder}>
                         <Text style={styles.metaLabel}>No. Dokumen</Text>
                         <Text style={styles.metaValue}>: {documentCode || "-"}</Text>
                     </View>
-                    <View style={styles.metaItem}>
+                    <View style={styles.metaItemWithBorder}>
                         <Text style={styles.metaLabel}>Factory</Text>
                         <Text style={styles.metaValue}>: {departmentName || "-"}</Text>
                     </View>
-                </View>
-                <View style={styles.headerMetaCol}>
-                    <View style={styles.metaItem}>
+                    <View style={styles.metaItemWithBorder}>
                         <Text style={styles.metaLabel}>Tgl Efektif</Text>
                         <Text style={styles.metaValue}>: {effectiveDate}</Text>
                     </View>
-                    <View style={styles.metaItem}>
+                    <View style={styles.metaItemLast}>
                         <Text style={styles.metaLabel}>Halaman</Text>
                         <Text style={styles.metaValue}>: {pageNumber} dari {totalPages}</Text>
                     </View>
@@ -878,6 +1040,97 @@ const FooterDisclaimer: React.FC = () => (
     </View>
 );
 
+// Signature Box Component for PDF
+const SignatureBox: React.FC<{
+    data: PdfSignatureData;
+}> = ({ data }) => {
+    const formatSignatureDate = (dateStr: string | null | undefined): string => {
+        if (!dateStr) return "";
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+            });
+        } catch {
+            return "";
+        }
+    };
+
+    return (
+        <View style={styles.signatureBox}>
+            <Text style={styles.signatureTitle}>{data.title}</Text>
+            <View style={styles.signatureImageContainer}>
+                {data.signature ? (
+                    <Image style={styles.signatureImage} src={data.signature} />
+                ) : (
+                    <Text style={{ fontSize: 7, color: "#999" }}>-</Text>
+                )}
+            </View>
+            <Text style={styles.signatureName}>{data.name}</Text>
+            <Text style={styles.signaturePosition}>({data.position})</Text>
+            {data.signedAt && (
+                <Text style={styles.signatureDate}>{formatSignatureDate(data.signedAt)}</Text>
+            )}
+        </View>
+    );
+};
+
+// Signature Section Component for PDF
+const SignatureSection: React.FC<{
+    signatures?: {
+        preparedBy?: PdfSignatureData;
+        reviewers?: PdfSignatureData[];
+        approvers?: PdfSignatureData[];
+        acknowledgers?: PdfSignatureData[];
+    };
+}> = ({ signatures }) => {
+    if (!signatures) return null;
+
+    const allSignatures: PdfSignatureData[] = [];
+
+    // Add prepared by
+    if (signatures.preparedBy) {
+        allSignatures.push(signatures.preparedBy);
+    }
+
+    // Add reviewers
+    if (signatures.reviewers) {
+        allSignatures.push(...signatures.reviewers);
+    }
+
+    // Add approvers
+    if (signatures.approvers) {
+        allSignatures.push(...signatures.approvers);
+    }
+
+    // Add acknowledgers
+    if (signatures.acknowledgers) {
+        allSignatures.push(...signatures.acknowledgers);
+    }
+
+    // Split signatures into rows of 5
+    const rows: PdfSignatureData[][] = [];
+    for (let i = 0; i < allSignatures.length; i += 5) {
+        rows.push(allSignatures.slice(i, i + 5));
+    }
+
+    return (
+        <View style={styles.signatureSection}>
+            <Text style={styles.signatureSectionTitle}>LEMBAR PENGESAHAN</Text>
+
+            {rows.map((row, rowIndex) => (
+                <View key={rowIndex} style={styles.signatureRow}>
+                    {row.map((sig, sigIndex) => (
+                        <SignatureBox key={sigIndex} data={sig} />
+                    ))}
+                </View>
+            ))}
+        </View>
+    );
+};
+
 export const DocumentPdfTemplate: React.FC<DocumentPdfTemplateProps> = ({
     formData,
     additionalData,
@@ -891,11 +1144,14 @@ export const DocumentPdfTemplate: React.FC<DocumentPdfTemplateProps> = ({
     const contentPages = splitIntoPages(parsedElements, CONTENT_HEIGHT_FIRST_PAGE, CONTENT_HEIGHT_OTHER_PAGES);
 
     // Ensure at least one page
-    const totalPages = Math.max(contentPages.length, 1);
+    const basePages = Math.max(contentPages.length, 1);
+    // Add signature page if includeSignatures is true
+    const hasSignatures = additionalData.includeSignatures && additionalData.signatures;
+    const totalPages = hasSignatures ? basePages + 1 : basePages;
 
     return (
         <Document>
-            {totalPages === 0 || contentPages.length === 0 ? (
+            {basePages === 0 || contentPages.length === 0 ? (
                 // Single empty page
                 <Page size="A4" style={styles.page}>
                     <HeaderKopSurat
@@ -904,14 +1160,20 @@ export const DocumentPdfTemplate: React.FC<DocumentPdfTemplateProps> = ({
                         departmentName={formData.departmentName}
                         effectiveDate={effectiveDate}
                         pageNumber={1}
-                        totalPages={1}
+                        totalPages={totalPages}
+                        documentTitleLabel={documentTitleLabel}
+                        documentTitle={formData.documentTitle}
                     />
-                    <Text style={styles.docTitle}>{documentTitleLabel}</Text>
-                    <Text style={[styles.docTitle, { marginTop: 5 }]}>{formData.documentTitle || ""}</Text>
                     <View style={styles.procedureContent}>
                         <Text style={styles.procedureText}>Isi dokumen akan muncul di sini...</Text>
                     </View>
                     <FooterDisclaimer />
+                    {/* Stamp overlay - bottom right corner */}
+                    {additionalData.companyStamp && (
+                        <View style={styles.stampOverlay}>
+                            <Image style={styles.stampOverlayImage} src={additionalData.companyStamp} />
+                        </View>
+                    )}
                 </Page>
             ) : (
                 // Multiple pages with content
@@ -924,15 +1186,9 @@ export const DocumentPdfTemplate: React.FC<DocumentPdfTemplateProps> = ({
                             effectiveDate={effectiveDate}
                             pageNumber={pageIndex + 1}
                             totalPages={totalPages}
+                            documentTitleLabel={pageIndex === 0 ? documentTitleLabel : ""}
+                            documentTitle={pageIndex === 0 ? formData.documentTitle : ""}
                         />
-
-                        {/* Document title only on first page */}
-                        {pageIndex === 0 && (
-                            <>
-                                <Text style={styles.docTitle}>{documentTitleLabel}</Text>
-                                <Text style={[styles.docTitle, { marginTop: 5 }]}>{formData.documentTitle || ""}</Text>
-                            </>
-                        )}
 
                         {/* Page content */}
                         <View style={styles.procedureContent}>
@@ -944,8 +1200,42 @@ export const DocumentPdfTemplate: React.FC<DocumentPdfTemplateProps> = ({
                         </View>
 
                         <FooterDisclaimer />
+                        {/* Stamp overlay - bottom right corner */}
+                        {additionalData.companyStamp && (
+                            <View style={styles.stampOverlay}>
+                                <Image style={styles.stampOverlayImage} src={additionalData.companyStamp} />
+                            </View>
+                        )}
                     </Page>
                 ))
+            )}
+
+            {/* Signature Page - Added at the end when includeSignatures is true */}
+            {hasSignatures && (
+                <Page size="A4" style={styles.page}>
+                    <HeaderKopSurat
+                        documentTypeTitle={documentTypeTitle}
+                        documentCode={formData.documentCode}
+                        departmentName={formData.departmentName}
+                        effectiveDate={effectiveDate}
+                        pageNumber={totalPages}
+                        totalPages={totalPages}
+                        documentTitleLabel=""
+                        documentTitle=""
+                    />
+
+                    <SignatureSection
+                        signatures={additionalData.signatures}
+                    />
+
+                    <FooterDisclaimer />
+                    {/* Stamp overlay - bottom right corner */}
+                    {additionalData.companyStamp && (
+                        <View style={styles.stampOverlay}>
+                            <Image style={styles.stampOverlayImage} src={additionalData.companyStamp} />
+                        </View>
+                    )}
+                </Page>
             )}
         </Document>
     );

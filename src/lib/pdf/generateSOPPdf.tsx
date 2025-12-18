@@ -1,19 +1,11 @@
 "use client";
 
 import { pdf } from "@react-pdf/renderer";
-import { DocumentFormData } from "@/presentation/components/document-submission";
+import { DocumentFormData, PdfAdditionalData, PdfSignatureData } from "@/presentation/components/document-submission";
 import { DocumentPdfTemplate } from "@/presentation/components/document-submission/DocumentPdfTemplate";
 
-interface AdditionalData {
-  documentTypeName: string;
-  destinationDepartmentName: string;
-  reviewerName?: string;
-  approverName?: string;
-  acknowledgedName?: string;
-  reviewerNames?: string[];
-  approverNames?: string[];
-  acknowledgedNames?: string[];
-}
+// Re-export types for convenience
+export type { PdfAdditionalData, PdfSignatureData };
 
 /**
  * Generate Document PDF Blob using @react-pdf/renderer
@@ -22,7 +14,7 @@ interface AdditionalData {
  */
 export async function generateDocumentPdf(
   formData: DocumentFormData,
-  additionalData: AdditionalData
+  additionalData: PdfAdditionalData
 ): Promise<Blob> {
   try {
     // Create PDF document and return blob
@@ -34,6 +26,40 @@ export async function generateDocumentPdf(
   } catch (error) {
     console.error("Failed to generate PDF:", error);
     throw new Error("Failed to generate PDF. Please try again.");
+  }
+}
+
+/**
+ * Generate Final Document PDF with signatures and company stamp
+ * This is used during document validation/finalization
+ */
+export async function generateFinalDocumentPdf(
+  formData: DocumentFormData,
+  additionalData: PdfAdditionalData,
+  signatures: {
+    preparedBy?: PdfSignatureData;
+    reviewers?: PdfSignatureData[];
+    approvers?: PdfSignatureData[];
+    acknowledgers?: PdfSignatureData[];
+  },
+  companyStamp: string
+): Promise<Blob> {
+  try {
+    const finalAdditionalData: PdfAdditionalData = {
+      ...additionalData,
+      signatures,
+      companyStamp,
+      includeSignatures: true,
+    };
+
+    const blob = await pdf(
+      <DocumentPdfTemplate formData={formData} additionalData={finalAdditionalData} />
+    ).toBlob();
+
+    return blob;
+  } catch (error) {
+    console.error("Failed to generate final PDF:", error);
+    throw new Error("Failed to generate final PDF. Please try again.");
   }
 }
 

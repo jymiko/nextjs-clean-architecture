@@ -8,9 +8,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { ManagementDocument } from "./DocumentManagementTable";
 import { PDFViewer } from "./PDFViewer";
+import { useDocumentDetails } from "@/hooks/use-document-details";
 
 interface DocumentViewerModalProps {
   open: boolean;
@@ -19,6 +20,43 @@ interface DocumentViewerModalProps {
   onApprove?: (document: ManagementDocument) => void;
   onReject?: (document: ManagementDocument) => void;
   isAdmin?: boolean;
+}
+
+// Format date for display
+function formatDate(date: string | Date | undefined | null): string {
+  if (!date) return "-";
+  try {
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return "-";
+  }
+}
+
+// Format datetime for display
+function formatDateTime(date: string | Date | undefined | null): string {
+  if (!date) return "-";
+  try {
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', {
+      weekday: 'short',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }) + ' ' + d.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  } catch {
+    return "-";
+  }
 }
 
 export function DocumentViewerModal({
@@ -31,21 +69,57 @@ export function DocumentViewerModal({
 }: DocumentViewerModalProps) {
   const [status, setStatus] = useState<"active" | "obsolete">("active");
 
-  if (!document) return null;
+  // Fetch document details from API when modal opens
+  const { document: documentDetails, isLoading, error } = useDocumentDetails(
+    open && document ? document.id : null
+  );
 
-  // Mock data for demonstration
-  const mockDocumentInfo = {
-    createdBy: "John Doe",
-    createdDate: "Mon, 10 Jun 2024",
-    reviewedBy: "Jane Smith",
-    reviewedDate: "Wed, 12 Jun 2024",
-    approvedBy: "Michael Johnson",
-    approvedDate: "Fri, 14 Jun 2024",
-    acknowledgedBy: "Sarah Wilson",
-    acknowledgedDate: "Mon, 17 Jun 2024",
-    reason: "Document update for new compliance requirements",
-    lastUpdate: "Mon, 17 Jun 2024 14:30:00",
-  };
+  // Update status based on document details
+  useEffect(() => {
+    if (documentDetails) {
+      const docStatus = documentDetails.status?.toLowerCase();
+      if (docStatus === 'obsolete' || docStatus === 'archived') {
+        setStatus('obsolete');
+      } else {
+        setStatus('active');
+      }
+    }
+  }, [documentDetails]);
+
+  // Get document info from API data
+  const documentInfo = useMemo(() => {
+    if (!documentDetails) {
+      return {
+        createdBy: "-",
+        reviewedBy: "-",
+        approvedBy: "-",
+        acknowledgedBy: "-",
+        reason: "-",
+        lastUpdate: "-",
+      };
+    }
+
+    // Get reviewer from signatureApprovals (level 1) or fallback
+    const reviewerApproval = documentDetails.signatureApprovals?.find(a => a.level === 1);
+    const approverApproval = documentDetails.signatureApprovals?.find(a => a.level === 2);
+
+    // Format acknowledgers list
+    const acknowledgers = documentDetails.acknowledgers?.map(a => a.name).join(', ') || '-';
+
+    return {
+      createdBy: documentDetails.createdByName || documentDetails.preparedBy?.name || "-",
+      reviewedBy: reviewerApproval?.approver?.name || documentDetails.reviewerName || "-",
+      approvedBy: approverApproval?.approver?.name || documentDetails.approverName || "-",
+      acknowledgedBy: acknowledgers,
+      reason: documentDetails.description || "-",
+      lastUpdate: formatDateTime(documentDetails.lastUpdate || documentDetails.updatedAt),
+    };
+  }, [documentDetails]);
+
+  // Get PDF URL from API
+  const pdfUrl = documentDetails?.pdfUrl || documentDetails?.fileUrl || "";
+
+  if (!document) return null;
 
   const handleApprove = () => {
     if (onApprove && document) {
@@ -143,44 +217,56 @@ export function DocumentViewerModal({
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-[#738193]">Approved Date</span>
                 <span className="text-sm font-medium text-[#384654]">
-                  {document.approvedDate || mockDocumentInfo.approvedDate}
+                  {isLoading ? "Loading..." : (documentDetails?.approvedDate ? formatDate(documentDetails.approvedDate) : document.approvedDate || "-")}
                 </span>
               </div>
 
               {/* Created By */}
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-[#738193]">Created By</span>
-                <span className="text-sm font-medium text-[#384654]">{mockDocumentInfo.createdBy}</span>
+                <span className="text-sm font-medium text-[#384654]">
+                  {isLoading ? "Loading..." : documentInfo.createdBy}
+                </span>
               </div>
 
               {/* Reviewed By */}
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-[#738193]">Reviewed By</span>
-                <span className="text-sm font-medium text-[#384654]">{mockDocumentInfo.reviewedBy}</span>
+                <span className="text-sm font-medium text-[#384654]">
+                  {isLoading ? "Loading..." : documentInfo.reviewedBy}
+                </span>
               </div>
 
               {/* Approved By */}
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-[#738193]">Approved By</span>
-                <span className="text-sm font-medium text-[#384654]">{mockDocumentInfo.approvedBy}</span>
+                <span className="text-sm font-medium text-[#384654]">
+                  {isLoading ? "Loading..." : documentInfo.approvedBy}
+                </span>
               </div>
 
               {/* Acknowledged By */}
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-[#738193]">Acknowledged By</span>
-                <span className="text-sm font-medium text-[#384654]">{mockDocumentInfo.acknowledgedBy}</span>
+                <span className="text-sm font-medium text-[#384654]">
+                  {isLoading ? "Loading..." : documentInfo.acknowledgedBy}
+                </span>
               </div>
 
               {/* Reason */}
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-[#738193]">Reason</span>
-                <span className="text-sm font-medium text-[#384654]">{mockDocumentInfo.reason}</span>
+                <span className="text-sm font-medium text-[#384654]">
+                  {isLoading ? "Loading..." : documentInfo.reason}
+                </span>
               </div>
 
               {/* Last Update */}
               <div className="flex flex-col gap-1">
                 <span className="text-sm text-[#738193]">Last Update</span>
-                <span className="text-sm font-medium text-[#384654]">{mockDocumentInfo.lastUpdate}</span>
+                <span className="text-sm font-medium text-[#384654]">
+                  {isLoading ? "Loading..." : documentInfo.lastUpdate}
+                </span>
               </div>
             </div>
 
@@ -209,10 +295,33 @@ export function DocumentViewerModal({
 
           {/* Right Content - PDF Viewer */}
           <div className="flex-1 bg-[#f5f5f5] flex flex-col overflow-hidden">
-            <PDFViewer
-              file={document.pdfUrl || "/documents/sample.pdf"}
-              className="h-full"
-            />
+            {isLoading ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-500">Loading document...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-red-500 text-4xl mb-4">!</div>
+                  <p className="text-red-500">{error}</p>
+                </div>
+              </div>
+            ) : !pdfUrl ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-gray-400 text-4xl mb-4">📄</div>
+                  <p className="text-gray-500">No PDF file available</p>
+                </div>
+              </div>
+            ) : (
+              <PDFViewer
+                file={pdfUrl}
+                className="h-full"
+              />
+            )}
           </div>
         </div>
       </DialogContent>

@@ -108,6 +108,7 @@ model User {
   documentVersions      DocumentVersion[]      @relation("DocumentVersions")
   userPermissions       UserPermission[]
   revisionRequests      DocumentRevisionRequest[] @relation("RevisionRequester")
+  validatedDocuments    Document[]             @relation("DocumentValidator") // Documents validated by this user
 
   @@index([departmentId])
   @@index([positionId])
@@ -410,11 +411,19 @@ model Document {
   // Revision tracking
   revisionCycle               Int                    @default(0) // Increments each time revision is requested
 
+  // Document validation fields (admin finalization)
+  validatedCategory           ValidatedCategory?               // MANAGEMENT or DISTRIBUTED
+  companyStamp                String?                @db.Text  // Base64 encoded company stamp image
+  finalPdfUrl                 String?                          // URL to final PDF with signatures
+  validatedAt                 DateTime?                        // When document was validated/finalized
+  validatedById               String?                          // Admin who validated
+
   // Ownership & tracking
   createdBy                   User                   @relation("DocumentCreator", fields: [createdById], references: [id])
   createdById                 String
   owner                       User                   @relation("DocumentOwner", fields: [ownerId], references: [id])
   ownerId                     String
+  validatedBy                 User?                  @relation("DocumentValidator", fields: [validatedById], references: [id])
   createdAt                   DateTime               @default(now())
   updatedAt                   DateTime               @updatedAt
   // Relations
@@ -441,6 +450,8 @@ model Document {
   @@index([createdById])
   @@index([documentNumber])
   @@index([destinationDepartmentId])
+  @@index([validatedById])
+  @@index([validatedCategory])
   @@map("documents")
 }
 
@@ -467,6 +478,12 @@ enum ApprovalStatus {
   APPROVED
   REJECTED
   NEEDS_REVISION
+}
+
+// Validated category enum for document finalization
+enum ValidatedCategory {
+  MANAGEMENT    // Document Management
+  DISTRIBUTED   // Distributed Document
 }
 
 // Document approval workflow

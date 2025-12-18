@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Eye, Check, FileEdit, Trash2 } from "lucide-react";
+import { Eye, Download, FileEdit, Trash2 } from "lucide-react";
 import { DocumentStatusBadge, DocumentStatus } from "../reports/DocumentStatusBadge";
 
 export interface ValidationDocument {
@@ -28,7 +28,7 @@ export interface ValidationDocument {
 interface DocumentValidationTableProps {
   documents: ValidationDocument[];
   onViewDocument?: (document: ValidationDocument) => void;
-  onApproveDocument?: (document: ValidationDocument) => void;
+  onDownloadDocument?: (document: ValidationDocument) => void;
   onEditDocument?: (document: ValidationDocument) => void;
   onDeleteDocument?: (document: ValidationDocument) => void;
   isLoading?: boolean;
@@ -37,7 +37,7 @@ interface DocumentValidationTableProps {
 export function DocumentValidationTable({
   documents,
   onViewDocument,
-  onApproveDocument,
+  onDownloadDocument,
   onEditDocument,
   onDeleteDocument,
   isLoading,
@@ -159,12 +159,13 @@ export function DocumentValidationTable({
                       <Eye className="h-5 w-5 text-[#384654]" />
                     </Button>
                     <Button
+                      variant="outline"
                       size="sm"
-                      className="h-11 w-11 p-0 bg-[#0E9211] hover:bg-[#0c7f0e] border-0"
-                      onClick={() => onApproveDocument?.(doc)}
-                      title="Approve Document"
+                      className="h-11 w-11 p-0 border-[#e1e2e3]"
+                      onClick={() => onDownloadDocument?.(doc)}
+                      title="Download Document"
                     >
-                      <Check className="h-5 w-5 text-white" />
+                      <Download className="h-5 w-5 text-[#4DB1D4]" />
                     </Button>
                     <Button
                       variant="outline"
@@ -256,11 +257,12 @@ export function DocumentValidationTable({
                       <Eye className="h-4 w-4 text-[#384654]" />
                     </Button>
                     <Button
+                      variant="outline"
                       size="sm"
-                      className="h-9 w-9 p-0 bg-[#0E9211] hover:bg-[#0c7f0e] border-0"
-                      onClick={() => onApproveDocument?.(doc)}
+                      className="h-9 w-9 p-0 border-[#e1e2e3]"
+                      onClick={() => onDownloadDocument?.(doc)}
                     >
-                      <Check className="h-4 w-4 text-white" />
+                      <Download className="h-4 w-4 text-[#4DB1D4]" />
                     </Button>
                     <Button
                       variant="outline"
@@ -336,12 +338,13 @@ export function DocumentValidationTable({
                   View
                 </Button>
                 <Button
+                  variant="outline"
                   size="sm"
-                  className="h-9 flex-1 bg-[#0E9211] hover:bg-[#0c7f0e] text-white"
-                  onClick={() => onApproveDocument?.(doc)}
+                  className="h-9 flex-1 border-[#4DB1D4] text-[#4DB1D4]"
+                  onClick={() => onDownloadDocument?.(doc)}
                 >
-                  <Check className="h-4 w-4 mr-2" />
-                  Approve
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
                 </Button>
               </div>
               <div className="flex items-center gap-2">

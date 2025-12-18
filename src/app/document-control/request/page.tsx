@@ -11,62 +11,7 @@ import {
   type RequestDocument,
   type FilterState,
 } from "@/presentation/components/request-document";
-
-// Mock data for Request Documents
-const mockRequestDocuments: RequestDocument[] = [
-  {
-    id: "1",
-    requestCode: "Req-2025-10-27",
-    documentCode: "SOP-DT-001-001",
-    documentTitle: "Digitalisasi Arsip Kepegawaian",
-    type: "SOP",
-    requestBy: "Firdiyatus Sholihah",
-    requestByPosition: "Staff Quality Assurance Manufacture",
-    ownedBy: "DT - Digital Transformation",
-    requestDate: "October 26, 2025",
-    status: "pending",
-    remarks: "Awaiting Admin Approval",
-  },
-  {
-    id: "2",
-    requestCode: "Req-2025-10-20",
-    documentCode: "STANDART-EHS-003-002",
-    documentTitle: "Dokumen Operasional",
-    type: "Standart",
-    requestBy: "Firdiyatus Sholihah",
-    requestByPosition: "Staff Quality Assurance Manufacture",
-    ownedBy: "EHS - Environment, Health & Safety",
-    requestDate: "September 12, 2025",
-    status: "approved",
-    remarks: "Approved for distribution",
-  },
-  {
-    id: "3",
-    requestCode: "Req-2025-09-10",
-    documentCode: "SPEK-PD&I-RM-001-003",
-    documentTitle: "Manual Mutu dan Keamanan Pangan",
-    type: "Spesifikasi",
-    requestBy: "Firdiyatus Sholihah",
-    requestByPosition: "Staff Quality Assurance Manufacture",
-    ownedBy: "PD&I - Product Development & Innovation",
-    requestDate: "September 8, 2025",
-    status: "approved",
-    remarks: "documents have been distributed",
-  },
-  {
-    id: "4",
-    requestCode: "Req-2025-07-17",
-    documentCode: "WI-DT-002-004",
-    documentTitle: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    requestBy: "Firdiyatus Sholihah",
-    requestByPosition: "Staff Quality Assurance Manufacture",
-    ownedBy: "DT - Digital Transformation",
-    requestDate: "August 29, 2025",
-    status: "approved",
-    remarks: "documents have been distributed",
-  },
-];
+import { useDocumentRequests, type DocumentRequestFilters } from "@/hooks/use-document-requests";
 
 export default function RequestDocumentPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -79,64 +24,50 @@ export default function RequestDocumentPage() {
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Build API filters from UI filters
+  const apiFilters: DocumentRequestFilters = useMemo(() => {
+    return {
+      search: filters.search || undefined,
+      categoryId: filters.documentType || undefined,
+      status: (filters.status as DocumentRequestFilters['status']) || 'all',
+    };
+  }, [filters]);
+
+  // Fetch requests from API
+  const {
+    requests: apiRequests,
+    pagination,
+    statistics,
+    isLoading,
+    error,
+    refetch
+  } = useDocumentRequests({
+    page: currentPage,
+    limit: itemsPerPage,
+    filters: apiFilters,
+  });
+
+  // Map API requests to RequestDocument interface
+  const documents: RequestDocument[] = useMemo(() => {
+    return apiRequests.map(req => ({
+      id: req.id,
+      requestCode: req.requestCode,
+      documentCode: req.documentCode,
+      documentTitle: req.documentTitle,
+      type: req.type,
+      requestBy: req.requestBy,
+      requestByPosition: req.requestByPosition,
+      ownedBy: req.ownedBy,
+      requestDate: req.requestDate,
+      status: req.status,
+      remarks: req.remarks,
+    }));
+  }, [apiRequests]);
+
   const handleItemsPerPageChange = (value: number) => {
     setItemsPerPage(value);
     setCurrentPage(1);
   };
-
-  // Filter documents based on current filters
-  const filteredDocuments = useMemo(() => {
-    return mockRequestDocuments.filter((doc) => {
-      // Document type filter
-      if (filters.documentType) {
-        const typeMap: Record<string, string> = {
-          sop: "SOP",
-          standart: "Standart",
-          spesifikasi: "Spesifikasi",
-          wi: "WI",
-          policy: "Policy",
-          guideline: "Guideline",
-        };
-        if (doc.type !== typeMap[filters.documentType]) {
-          return false;
-        }
-      }
-
-      // Status filter
-      if (filters.status && doc.status !== filters.status) {
-        return false;
-      }
-
-      // Search filter (searches in request code, document code, and title)
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        if (
-          !doc.requestCode.toLowerCase().includes(searchLower) &&
-          !doc.documentCode.toLowerCase().includes(searchLower) &&
-          !doc.documentTitle.toLowerCase().includes(searchLower)
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [filters]);
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    const total = filteredDocuments.length;
-    const approved = filteredDocuments.filter((doc) => doc.status === "approved").length;
-    const pending = filteredDocuments.filter((doc) => doc.status === "pending").length;
-    return { total, approved, pending };
-  }, [filteredDocuments]);
-
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
-  const paginatedDocuments = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDocuments, currentPage, itemsPerPage]);
 
   const handleFilterChange = (newFilters: FilterState) => {
     setFilters(newFilters);
@@ -182,27 +113,42 @@ export default function RequestDocumentPage() {
 
           {/* Stats Section */}
           <RequestDocumentStats
-            totalDocuments={stats.total}
-            approvedDocuments={stats.approved}
-            pendingDocuments={stats.pending}
+            totalDocuments={statistics.total}
+            approvedDocuments={statistics.approved}
+            pendingDocuments={statistics.pending}
           />
 
           {/* Documents Table */}
           <div className="bg-white px-4 py-2">
-            <RequestDocumentTable
-              documents={paginatedDocuments}
-              onViewDocument={handleViewDocument}
-            />
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredDocuments.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={handleItemsPerPageChange}
-              showItemsPerPage={true}
-              showPageInfo={true}
-            />
+            {error ? (
+              <div className="text-center py-8">
+                <p className="text-red-500 mb-4">{error}</p>
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <>
+                <RequestDocumentTable
+                  documents={documents}
+                  onViewDocument={handleViewDocument}
+                  isLoading={isLoading}
+                />
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  showItemsPerPage={true}
+                  showPageInfo={true}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

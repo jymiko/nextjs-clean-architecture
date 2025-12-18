@@ -133,9 +133,19 @@ export async function GET(
       }));
 
     // Map fields for frontend compatibility
+    // For documents in WAITING_VALIDATION status, show original PDF without stamp
+    // Only show finalPdfUrl for finalized documents (APPROVED, ACTIVE, etc.)
+    const shouldShowFinalPdf = document.finalPdfUrl &&
+      document.status !== 'WAITING_VALIDATION' &&
+      document.status !== 'DRAFT' &&
+      document.status !== 'IN_REVIEW' &&
+      document.status !== 'ON_APPROVAL' &&
+      document.status !== 'PENDING_ACKNOWLEDGED' &&
+      document.status !== 'ON_REVISION';
+
     const response = {
       ...document,
-      pdfUrl: document.fileUrl, // Map fileUrl to pdfUrl for PDF viewer
+      pdfUrl: shouldShowFinalPdf ? document.finalPdfUrl : document.fileUrl,
       categoryName: document.category?.name,
       departmentName: destDept?.name,
       destinationDepartmentName: destinationDepartmentDisplay,

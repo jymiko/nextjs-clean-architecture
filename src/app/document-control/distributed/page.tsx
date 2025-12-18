@@ -14,121 +14,7 @@ import { Pagination } from "@/components/ui/pagination";
 import {
   DocumentViewerModal,
 } from "@/presentation/components/document-management";
-import { DocumentStatus } from "@/presentation/components/reports/DocumentStatusBadge";
-
-// Mock data for distributed documents
-const mockDistributedDocuments: DistributedDocument[] = [
-  {
-    id: "1",
-    code: "SOP-DT-001-003",
-    title: "Digitalisasi Arsip Kepegawaian",
-    type: "SOP",
-    originDepartment: "Digital Transformation",
-    documentBy: "Firdiyatus Sholihah",
-    distributedDate: "Fri, 17 Jun 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "2",
-    code: "STANDART-WH-011-005",
-    title: "Dokumen Operasional",
-    type: "Standart",
-    originDepartment: "Warehouse",
-    documentBy: "Sanusi",
-    distributedDate: "Thu, 23 Feb 2025",
-    status: "obsolete_request" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "3",
-    code: "SPEK-PDI-RM-001-002",
-    title: "Manual Mutu dan Keamanan Pangan",
-    type: "Spesifikasi",
-    originDepartment: "Food Safety",
-    documentBy: "Handoko",
-    distributedDate: "Mon, 12 Feb 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "4",
-    code: "WI-EHS-002-006-001",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    originDepartment: "Environment, Health and Safety",
-    documentBy: "Kaluna",
-    distributedDate: "Tue, 10 Jan 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "5",
-    code: "WI-EHS-002-006-002",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    originDepartment: "Environment, Health and Safety",
-    documentBy: "Kaluna",
-    distributedDate: "Tue, 10 Jan 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "6",
-    code: "WI-EHS-002-006-003",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    originDepartment: "Environment, Health and Safety",
-    documentBy: "Kaluna",
-    distributedDate: "Tue, 10 Jan 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "7",
-    code: "WI-EHS-002-006-004",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    originDepartment: "Environment, Health and Safety",
-    documentBy: "Kaluna",
-    distributedDate: "Tue, 10 Jan 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "8",
-    code: "WI-EHS-002-006-005",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    originDepartment: "Environment, Health and Safety",
-    documentBy: "Kaluna",
-    distributedDate: "Tue, 10 Jan 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "9",
-    code: "WI-EHS-002-006-006",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    originDepartment: "Environment, Health and Safety",
-    documentBy: "Kaluna",
-    distributedDate: "Tue, 10 Jan 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-  {
-    id: "10",
-    code: "WI-EHS-002-006-007",
-    title: "Penanganan dan Pembuangan Limbah Kimia",
-    type: "WI",
-    originDepartment: "Environment, Health and Safety",
-    documentBy: "Kaluna",
-    distributedDate: "Tue, 10 Jan 2025",
-    status: "active" as DocumentStatus,
-    pdfUrl: "/documents/draft-bawang.pdf",
-  },
-];
+import { useDistributedDocuments, type DistributedDocumentFilters as ApiFilters } from "@/hooks/use-distributed-documents";
 
 export default function DistributedDocumentsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -148,83 +34,49 @@ export default function DistributedDocumentsPage() {
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Build API filters from UI filters
+  const apiFilters: ApiFilters = useMemo(() => {
+    return {
+      search: filters.search || undefined,
+      departmentId: filters.department || undefined,
+      categoryId: filters.documentType || undefined,
+      status: (filters.status as ApiFilters['status']) || 'all',
+    };
+  }, [filters]);
+
+  // Fetch documents from API
+  const {
+    documents: apiDocuments,
+    pagination,
+    statistics,
+    isLoading,
+    error,
+    refetch
+  } = useDistributedDocuments({
+    page: currentPage,
+    limit: itemsPerPage,
+    filters: apiFilters,
+  });
+
+  // Map API documents to DistributedDocument interface
+  const documents: DistributedDocument[] = useMemo(() => {
+    return apiDocuments.map(doc => ({
+      id: doc.id,
+      code: doc.code,
+      title: doc.title,
+      type: doc.type,
+      originDepartment: doc.originDepartment,
+      documentBy: doc.documentBy,
+      distributedDate: doc.distributedDate || '',
+      status: doc.status,
+      pdfUrl: doc.pdfUrl || '',
+    }));
+  }, [apiDocuments]);
+
   const handleItemsPerPageChange = (value: number) => {
     setItemsPerPage(value);
     setCurrentPage(1);
   };
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    const total = mockDistributedDocuments.length;
-    const approved = mockDistributedDocuments.filter(
-      (doc) => doc.status === "active"
-    ).length;
-    const pending = mockDistributedDocuments.filter(
-      (doc) => doc.status === "obsolete_request"
-    ).length;
-    return { total, approved, pending };
-  }, []);
-
-  // Filter documents based on current filters
-  const filteredDocuments = useMemo(() => {
-    return mockDistributedDocuments.filter((doc) => {
-      // Department filter
-      if (filters.department) {
-        const deptMap: Record<string, string> = {
-          "digital-transformation": "Digital Transformation",
-          "warehouse": "Warehouse",
-          "food-safety": "Food Safety",
-          "ehs": "Environment, Health and Safety",
-          "hr": "Human Resources",
-          "finance": "Finance",
-          "operations": "Operations",
-        };
-        if (doc.originDepartment !== deptMap[filters.department]) {
-          return false;
-        }
-      }
-
-      // Document type filter
-      if (filters.documentType) {
-        const typeMap: Record<string, string> = {
-          "sop": "SOP",
-          "standart": "Standart",
-          "spesifikasi": "Spesifikasi",
-          "wi": "WI",
-          "policy": "Policy",
-          "guideline": "Guideline",
-        };
-        if (doc.type !== typeMap[filters.documentType]) {
-          return false;
-        }
-      }
-
-      // Status filter
-      if (filters.status && doc.status !== filters.status) {
-        return false;
-      }
-
-      // Search filter (searches in code and title)
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        if (
-          !doc.code.toLowerCase().includes(searchLower) &&
-          !doc.title.toLowerCase().includes(searchLower)
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [filters]);
-
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredDocuments.length / itemsPerPage);
-  const paginatedDocuments = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredDocuments.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredDocuments, currentPage, itemsPerPage]);
 
   const handleFilterChange = (newFilters: FilterState) => {
     setFilters(newFilters);
@@ -271,28 +123,43 @@ export default function DistributedDocumentsPage() {
 
           {/* Stats Section */}
           <DistributedDocumentStats
-            totalDocuments={stats.total}
-            approvedDocuments={stats.approved}
-            pendingDocuments={stats.pending}
+            totalDocuments={statistics.total}
+            approvedDocuments={statistics.active}
+            pendingDocuments={statistics.obsoleteRequest}
           />
 
           {/* Documents Table */}
           <div className="bg-white px-4 py-2">
-            <DistributedDocumentTable
-              documents={paginatedDocuments}
-              onViewDocument={handleViewDocument}
-              onEditDocument={handleEditDocument}
-            />
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredDocuments.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={handleItemsPerPageChange}
-              showItemsPerPage={true}
-              showPageInfo={true}
-            />
+            {error ? (
+              <div className="text-center py-8">
+                <p className="text-red-500 mb-4">{error}</p>
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : (
+              <>
+                <DistributedDocumentTable
+                  documents={documents}
+                  onViewDocument={handleViewDocument}
+                  onEditDocument={handleEditDocument}
+                  isLoading={isLoading}
+                />
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={pagination.totalPages}
+                  totalItems={pagination.total}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={handleItemsPerPageChange}
+                  showItemsPerPage={true}
+                  showPageInfo={true}
+                />
+              </>
+            )}
           </div>
         </div>
       </div>

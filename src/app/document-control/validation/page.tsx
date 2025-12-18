@@ -12,10 +12,12 @@ import {
 } from "@/presentation/components/document-validation";
 import { Pagination } from "@/components/ui/pagination";
 import { DocumentStatus } from "@/presentation/components/reports/DocumentStatusBadge";
-import {
-  DocumentViewerModal,
-  RejectReasonModal,
-} from "@/presentation/components/document-management";
+import { ValidationViewModal } from "@/presentation/components/document-validation/ValidationViewModal";
+import { CategorySelectionModal } from "@/presentation/components/document-validation/CategorySelectionModal";
+import { DeleteDocumentModal } from "@/presentation/components/document-validation/DeleteDocumentModal";
+import { ValidatedCategory } from "@/domain/entities/Document";
+import { generateDocumentPdf } from "@/lib/pdf/generateSOPPdf";
+import { DocumentFormData } from "@/presentation/components/document-submission";
 
 export default function DocumentValidationPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -30,9 +32,14 @@ export default function DocumentValidationPage() {
   });
 
   // Modal states
-  const [viewerModalOpen, setViewerModalOpen] = useState(false);
-  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<ValidationDocument | null>(null);
+
+  // Loading states
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -109,93 +116,147 @@ export default function DocumentValidationPage() {
     setCurrentPage(1); // Reset to first page when filters change
   };
 
+  // View document handler
   const handleViewDocument = (document: ValidationDocument) => {
     setSelectedDocument(document);
-    setViewerModalOpen(true);
+    setViewModalOpen(true);
   };
 
-  const handleApproveDocument = (document: ValidationDocument) => {
-    setSelectedDocument(document);
-    setViewerModalOpen(true);
+  // Download document handler
+  const handleDownloadDocument = async (document: ValidationDocument) => {
+    try {
+      toast.loading("Generating PDF...", { id: "pdf-download" });
+
+      // Fetch full document data
+      const response = await fetch(`/api/documents/${document.id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch document data");
+      }
+      const docData = await response.json();
+
+      // Convert to DocumentFormData format
+      const formData: DocumentFormData = {
+        documentTypeId: "",
+        documentCode: docData.documentNumber || document.code,
+        documentTitle: docData.title || document.title,
+        departmentId: "",
+        departmentName: docData.departmentName || "",
+        destinationDepartmentId: "",
+        estimatedDistributionDate: docData.estimatedDistributionDate || "",
+        purpose: docData.description || "",
+        scope: docData.scope || "",
+        reviewerIds: [],
+        approverIds: [],
+        acknowledgedIds: [],
+        responsibleDocument: docData.responsibleDocument || "",
+        termsAndAbbreviations: docData.termsAndAbbreviations || "",
+        warning: docData.warning || "",
+        relatedDocuments: docData.relatedDocumentsText || "",
+        procedureContent: docData.procedureContent || "",
+        signature: docData.signature || "",
+      };
+
+      const additionalData = {
+        documentTypeName: docData.categoryName || document.type,
+        destinationDepartmentName: docData.destinationDepartmentName || "",
+        reviewerName: docData.reviewerName,
+        approverName: docData.approverName,
+        acknowledgedName: docData.acknowledgerName,
+      };
+
+      const blob = await generateDocumentPdf(formData, additionalData);
+
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement("a");
+      link.href = url;
+      link.download = `${document.code}-${new Date().toISOString().split("T")[0]}.pdf`;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("PDF downloaded successfully", { id: "pdf-download" });
+    } catch (error) {
+      console.error("Failed to download PDF:", error);
+      toast.error("Failed to download PDF", { id: "pdf-download" });
+    }
   };
 
+  // Edit document handler - opens category selection modal
   const handleEditDocument = (document: ValidationDocument) => {
-    // TODO: Implement edit document functionality
-    console.log("Edit document:", document);
+    setSelectedDocument(document);
+    setCategoryModalOpen(true);
   };
 
+  // Delete document handler
   const handleDeleteDocument = (document: ValidationDocument) => {
-    // TODO: Implement delete document functionality
-    console.log("Delete document:", document);
+    setSelectedDocument(document);
+    setDeleteModalOpen(true);
   };
 
-  const handleApproveFromViewer = async () => {
+  // Finalize document with category and stamp
+  const handleFinalizeDocument = async (data: { category: ValidatedCategory; stamp: string; finalPdfBase64?: string }) => {
     if (!selectedDocument) return;
 
+    setIsFinalizing(true);
     try {
-      const response = await fetch(`/api/documents/${selectedDocument.id}/validate`, {
+      const response = await fetch(`/api/documents/${selectedDocument.id}/finalize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "APPROVE" }),
+        body: JSON.stringify({
+          category: data.category,
+          companyStamp: data.stamp,
+          finalPdfBase64: data.finalPdfBase64,
+        }),
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to approve");
+        throw new Error(error.error || "Failed to finalize document");
       }
 
-      toast.success("Document validated and approved successfully");
-      setViewerModalOpen(false);
+      const result = await response.json();
+      toast.success(
+        `Document finalized as ${data.category === ValidatedCategory.MANAGEMENT ? "Document Management" : "Distributed Document"}`
+      );
+      setCategoryModalOpen(false);
       setSelectedDocument(null);
       fetchDocuments();
+
+      // Log result for debugging
+      console.log("Document finalized:", result);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to approve document");
+      toast.error(error instanceof Error ? error.message : "Failed to finalize document");
+    } finally {
+      setIsFinalizing(false);
     }
   };
 
-  const handleRejectFromViewer = () => {
-    setViewerModalOpen(false);
-    setRejectModalOpen(true);
-  };
-
-  const handleRejectSubmit = async (_document: unknown, reason: string) => {
+  // Confirm delete document
+  const handleConfirmDelete = async () => {
     if (!selectedDocument) return;
 
+    setIsDeleting(true);
     try {
-      const response = await fetch(`/api/documents/${selectedDocument.id}/validate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "REJECT", comments: reason }),
+      const response = await fetch(`/api/documents/${selectedDocument.id}`, {
+        method: "DELETE",
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || "Failed to reject");
+        throw new Error(error.error || "Failed to delete document");
       }
 
-      toast.success("Document rejected. Creator has been notified.");
-      setRejectModalOpen(false);
+      toast.success("Document deleted successfully");
+      setDeleteModalOpen(false);
       setSelectedDocument(null);
       fetchDocuments();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to reject document");
+      toast.error(error instanceof Error ? error.message : "Failed to delete document");
+    } finally {
+      setIsDeleting(false);
     }
-  };
-
-  // Convert ValidationDocument to ManagementDocument for the viewer modal
-  const convertToManagementDocument = (doc: ValidationDocument | null) => {
-    if (!doc) return null;
-    return {
-      id: doc.id,
-      code: doc.code,
-      title: doc.title,
-      type: doc.type,
-      department: doc.department,
-      distributedDate: doc.submissionDate,
-      expiredDate: doc.submissionDate,
-      status: doc.status,
-      pdfUrl: doc.pdfUrl,
-    };
   };
 
   return (
@@ -232,7 +293,7 @@ export default function DocumentValidationPage() {
               documents={documents}
               isLoading={isLoading}
               onViewDocument={handleViewDocument}
-              onApproveDocument={handleApproveDocument}
+              onDownloadDocument={handleDownloadDocument}
               onEditDocument={handleEditDocument}
               onDeleteDocument={handleDeleteDocument}
             />
@@ -250,22 +311,40 @@ export default function DocumentValidationPage() {
         </div>
       </div>
 
-      {/* Document Viewer Modal */}
-      <DocumentViewerModal
-        open={viewerModalOpen}
-        onOpenChange={setViewerModalOpen}
-        document={convertToManagementDocument(selectedDocument)}
-        onApprove={handleApproveFromViewer}
-        onReject={handleRejectFromViewer}
-        isAdmin={true}
+      {/* View Document Modal */}
+      <ValidationViewModal
+        isOpen={viewModalOpen}
+        onClose={() => {
+          setViewModalOpen(false);
+          setSelectedDocument(null);
+        }}
+        documentId={selectedDocument?.id || null}
       />
 
-      {/* Reject Reason Modal */}
-      <RejectReasonModal
-        open={rejectModalOpen}
-        onOpenChange={setRejectModalOpen}
-        document={convertToManagementDocument(selectedDocument)}
-        onSubmit={handleRejectSubmit}
+      {/* Category Selection Modal (Edit) */}
+      <CategorySelectionModal
+        isOpen={categoryModalOpen}
+        onClose={() => {
+          setCategoryModalOpen(false);
+          setSelectedDocument(null);
+        }}
+        onSubmit={handleFinalizeDocument}
+        documentId={selectedDocument?.id || null}
+        documentTitle={selectedDocument?.title}
+        isLoading={isFinalizing}
+      />
+
+      {/* Delete Document Modal */}
+      <DeleteDocumentModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setSelectedDocument(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        documentTitle={selectedDocument?.title}
+        documentCode={selectedDocument?.code}
       />
     </div>
   );

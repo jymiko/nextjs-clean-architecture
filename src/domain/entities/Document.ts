@@ -65,6 +65,12 @@ export enum RequestStatus {
   ON_HOLD = 'ON_HOLD',
 }
 
+// Validated category enum for document finalization
+export enum ValidatedCategory {
+  MANAGEMENT = 'MANAGEMENT',   // Document Management
+  DISTRIBUTED = 'DISTRIBUTED', // Distributed Document
+}
+
 export interface Document {
   id: string;
   documentNumber: string;
@@ -115,6 +121,18 @@ export interface Document {
   acknowledgerPosition?: string | null;
   // Revision tracking
   revisionCycle: number;
+  // Document validation fields (admin finalization)
+  validatedCategory?: ValidatedCategory | null;
+  companyStamp?: string | null;
+  finalPdfUrl?: string | null;
+  validatedAt?: Date | null;
+  validatedById?: string | null;
+  validatedBy?: {
+    id: string;
+    name: string;
+    email: string;
+    employeeId?: string | null;
+  } | null;
   createdById: string;
   createdBy: {
     id: string;
@@ -444,4 +462,10 @@ export interface ConfirmApprovalDTO {
 export interface ValidateDocumentDTO {
   action: 'APPROVE' | 'REJECT';
   comments?: string;
+}
+
+// DTO for finalizing document with category and stamp
+export interface FinalizeDocumentDTO {
+  category: ValidatedCategory;
+  companyStamp: string; // Base64 encoded image
 }
