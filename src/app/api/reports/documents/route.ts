@@ -104,15 +104,18 @@ export async function GET(request: NextRequest) {
       where.categoryId = categoryId;
     }
 
-    // Status filter
+    // Status filter - Report only shows finalized documents (APPROVED/ACTIVE) not workflow documents
     if (status === 'active') {
       where.isObsolete = false;
-      where.status = { in: ['ACTIVE', 'APPROVED', 'IN_REVIEW'] };
+      where.status = { in: ['ACTIVE', 'APPROVED'] }; // Removed IN_REVIEW - not finalized yet
     } else if (status === 'obsolete') {
       where.OR = [
         { isObsolete: true },
         { status: 'OBSOLETE' },
       ];
+    } else {
+      // Default 'all' - only show finalized documents (not drafts, not in-review, etc.)
+      where.status = { in: ['ACTIVE', 'APPROVED', 'OBSOLETE'] };
     }
 
     // Department filter (via owner's department)
@@ -178,16 +181,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch statistics (with same filters but counting all statuses)
+    // Fetch statistics (only finalized documents - APPROVED, ACTIVE, OBSOLETE)
     const [totalCount, activeCount, obsoleteCount] = await Promise.all([
-      prisma.document.count({ where: statsWhere }),
+      // Total: only finalized documents (APPROVED, ACTIVE, OBSOLETE)
+      prisma.document.count({
+        where: {
+          ...statsWhere,
+          status: { in: ['ACTIVE', 'APPROVED', 'OBSOLETE'] },
+        },
+      }),
+      // Active: finalized and not obsolete
       prisma.document.count({
         where: {
           ...statsWhere,
           isObsolete: false,
-          status: { in: ['ACTIVE', 'APPROVED', 'IN_REVIEW'] },
+          status: { in: ['ACTIVE', 'APPROVED'] },
         },
       }),
+      // Obsolete
       prisma.document.count({
         where: {
           ...statsWhere,
@@ -210,8 +221,11 @@ export async function GET(request: NextRequest) {
       typeId: doc.category.id,
       status: doc.isObsolete || doc.status === 'OBSOLETE' ? 'obsolete' : 'active',
       date: formatDate(doc.createdAt),
-      fileUrl: doc.fileUrl,
-      fileName: doc.fileName,
+      // Use finalPdfUrl (PDF with signatures/stamps) if available, fallback to fileUrl
+      fileUrl: doc.finalPdfUrl || doc.fileUrl,
+      fileName: doc.finalPdfUrl
+        ? `${doc.documentNumber}_final.pdf`
+        : doc.fileName,
       fileSize: doc.fileSize,
       mimeType: doc.mimeType,
       owner: {
