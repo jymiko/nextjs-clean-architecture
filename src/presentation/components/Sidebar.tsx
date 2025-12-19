@@ -65,8 +65,8 @@ export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarP
         <div className="flex flex-col h-full">
           {/* Logo & Title */}
           <div className="p-5 border-b border-[#f7fafb]">
-            <div className="flex items-center gap-2.5">
-              <div className="relative w-[43px] h-[31px]">
+            <div className="flex items-center gap-3">
+              <div className="relative w-[60px] h-[44px]">
                 <Image
                   src="/assets/cbc954a6519ff310baa5cbff4ac5fc4ac8ac03d0.png"
                   alt="Gacoan Logo"
@@ -75,8 +75,8 @@ export function Sidebar({ isOpen, onClose, defaultExpandedItems = [] }: SidebarP
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-[#243644] text-[13px] font-semibold">DCMS</span>
-                <span className="text-[#738193] text-[10px] font-medium">Mie Gacoan</span>
+                <span className="text-[#243644] text-[18px] font-semibold">DCMS</span>
+                <span className="text-[#738193] text-[14px] font-medium">Mie Gacoan</span>
               </div>
             </div>
           </div>

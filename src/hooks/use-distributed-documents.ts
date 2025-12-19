@@ -59,7 +59,7 @@ export function useDistributedDocuments(params: UseDistributedDocumentsParams = 
     page = 1,
     limit = 10,
     filters = {},
-    sortBy = 'createdAt',
+    sortBy = 'distributedAt',
     sortOrder = 'desc',
   } = params;
 

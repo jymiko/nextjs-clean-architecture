@@ -59,7 +59,7 @@ export const GET = withAuthHandler(
         departmentId: searchParams.get("departmentId") || undefined,
         categoryId: searchParams.get("categoryId") || undefined,
         status: searchParams.get("status") || "all",
-        sortBy: searchParams.get("sortBy") || "createdAt",
+        sortBy: searchParams.get("sortBy") || "distributedAt",
         sortOrder: searchParams.get("sortOrder") || "desc",
       };
 
