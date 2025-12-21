@@ -27,6 +27,15 @@ async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null
     );
 
     if (existingFcmSw) {
+      console.log('[usePushNotifications] Existing FCM service worker found:', existingFcmSw.active?.scriptURL);
+
+      // Check for multiple service workers
+      const allServiceWorkers = existingRegistrations.filter(reg => reg.active);
+      if (allServiceWorkers.length > 1) {
+        console.warn('[usePushNotifications] WARNING: Multiple service workers detected:', allServiceWorkers.length);
+        console.warn('[usePushNotifications] This may cause duplicate notifications.');
+      }
+
       return existingFcmSw;
     }
 
@@ -158,7 +167,11 @@ export function usePushNotifications(): UsePushNotificationsResult {
             new Notification(payload.notification.title || 'New Notification', {
               body: payload.notification.body,
               icon: '/icon-192x192.png',
+              tag: payload.data?.notificationId || 'foreground-default',
+              requireInteraction: payload.data?.priority === 'HIGH' || payload.data?.priority === 'URGENT',
+              data: payload.data || {},
             });
+            console.log('[usePushNotifications] Foreground notification shown, notificationId:', payload.data?.notificationId);
           }
         });
 

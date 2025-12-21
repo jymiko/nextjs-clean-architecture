@@ -23,9 +23,14 @@ firebase.initializeApp(${JSON.stringify(firebaseConfig, null, 2)});
 
 const messaging = firebase.messaging();
 
+// Service Worker Version Tracking
+const SW_VERSION = '1.0.1';
+console.log('[firebase-messaging-sw.js] Service Worker version:', SW_VERSION);
+
 // Handle background messages
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message:', payload);
+  console.log('[firebase-messaging-sw.js] Handler: onBackgroundMessage, notificationId:', payload.data?.notificationId);
 
   const notificationTitle = payload.notification?.title || 'New Notification';
   const notificationOptions = {
@@ -86,6 +91,7 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       const data = event.data.json();
+      console.log('[firebase-messaging-sw.js] Handler: push event, notificationId:', data.data?.notificationId);
       const notification = data.notification || {};
 
       const notificationTitle = notification.title || 'New Notification';
@@ -94,6 +100,8 @@ self.addEventListener('push', (event) => {
         icon: '/icon-192x192.png',
         badge: '/badge-72x72.png',
         data: data.data || {},
+        tag: data.data?.notificationId || 'default', // ADDED: Deduplication
+        requireInteraction: data.data?.priority === 'HIGH' || data.data?.priority === 'URGENT', // ADDED
       };
 
       event.waitUntil(

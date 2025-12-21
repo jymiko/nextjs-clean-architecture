@@ -19,7 +19,7 @@ import {
 } from '@/domain/entities/DocumentCategory';
 
 // Status values matching Zod validation schema
-export type DocumentSearchStatus = 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'ACTIVE' | 'REVISION_REQUIRED' | 'OBSOLETE' | 'ARCHIVED';
+export type DocumentSearchStatus = 'DRAFT' | 'IN_REVIEW' | 'ON_APPROVAL' | 'PENDING_ACKNOWLEDGED' | 'ON_REVISION' | 'WAITING_VALIDATION' | 'APPROVED' | 'ACTIVE' | 'REVISION_REQUIRED' | 'OBSOLETE' | 'ARCHIVED';
 
 export interface DocumentSearchFilters {
   categoryId?: string;

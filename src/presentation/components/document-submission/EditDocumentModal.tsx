@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -136,13 +136,18 @@ export function EditDocumentModal({
   documentId,
   isLoading,
 }: EditDocumentModalProps) {
-  const { user: currentUser } = useCurrentUser();
+  const { user: currentUser, refetch: refetchCurrentUser } = useCurrentUser();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<DocumentFormData>(initialFormData);
+  const [originalFormData, setOriginalFormData] = useState<DocumentFormData>(initialFormData);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isLoadingDocument, setIsLoadingDocument] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const fetchRetryCountRef = useRef(0);
+  const hasFetchedUserRef = useRef(false);
+  const hasFetchedDocumentRef = useRef(false);
+  const documentFetchRetryCountRef = useRef(0);
 
   // Data for dropdowns
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -173,7 +178,35 @@ export function EditDocumentModal({
   // Fetch document data when documentId changes
   useEffect(() => {
     if (isOpen && documentId) {
-      fetchDocument();
+      // Rate limit document fetch (max 3 attempts)
+      if (!hasFetchedDocumentRef.current && documentFetchRetryCountRef.current < 3) {
+        hasFetchedDocumentRef.current = true;
+        documentFetchRetryCountRef.current += 1;
+
+        fetchDocument().catch((error) => {
+          console.error('Failed to fetch document:', error);
+          // Reset flag if failed, allowing retry on next modal open (up to max retries)
+          hasFetchedDocumentRef.current = false;
+        });
+      }
+
+      // Refresh user data with rate limiting (max 3 attempts)
+      if (!hasFetchedUserRef.current && fetchRetryCountRef.current < 3) {
+        hasFetchedUserRef.current = true;
+        fetchRetryCountRef.current += 1;
+
+        refetchCurrentUser().catch((error) => {
+          console.error('Failed to refetch user data:', error);
+          // Reset flag if failed, allowing retry on next modal open (up to max retries)
+          hasFetchedUserRef.current = false;
+        });
+      }
+    } else if (!isOpen) {
+      // Reset flags when modal closes
+      hasFetchedUserRef.current = false;
+      fetchRetryCountRef.current = 0;
+      hasFetchedDocumentRef.current = false;
+      documentFetchRetryCountRef.current = 0;
     }
   }, [isOpen, documentId]);
 
@@ -212,7 +245,7 @@ export function EditDocumentModal({
       const acknowledgedIds = approvals.filter((a) => a.level === 3).map((a) => a.approverId);
 
       // Map document data to form data
-      setFormData({
+      const loadedFormData = {
         departmentId: doc.createdBy?.departmentId || "",
         departmentName: doc.createdBy?.department?.name || "",
         documentTypeId: doc.categoryId || "",
@@ -232,8 +265,14 @@ export function EditDocumentModal({
         warning: doc.warning || "",
         relatedDocuments: doc.relatedDocumentsText || "",
         procedureContent: doc.procedureContent || "",
-        signature: doc.createdBy?.signature || "",
-      });
+        // PRIORITY: Use current user's latest signature from profile first
+        // This ensures user always uses their most up-to-date signature
+        signature: currentUser?.signature || doc.preparedBySignature || doc.preparedBy?.signature || "",
+      };
+
+      setFormData(loadedFormData);
+      // Store original data for change detection
+      setOriginalFormData(loadedFormData);
     } catch (err) {
       console.error("Failed to fetch document:", err);
       setError(err instanceof Error ? err.message : "Failed to load document");
@@ -313,6 +352,36 @@ export function EditDocumentModal({
       default:
         return true;
     }
+  };
+
+  // Fungsi untuk mengecek apakah ada perubahan dari data original
+  const hasFormChanges = (): boolean => {
+    // Helper function to compare arrays
+    const arraysEqual = (arr1: string[], arr2: string[]) => {
+      if (arr1.length !== arr2.length) return false;
+      const sorted1 = [...arr1].sort();
+      const sorted2 = [...arr2].sort();
+      return sorted1.every((val, idx) => val === sorted2[idx]);
+    };
+
+    // Compare all fields
+    return (
+      formData.documentTypeId !== originalFormData.documentTypeId ||
+      formData.documentTitle !== originalFormData.documentTitle ||
+      formData.destinationDepartmentId !== originalFormData.destinationDepartmentId ||
+      formData.estimatedDistributionDate !== originalFormData.estimatedDistributionDate ||
+      formData.purpose !== originalFormData.purpose ||
+      formData.scope !== originalFormData.scope ||
+      !arraysEqual(formData.reviewerIds || [], originalFormData.reviewerIds || []) ||
+      !arraysEqual(formData.approverIds || [], originalFormData.approverIds || []) ||
+      !arraysEqual(formData.acknowledgedIds || [], originalFormData.acknowledgedIds || []) ||
+      formData.responsibleDocument !== originalFormData.responsibleDocument ||
+      formData.termsAndAbbreviations !== originalFormData.termsAndAbbreviations ||
+      formData.warning !== originalFormData.warning ||
+      formData.relatedDocuments !== originalFormData.relatedDocuments ||
+      formData.procedureContent !== originalFormData.procedureContent ||
+      formData.signature !== originalFormData.signature
+    );
   };
 
   const handleNext = () => {
@@ -398,10 +467,30 @@ export function EditDocumentModal({
 
       setIsSubmittingDocument(true);
       try {
-        await apiClient.put(`/api/documents/${documentId}`, {
-          ...formData,
+        // Map form data to API request format
+        const updatePayload = {
+          title: formData.documentTitle,
+          description: formData.purpose,
+          categoryId: formData.documentTypeId,
+          destinationDepartmentId: formData.destinationDepartmentId,
+          estimatedDistributionDate: formData.estimatedDistributionDate,
+          scope: formData.scope,
+          responsibleDocument: formData.responsibleDocument,
+          termsAndAbbreviations: formData.termsAndAbbreviations,
+          warning: formData.warning,
+          relatedDocumentsText: formData.relatedDocuments,
+          procedureContent: formData.procedureContent,
+          preparedBySignature: formData.signature,
+          reviewerIds: formData.reviewerIds,
+          approverIds: formData.approverIds,
+          acknowledgedIds: formData.acknowledgedIds,
           status,
-        });
+        };
+
+        await apiClient.put(`/api/documents/${documentId}`, updatePayload);
+
+        // Call onSubmit callback to refresh parent component data
+        onSubmit(formData, status);
 
         // Show success modal based on status
         if (status === "DRAFT") {
@@ -954,7 +1043,7 @@ export function EditDocumentModal({
   return (
     <>
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className={`w-[95vw] max-h-[90vh] overflow-y-auto ${currentStep === 4 ? 'sm:max-w-[90vw] lg:max-w-[1200px]' : 'sm:max-w-[900px]'}`}>
+      <DialogContent className="max-w-[90vw] w-[90vw] h-[95vh] max-h-[95vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#384654]">
             <Pencil className="h-5 w-5 text-[#4DB1D4]" />
@@ -963,7 +1052,7 @@ export function EditDocumentModal({
         </DialogHeader>
 
         {/* Step Wizard */}
-        <div className="border border-[#E1E2E3] rounded-lg p-5 mb-4">
+        <div className="border border-[#E1E2E3] rounded-lg p-5 mb-4 flex-shrink-0">
           <StepWizardCompact
             steps={formSteps}
             currentStep={currentStep}
@@ -982,7 +1071,7 @@ export function EditDocumentModal({
         </div>
 
         {/* Form Content */}
-        <div className={`py-4 ${currentStep === 4 ? 'flex flex-col' : 'max-h-[50vh] overflow-y-auto'}`}>
+        <div className={`py-4 flex-1 overflow-y-auto ${currentStep === 4 ? 'flex flex-col' : ''}`}>
           {renderStepContent()}
         </div>
 
@@ -1015,7 +1104,7 @@ export function EditDocumentModal({
                   </Button>
                   <Button
                     onClick={handleGeneratePdf}
-                    disabled={isGeneratingPdf || !formData.signature}
+                    disabled={isGeneratingPdf || !formData.signature || !hasFormChanges()}
                     className="bg-[#4DB1D4] hover:bg-[#3da0bf] text-white"
                   >
                     {isGeneratingPdf ? "Generating..." : "Generate"}
@@ -1033,8 +1122,8 @@ export function EditDocumentModal({
                   </Button>
                   <Button
                     onClick={handleNext}
-                    disabled={!isStepValid(currentStep)}
-                    className={`bg-[#4DB1D4] hover:bg-[#3da0bf] text-white ${!isStepValid(currentStep) ? "opacity-50 cursor-not-allowed" : ""}`}
+                    disabled={!isStepValid(currentStep) || !hasFormChanges()}
+                    className={`bg-[#4DB1D4] hover:bg-[#3da0bf] text-white ${(!isStepValid(currentStep) || !hasFormChanges()) ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     Next
                   </Button>

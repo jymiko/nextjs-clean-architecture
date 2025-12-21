@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -158,11 +158,13 @@ export function AddDocumentModal({
   onSubmitSuccess,
   isLoading,
 }: AddDocumentModalProps) {
-  const { user: currentUser } = useCurrentUser();
+  const { user: currentUser, refetch: refetchCurrentUser } = useCurrentUser();
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<DocumentFormData>(initialFormData);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const fetchRetryCountRef = useRef(0);
+  const hasFetchedUserRef = useRef(false);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -194,6 +196,21 @@ export function AddDocumentModal({
   useEffect(() => {
     if (isOpen) {
       fetchData();
+
+      // Refresh user data with rate limiting (max 3 attempts)
+      if (!hasFetchedUserRef.current && fetchRetryCountRef.current < 3) {
+        hasFetchedUserRef.current = true;
+        fetchRetryCountRef.current += 1;
+
+        refetchCurrentUser().catch((error) => {
+          console.error('Failed to refetch user data:', error);
+          hasFetchedUserRef.current = false;
+        });
+      }
+    } else if (!isOpen) {
+      // Reset flags when modal closes
+      hasFetchedUserRef.current = false;
+      fetchRetryCountRef.current = 0;
     }
   }, [isOpen]);
 

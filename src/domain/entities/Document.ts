@@ -342,6 +342,18 @@ export interface UpdateDocumentDTO {
   obsoleteReason?: string | null;
   obsoleteDate?: Date | null;
   ownerId?: string;
+  preparedBySignature?: string | null;
+  scope?: string | null;
+  responsibleDocument?: string | null;
+  termsAndAbbreviations?: string | null;
+  warning?: string | null;
+  relatedDocumentsText?: string | null;
+  procedureContent?: string | null;
+  destinationDepartmentId?: string | null;
+  estimatedDistributionDate?: string | null;
+  reviewerIds?: string[];
+  approverIds?: string[];
+  acknowledgedIds?: string[];
 }
 
 export interface DocumentListResponse {
@@ -363,7 +375,7 @@ export interface DocumentQueryParams {
   createdById?: string;
   tags?: string[];
   isObsolete?: boolean;
-  sortBy?: 'title' | 'documentNumber' | 'createdAt' | 'updatedAt' | 'effectiveDate' | 'expiryDate';
+  sortBy?: 'title' | 'documentNumber' | 'createdAt' | 'updatedAt' | 'effectiveDate' | 'expiryDate' | 'obsoleteDate';
   sortOrder?: 'asc' | 'desc';
 }
 

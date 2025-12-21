@@ -261,43 +261,131 @@ export class PrismaDocumentRepository implements IDocumentRepository {
     } as Document;
   }
 
-  async update(id: string, data: UpdateDocumentDTO): Promise<Document | null> {
+  async update(id: string, data: UpdateDocumentDTO & { reviewerIds?: string[]; approverIds?: string[]; acknowledgedIds?: string[] }): Promise<Document | null> {
     const existingDocument = await this.findById(id);
     if (!existingDocument) {
       throw new NotFoundError('Document not found');
     }
 
-    const document = await prisma.document.update({
-      where: { id },
-      data: {
-        title: data.title,
-        description: data.description,
-        categoryId: data.categoryId,
-        version: data.version,
-        status: data.status,
-        fileUrl: data.fileUrl,
-        fileName: data.fileName,
-        fileSize: data.fileSize,
-        mimeType: data.mimeType,
-        tags: data.tags,
-        expiryDate: data.expiryDate,
-        effectiveDate: data.effectiveDate,
-        isObsolete: data.isObsolete,
-        obsoleteReason: data.obsoleteReason,
-        obsoleteDate: data.obsoleteDate,
-        ownerId: data.ownerId,
-      },
-      include: {
-        category: {
-          select: { id: true, name: true, code: true, prefix: true },
+    // Use transaction to update document and approvals atomically
+    const document = await prisma.$transaction(async (tx) => {
+      // Update document fields
+      const updatedDoc = await tx.document.update({
+        where: { id },
+        data: {
+          title: data.title,
+          description: data.description,
+          categoryId: data.categoryId,
+          version: data.version,
+          status: data.status,
+          fileUrl: data.fileUrl,
+          fileName: data.fileName,
+          fileSize: data.fileSize,
+          mimeType: data.mimeType,
+          tags: data.tags,
+          expiryDate: data.expiryDate,
+          effectiveDate: data.effectiveDate,
+          isObsolete: data.isObsolete,
+          obsoleteReason: data.obsoleteReason,
+          obsoleteDate: data.obsoleteDate,
+          ownerId: data.ownerId,
+          preparedBySignature: data.preparedBySignature,
+          scope: data.scope,
+          responsibleDocument: data.responsibleDocument,
+          termsAndAbbreviations: data.termsAndAbbreviations,
+          warning: data.warning,
+          relatedDocumentsText: data.relatedDocumentsText,
+          procedureContent: data.procedureContent,
+          destinationDepartmentId: data.destinationDepartmentId,
+          estimatedDistributionDate: data.estimatedDistributionDate ? new Date(data.estimatedDistributionDate) : undefined,
         },
-        createdBy: {
-          select: { id: true, name: true, email: true, employeeId: true, avatar: true },
+        include: {
+          category: {
+            select: { id: true, name: true, code: true, prefix: true },
+          },
+          createdBy: {
+            select: { id: true, name: true, email: true, employeeId: true, avatar: true },
+          },
+          owner: {
+            select: { id: true, name: true, email: true, employeeId: true, avatar: true },
+          },
         },
-        owner: {
-          select: { id: true, name: true, email: true, employeeId: true, avatar: true },
-        },
-      },
+      });
+
+      // Update approvals if any approver IDs are provided
+      if (data.reviewerIds || data.approverIds || data.acknowledgedIds) {
+        // Delete existing approvals
+        await tx.documentApproval.deleteMany({
+          where: { documentId: id },
+        });
+
+        // Create new approvals
+        const approvalPromises: Promise<unknown>[] = [];
+
+        // Create reviewers (level 1)
+        if (data.reviewerIds && data.reviewerIds.length > 0) {
+          data.reviewerIds.forEach((reviewerId) => {
+            approvalPromises.push(
+              tx.documentApproval.create({
+                data: {
+                  documentId: id,
+                  approverId: reviewerId,
+                  level: 1,
+                  status: ApprovalStatus.PENDING,
+                  revisionCycle: existingDocument.revisionCycle,
+                  requestedAt: new Date(),
+                  reminderSent: false,
+                  isDeleted: false,
+                },
+              })
+            );
+          });
+        }
+
+        // Create approvers (level 2)
+        if (data.approverIds && data.approverIds.length > 0) {
+          data.approverIds.forEach((approverId) => {
+            approvalPromises.push(
+              tx.documentApproval.create({
+                data: {
+                  documentId: id,
+                  approverId: approverId,
+                  level: 2,
+                  status: ApprovalStatus.PENDING,
+                  revisionCycle: existingDocument.revisionCycle,
+                  requestedAt: new Date(),
+                  reminderSent: false,
+                  isDeleted: false,
+                },
+              })
+            );
+          });
+        }
+
+        // Create acknowledgers (level 3)
+        if (data.acknowledgedIds && data.acknowledgedIds.length > 0) {
+          data.acknowledgedIds.forEach((acknowledgedId) => {
+            approvalPromises.push(
+              tx.documentApproval.create({
+                data: {
+                  documentId: id,
+                  approverId: acknowledgedId,
+                  level: 3,
+                  status: ApprovalStatus.PENDING,
+                  revisionCycle: existingDocument.revisionCycle,
+                  requestedAt: new Date(),
+                  reminderSent: false,
+                  isDeleted: false,
+                },
+              })
+            );
+          });
+        }
+
+        await Promise.all(approvalPromises);
+      }
+
+      return updatedDoc;
     });
 
     return {

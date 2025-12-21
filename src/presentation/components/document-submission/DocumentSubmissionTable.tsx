@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Eye, FileEdit, Trash2, Check, X } from "lucide-react";
+import { Eye, FileEdit, Check, X } from "lucide-react";
 import { DocumentStatusBadge, DocumentStatus } from "../reports/DocumentStatusBadge";
 
 export interface SubmissionDocument {
@@ -49,7 +49,11 @@ export function DocumentSubmissionTable({
 }: DocumentSubmissionTableProps) {
   const showApproverColumn = userRole === "user";
   const showApprovalActions = userRole === "reviewer" || userRole === "approval" || userRole === "admin";
-  const showEditDelete = userRole === "user";
+
+  // Helper function to determine if edit button should be shown
+  const canEditDocument = (status: DocumentStatus) => {
+    return userRole === "user" && (status === "on_revision" || status === "expiring_soon");
+  };
 
   if (isLoading) {
     return (
@@ -162,27 +166,16 @@ export function DocumentSubmissionTable({
                     >
                       <Eye className="h-5 w-5 text-[#384654]" />
                     </Button>
-                    {showEditDelete && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-11 w-11 p-0 border-[#e1e2e3]"
-                          onClick={() => onEditDocument?.(doc)}
-                          title="Edit Document"
-                        >
-                          <FileEdit className="h-5 w-5 text-[#4DB1D4]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-11 w-11 p-0 border-[#e1e2e3]"
-                          onClick={() => onDeleteDocument?.(doc)}
-                          title="Delete Document"
-                        >
-                          <Trash2 className="h-5 w-5 text-[#F24822]" />
-                        </Button>
-                      </>
+                    {canEditDocument(doc.status) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-11 w-11 p-0 border-[#e1e2e3]"
+                        onClick={() => onEditDocument?.(doc)}
+                        title="Edit Document"
+                      >
+                        <FileEdit className="h-5 w-5 text-[#4DB1D4]" />
+                      </Button>
                     )}
                     {showApprovalActions && (
                       <>
@@ -270,25 +263,15 @@ export function DocumentSubmissionTable({
                     >
                       <Eye className="h-4 w-4 text-[#384654]" />
                     </Button>
-                    {showEditDelete && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 p-0 border-[#e1e2e3]"
-                          onClick={() => onEditDocument?.(doc)}
-                        >
-                          <FileEdit className="h-4 w-4 text-[#4DB1D4]" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 p-0 border-[#e1e2e3]"
-                          onClick={() => onDeleteDocument?.(doc)}
-                        >
-                          <Trash2 className="h-4 w-4 text-[#F24822]" />
-                        </Button>
-                      </>
+                    {canEditDocument(doc.status) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 w-9 p-0 border-[#e1e2e3]"
+                        onClick={() => onEditDocument?.(doc)}
+                      >
+                        <FileEdit className="h-4 w-4 text-[#4DB1D4]" />
+                      </Button>
                     )}
                     {showApprovalActions && (
                       <>
@@ -363,27 +346,16 @@ export function DocumentSubmissionTable({
                   <Eye className="h-4 w-4 mr-2" />
                   View
                 </Button>
-                {showEditDelete && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 flex-1 border-[#e1e2e3] text-[#4DB1D4]"
-                      onClick={() => onEditDocument?.(doc)}
-                    >
-                      <FileEdit className="h-4 w-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-9 flex-1 border-[#e1e2e3] text-[#F24822]"
-                      onClick={() => onDeleteDocument?.(doc)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
-                  </>
+                {canEditDocument(doc.status) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 flex-1 border-[#e1e2e3] text-[#4DB1D4]"
+                    onClick={() => onEditDocument?.(doc)}
+                  >
+                    <FileEdit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
                 )}
                 {showApprovalActions && (
                   <>

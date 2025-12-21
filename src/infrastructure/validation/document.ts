@@ -60,8 +60,8 @@ export const updateDocumentSchema = z.object({
     .regex(/^\d+\.\d+(\.\d+)?$/, 'Version must be in format x.y or x.y.z')
     .optional(),
   status: z.enum([
-    'DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE',
-    'REVISION_REQUIRED', 'OBSOLETE', 'ARCHIVED'
+    'DRAFT', 'IN_REVIEW', 'ON_APPROVAL', 'PENDING_ACKNOWLEDGED', 'ON_REVISION',
+    'WAITING_VALIDATION', 'APPROVED', 'ACTIVE', 'REVISION_REQUIRED', 'OBSOLETE', 'ARCHIVED'
   ]).optional(),
   fileUrl: z.string()
     .url('Invalid file URL')
@@ -101,6 +101,40 @@ export const updateDocumentSchema = z.object({
   ownerId: z.string()
     .cuid('Invalid owner ID')
     .optional(),
+  preparedBySignature: z.string()
+    .nullable()
+    .optional(),
+  scope: z.string()
+    .nullable()
+    .optional(),
+  responsibleDocument: z.string()
+    .nullable()
+    .optional(),
+  termsAndAbbreviations: z.string()
+    .nullable()
+    .optional(),
+  warning: z.string()
+    .nullable()
+    .optional(),
+  relatedDocumentsText: z.string()
+    .nullable()
+    .optional(),
+  procedureContent: z.string()
+    .nullable()
+    .optional(),
+  destinationDepartmentId: z.string()
+    .cuid('Invalid department ID')
+    .nullable()
+    .optional(),
+  estimatedDistributionDate: z.string()
+    .nullable()
+    .optional(),
+  reviewerIds: z.array(z.string().cuid('Invalid reviewer ID'))
+    .optional(),
+  approverIds: z.array(z.string().cuid('Invalid approver ID'))
+    .optional(),
+  acknowledgedIds: z.array(z.string().cuid('Invalid acknowledged ID'))
+    .optional(),
 }).refine(data => {
   if (data.expiryDate && data.effectiveDate && data.expiryDate !== null && data.effectiveDate !== null) {
     return data.expiryDate > data.effectiveDate;
@@ -128,8 +162,8 @@ export const documentQuerySchema = z.object({
   search: z.string().max(255, 'Search term must not exceed 255 characters').optional(),
   categoryId: z.string().cuid('Invalid category ID').optional(),
   status: z.enum([
-    'DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE',
-    'REVISION_REQUIRED', 'OBSOLETE', 'ARCHIVED'
+    'DRAFT', 'IN_REVIEW', 'ON_APPROVAL', 'PENDING_ACKNOWLEDGED', 'ON_REVISION',
+    'WAITING_VALIDATION', 'APPROVED', 'ACTIVE', 'REVISION_REQUIRED', 'OBSOLETE', 'ARCHIVED'
   ]).optional(),
   approvalStatus: z.enum([
     'PENDING', 'IN_PROGRESS', 'APPROVED', 'REJECTED', 'NEEDS_REVISION'
@@ -140,7 +174,7 @@ export const documentQuerySchema = z.object({
   isObsolete: z.enum(['true', 'false']).transform(val => val === 'true').optional(),
   sortBy: z.enum([
     'title', 'documentNumber', 'createdAt', 'updatedAt',
-    'effectiveDate', 'expiryDate'
+    'effectiveDate', 'expiryDate', 'obsoleteDate'
   ]).default('createdAt'),
   sortOrder: z.enum(['asc', 'desc']).default('desc'),
 });
@@ -300,8 +334,8 @@ export const documentSearchSchema = z.object({
   filters: z.object({
     categoryId: z.string().cuid('Invalid category ID').optional(),
     status: z.enum([
-      'DRAFT', 'IN_REVIEW', 'APPROVED', 'ACTIVE',
-      'REVISION_REQUIRED', 'OBSOLETE', 'ARCHIVED'
+      'DRAFT', 'IN_REVIEW', 'ON_APPROVAL', 'PENDING_ACKNOWLEDGED', 'ON_REVISION',
+      'WAITING_VALIDATION', 'APPROVED', 'ACTIVE', 'REVISION_REQUIRED', 'OBSOLETE', 'ARCHIVED'
     ]).optional(),
     dateRange: z.object({
       from: z.coerce.date().optional(),

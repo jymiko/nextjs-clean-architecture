@@ -7,6 +7,8 @@ import { createRateLimitMiddleware } from "@/infrastructure/middleware";
 import { withAuthHandler } from "@/infrastructure/middleware/auth";
 import { DocumentStatus, DocumentApproval, Document } from "@/domain/entities/Document";
 import { prisma } from "@/infrastructure/database";
+import { NotificationType, Priority } from "@prisma/client";
+import { getMessageKeyByLevel } from "@/infrastructure/services/NotificationService";
 
 const rateLimiter = createRateLimitMiddleware();
 
@@ -197,6 +199,80 @@ export async function GET(
   }
 }
 
+/**
+ * Kirim notifikasi ke pending approvers berdasarkan status dokumen
+ */
+async function notifyApproversForStatus(
+  documentId: string,
+  newStatus: DocumentStatus,
+  documentTitle: string,
+  requesterName: string
+) {
+  try {
+    const notificationService = container.cradle.notificationService;
+
+    // Tentukan level dan message key berdasarkan status
+    let targetLevel: number | null = null;
+    let messageKey: 'REVIEW_REQUIRED' | 'APPROVAL_REQUIRED' | 'ACKNOWLEDGMENT_REQUIRED' | null = null;
+
+    if (newStatus === 'IN_REVIEW') {
+      targetLevel = 1;
+      messageKey = 'REVIEW_REQUIRED';
+    } else if (newStatus === 'ON_APPROVAL') {
+      targetLevel = 2;
+      messageKey = 'APPROVAL_REQUIRED';
+    } else if (newStatus === 'PENDING_ACKNOWLEDGED') {
+      targetLevel = 3;
+      messageKey = 'ACKNOWLEDGMENT_REQUIRED';
+    }
+
+    if (targetLevel === null || messageKey === null) {
+      return; // Status lain tidak perlu notifikasi
+    }
+
+    // Cari pending approvers di level target
+    const pendingApprovers = await prisma.documentApproval.findMany({
+      where: {
+        documentId,
+        level: targetLevel,
+        status: 'PENDING',
+        isDeleted: false,
+      },
+      include: {
+        approver: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    // Kirim notifikasi ke setiap pending approver
+    for (const approval of pendingApprovers) {
+      await notificationService.sendLocalizedNotification(
+        approval.approverId,
+        NotificationType.APPROVAL_NEEDED,
+        messageKey,
+        {
+          docTitle: documentTitle,
+          requesterName: requesterName,
+        },
+        `/document-control/approval/${documentId}`,
+        Priority.HIGH
+      );
+
+      console.log(
+        `[DocumentUpdate] Notification sent to ${approval.approver.name} (level ${targetLevel})`
+      );
+    }
+
+    console.log(
+      `[DocumentUpdate] Total ${pendingApprovers.length} approvers notified for status ${newStatus}`
+    );
+  } catch (error) {
+    console.error('[DocumentUpdate] Failed to send notifications:', error);
+    // Don't fail the update if notification fails
+  }
+}
+
 // PUT /api/documents/[id] - Update a specific document
 export const PUT = withAuthHandler(async (
   request: NextRequest,
@@ -243,6 +319,27 @@ export const PUT = withAuthHandler(async (
       return NextResponse.json(
         { error: 'Document not found' },
         { status: 404 }
+      );
+    }
+
+    // Kirim notifikasi jika status berubah
+    if (validatedData.status && validatedData.status !== existingDocument.status) {
+      const oldStatus = existingDocument.status;
+      const newStatus = validatedData.status as DocumentStatus;
+
+      console.log(`[DocumentUpdate] Status changed from ${oldStatus} to ${newStatus}`);
+
+      // Ambil info requester
+      const requester = await prisma.user.findUnique({
+        where: { id: existingDocument.createdById },
+        select: { name: true },
+      });
+
+      await notifyApproversForStatus(
+        id,
+        newStatus,
+        document.title,
+        requester?.name || 'Unknown'
       );
     }
 

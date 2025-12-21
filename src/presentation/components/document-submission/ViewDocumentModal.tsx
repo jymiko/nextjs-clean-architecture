@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -185,11 +185,41 @@ export function ViewDocumentModal({
   const [isRequestingRevision, setIsRequestingRevision] = useState(false);
 
   // Current user
-  const { user: currentUser } = useCurrentUser();
+  const { user: currentUser, refetch: refetchCurrentUser } = useCurrentUser();
+  const fetchRetryCountRef = useRef(0);
+  const hasFetchedUserRef = useRef(false);
+  const hasFetchedDocumentRef = useRef(false);
+  const documentFetchRetryCountRef = useRef(0);
 
   useEffect(() => {
     if (isOpen && documentId) {
-      fetchDocument();
+      // Rate limit document fetch (max 3 attempts)
+      if (!hasFetchedDocumentRef.current && documentFetchRetryCountRef.current < 3) {
+        hasFetchedDocumentRef.current = true;
+        documentFetchRetryCountRef.current += 1;
+
+        fetchDocument().catch((error) => {
+          console.error('Failed to fetch document:', error);
+          hasFetchedDocumentRef.current = false;
+        });
+      }
+
+      // Refresh user data with rate limiting (max 3 attempts)
+      if (!hasFetchedUserRef.current && fetchRetryCountRef.current < 3) {
+        hasFetchedUserRef.current = true;
+        fetchRetryCountRef.current += 1;
+
+        refetchCurrentUser().catch((error) => {
+          console.error('Failed to refetch user data:', error);
+          hasFetchedUserRef.current = false;
+        });
+      }
+    } else if (!isOpen) {
+      // Reset flags when modal closes
+      hasFetchedUserRef.current = false;
+      fetchRetryCountRef.current = 0;
+      hasFetchedDocumentRef.current = false;
+      documentFetchRetryCountRef.current = 0;
     }
   }, [isOpen, documentId]);
 
@@ -288,8 +318,10 @@ export function ViewDocumentModal({
   };
 
   // Handle opening signature modal
-  const handleOpenSignModal = (approvalId: string) => {
+  const handleOpenSignModal = async (approvalId: string) => {
     setSelectedApprovalId(approvalId);
+    // Refresh user data to get latest signature from profile
+    await refetchCurrentUser();
     setSignatureModalOpen(true);
   };
 

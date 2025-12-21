@@ -106,7 +106,7 @@ export function NotificationPrompt({ autoRequest = false }: NotificationPromptPr
   if (!showPrompt || isPushLoading) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm animate-in slide-in-from-bottom-4 fade-in duration-300">
+    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 sm:left-auto sm:right-4 sm:translate-x-0 z-50 w-[calc(100vw-32px)] max-w-sm animate-in slide-in-from-bottom-4 fade-in duration-300">
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4">
         <div className="flex items-start gap-3">
           <div className="size-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
